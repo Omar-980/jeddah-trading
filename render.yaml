@@ -1,0 +1,18 @@
+# One-click deploy config for Render.com
+# In Render: New + → "Blueprint" → connect the repo containing this file.
+services:
+  - type: web
+    name: jeddah-trading
+    runtime: node
+    plan: free            # upgrade to "starter" to keep it always-on (free sleeps when idle)
+    buildCommand: ""       # nothing to build — zero dependencies
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"          # latest Node 22.x — has built-in SQLite with no flag
+      - key: DATA_DIR
+        value: /var/data
+    disk:                  # persistent storage for the database + uploaded images
+      name: jeddah-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -6,7 +6,8 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('node:path');
 const fs = require('node:fs');
 
-const DATA_DIR = path.join(__dirname, 'data');
+// DATA_DIR can be overridden by an env var so a host's persistent volume can be used.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, 'store.db');
 
@@ -33,6 +34,7 @@ CREATE TABLE IF NOT EXISTS products (
   icon TEXT DEFAULT 'grid',
   image TEXT,
   price REAL NOT NULL DEFAULT 0,
+  cost REAL NOT NULL DEFAULT 0,
   stock INTEGER NOT NULL DEFAULT 0,
   is_featured INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
@@ -75,9 +77,48 @@ CREATE TABLE IF NOT EXISTS settings (
 
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
+  user_id INTEGER,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  name TEXT DEFAULT '',
+  pass_hash TEXT NOT NULL,
+  role TEXT DEFAULT 'staff',
+  permissions TEXT DEFAULT '[]',
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS faqs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  q_en TEXT NOT NULL,
+  a_en TEXT NOT NULL,
+  q_ar TEXT DEFAULT '',
+  a_ar TEXT DEFAULT '',
+  sort_order INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  location TEXT DEFAULT '',
+  rating INTEGER DEFAULT 5,
+  text_en TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
   created_at TEXT DEFAULT (datetime('now'))
 );
 `);
+
+/* ---------- Lightweight migrations (for databases created before these columns existed) ---------- */
+function columnExists(table, col) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === col);
+}
+if (!columnExists('products', 'cost')) db.exec('ALTER TABLE products ADD COLUMN cost REAL NOT NULL DEFAULT 0');
+if (!columnExists('sessions', 'user_id')) db.exec('ALTER TABLE sessions ADD COLUMN user_id INTEGER');
 
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
@@ -91,14 +132,72 @@ function setSetting(key, value) {
 const DEFAULT_SETTINGS = {
   whatsapp_number: '2207093900',
   store_name: 'Jeddah Trading',
-  admin_password: 'jeddah2026',          // CHANGE THIS after first login (Settings page)
+  admin_password: 'jeddah2026',          // legacy owner password (used to seed the owner user)
   free_delivery_over: '2500',
   delivery_fee: '150',
+  low_stock_threshold: '5',
+  contact_address_en: 'Bundungka Kunda, Near Jammeh Foundation Hospital, The Gambia',
+  contact_address_ar: 'بوندونغكا كوندا، بالقرب من مستشفى مؤسسة جامع، غامبيا',
+  contact_hours_en: 'Mon – Sat: 9am – 10pm · Sun: 9am – 8pm',
+  contact_hours_ar: 'الاثنين–السبت: ٩ص – ١٠م · الأحد: ٩ص – ٨م',
   announce_en: '🌙 Free delivery in Greater Banjul on orders over D2,500 · Order on WhatsApp anytime',
   announce_ar: '🌙 توصيل مجاني في منطقة بانجول الكبرى للطلبات فوق ٢٬٥٠٠ دلاسي · اطلب عبر واتساب في أي وقت',
 };
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k, null) === null) setSetting(k, v);
+}
+
+/* ---------- Password hashing (scrypt) ---------- */
+const crypto = require('node:crypto');
+function hashPassword(pw) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(String(pw), salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+function verifyPassword(pw, stored) {
+  if (!stored || !stored.includes(':')) return false;
+  const [salt, hash] = stored.split(':');
+  const test = crypto.scryptSync(String(pw), salt, 64).toString('hex');
+  const a = Buffer.from(hash, 'hex'), b = Buffer.from(test, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/* ---------- All permission keys (owner always has every one) ---------- */
+const ALL_PERMS = ['products', 'orders', 'reviews', 'faqs', 'profit', 'users', 'settings'];
+
+/* ---------- Seed the owner user (once) ---------- */
+if (db.prepare('SELECT COUNT(*) c FROM users').get().c === 0) {
+  db.prepare('INSERT INTO users(username,name,pass_hash,role,permissions,is_active) VALUES(?,?,?,?,?,1)')
+    .run('owner', 'Store Owner', hashPassword(getSetting('admin_password', 'jeddah2026')), 'owner', JSON.stringify(ALL_PERMS));
+}
+
+/* ---------- Seed FAQs (once) ---------- */
+const FAQ_SEED = [
+  ['How do I place an order?', 'You can add items to your cart and checkout, or tap "Order on WhatsApp" on any product. We confirm every order on WhatsApp before delivery.',
+   'كيف أقدّم طلباً؟', 'يمكنك إضافة المنتجات إلى السلة وإتمام الطلب، أو الضغط على "اطلب عبر واتساب" على أي منتج. نؤكد كل طلب عبر واتساب قبل التوصيل.'],
+  ['What payment methods do you accept?', 'We accept WAVE, AfriMoney, QMoney, bank transfer, and cash on delivery. You confirm payment details with us on WhatsApp.',
+   'ما طرق الدفع المتاحة؟', 'نقبل WAVE و AfriMoney و QMoney والتحويل البنكي والدفع عند الاستلام. تؤكد تفاصيل الدفع معنا عبر واتساب.'],
+  ['Do you deliver across The Gambia?', 'Yes. Delivery in Greater Banjul is fast and free over D2,500. We also ship to other regions — delivery fees vary by location.',
+   'هل توصلون إلى كل غامبيا؟', 'نعم. التوصيل في بانجول الكبرى سريع ومجاني للطلبات فوق ٢٬٥٠٠ دلاسي. نوصل أيضاً لباقي المناطق برسوم تختلف حسب الموقع.'],
+  ['Are your products authentic?', 'Absolutely. We source genuine, quality products and stand behind everything we sell.',
+   'هل منتجاتكم أصلية؟', 'بالتأكيد. نوفر منتجات أصلية وعالية الجودة ونضمن كل ما نبيعه.'],
+  ['Can I return an item?', "If an item arrives damaged or incorrect, contact us within 48 hours on WhatsApp and we'll make it right.",
+   'هل يمكنني إرجاع منتج؟', 'إذا وصل المنتج تالفاً أو خاطئاً، تواصل معنا خلال ٤٨ ساعة عبر واتساب وسنصلح الأمر.'],
+];
+if (db.prepare('SELECT COUNT(*) c FROM faqs').get().c === 0) {
+  const ins = db.prepare('INSERT INTO faqs(q_en,a_en,q_ar,a_ar,sort_order) VALUES(?,?,?,?,?)');
+  FAQ_SEED.forEach((f, i) => ins.run(f[0], f[1], f[2], f[3], i));
+}
+
+/* ---------- Seed a few approved reviews (once) ---------- */
+const REVIEW_SEED = [
+  ['Aminata Ceesay', 'Serrekunda', 5, 'The Ajwa dates and oud perfume were excellent quality. Delivery was fast and WhatsApp ordering is so easy!'],
+  ['Modou Njie', 'Banjul', 5, 'I bought a thobe and prayer mat for Eid. Beautiful items and great prices. My go-to shop now.'],
+  ['Fatou Bah', 'Brikama', 5, 'Paid easily with AfriMoney and chose cash on delivery for my second order. Trustworthy and professional.'],
+];
+if (db.prepare('SELECT COUNT(*) c FROM reviews').get().c === 0) {
+  const ins = db.prepare("INSERT INTO reviews(name,location,rating,text_en,status) VALUES(?,?,?,?,'approved')");
+  REVIEW_SEED.forEach(r => ins.run(r[0], r[1], r[2], r[3]));
 }
 
 /* ---------- Seed (only when empty) ---------- */
@@ -161,30 +260,41 @@ function seedIfEmpty() {
   const prodCount = db.prepare('SELECT COUNT(*) c FROM products').get().c;
   if (prodCount === 0) {
     const ins = db.prepare(`INSERT INTO products
-      (category_slug,icon,price,stock,is_featured,name_en,name_ar,desc_en,desc_ar,use_en,use_ar,benefits_en,benefits_ar)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-    PRODS.forEach(p => ins.run(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8],p[9],p[10],JSON.stringify(p[11]),JSON.stringify(p[12])));
+      (category_slug,icon,price,cost,stock,is_featured,name_en,name_ar,desc_en,desc_ar,use_en,use_ar,benefits_en,benefits_ar)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    // demo cost ≈ 60% of price so the profit feature shows real numbers; edit per product in admin.
+    PRODS.forEach(p => ins.run(p[0],p[1],p[2],Math.round(p[2]*0.6),p[3],p[4],p[5],p[6],p[7],p[8],p[9],p[10],JSON.stringify(p[11]),JSON.stringify(p[12])));
   }
 }
 seedIfEmpty();
 
 /* ---------- Helpers ---------- */
-function rowToProduct(r) {
-  return {
+function rowToProduct(r, includeCost) {
+  const p = {
     id: r.id, cat: r.category_slug, icon: r.icon, image: r.image || null,
     price: r.price, stock: r.stock, feat: !!r.is_featured, active: !!r.is_active,
     en: { name: r.name_en, desc: r.desc_en, use: r.use_en, benefits: safeArr(r.benefits_en) },
     ar: { name: r.name_ar, desc: r.desc_ar, use: r.use_ar, benefits: safeArr(r.benefits_ar) },
   };
+  if (includeCost) p.cost = r.cost || 0;       // cost only exposed to the admin API
+  return p;
 }
 function safeArr(s){ try { const a = JSON.parse(s||'[]'); return Array.isArray(a)?a:[]; } catch { return []; } }
 
 const queries = {
-  activeProducts: () => db.prepare('SELECT * FROM products WHERE is_active=1 ORDER BY is_featured DESC, id ASC').all().map(rowToProduct),
-  allProducts:    () => db.prepare('SELECT * FROM products ORDER BY id DESC').all().map(rowToProduct),
-  productById:    (id) => { const r = db.prepare('SELECT * FROM products WHERE id=?').get(id); return r ? rowToProduct(r) : null; },
+  activeProducts: () => db.prepare('SELECT * FROM products WHERE is_active=1 ORDER BY is_featured DESC, id ASC').all().map(r => rowToProduct(r)),
+  allProducts:    () => db.prepare('SELECT * FROM products ORDER BY id DESC').all().map(r => rowToProduct(r, true)),
+  productById:    (id) => { const r = db.prepare('SELECT * FROM products WHERE id=?').get(id); return r ? rowToProduct(r, true) : null; },
   activeCategories: () => db.prepare('SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order ASC').all().map(c => ({ id:c.slug, slug:c.slug, en:c.name_en, ar:c.name_ar, icon:c.icon, grad:c.grad })),
   allCategories:  () => db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all(),
+  // FAQs
+  activeFaqs:  () => db.prepare('SELECT * FROM faqs WHERE is_active=1 ORDER BY sort_order ASC, id ASC').all(),
+  allFaqs:     () => db.prepare('SELECT * FROM faqs ORDER BY sort_order ASC, id ASC').all(),
+  // Reviews
+  approvedReviews: () => db.prepare("SELECT id,name,location,rating,text_en,created_at FROM reviews WHERE status='approved' ORDER BY id DESC LIMIT 12").all(),
+  allReviews:  () => db.prepare("SELECT * FROM reviews ORDER BY (status='pending') DESC, id DESC").all(),
+  // Users (never return pass_hash)
+  allUsers:    () => db.prepare('SELECT id,username,name,role,permissions,is_active,created_at FROM users ORDER BY id ASC').all(),
 };
 
-module.exports = { db, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS };
+module.exports = { db, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS };

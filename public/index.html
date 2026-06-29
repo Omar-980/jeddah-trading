@@ -158,11 +158,33 @@ ul{list-style:none}
 .hero-stats .num{font-family:var(--font-display);font-size:1.7rem;font-weight:700;color:var(--gold-400)}
 .hero-stats .lbl{font-size:.8rem;color:rgba(255,255,255,.72)}
 .hero-card{position:relative}
-.hero-collage{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.hero-collage .tile{border-radius:var(--radius);overflow:hidden;aspect-ratio:1;box-shadow:var(--shadow-lg);position:relative;display:grid;place-items:center;text-align:center;color:#fff;font-weight:600;padding:14px}
-.hero-collage .tile span{position:relative;z-index:2;font-size:.95rem;text-shadow:0 1px 8px rgba(0,0,0,.4)}
-.hero-collage .tile.tall{grid-row:span 2;aspect-ratio:auto}
-.hero-collage .tile svg{width:46px;height:46px;margin-bottom:8px;position:relative;z-index:2}
+/* Animated bestseller showcase */
+.hero-showcase{position:relative;height:430px;display:flex;align-items:center;justify-content:center}
+.hs-ring{position:absolute;width:330px;height:330px;border-radius:50%;border:1.5px dashed rgba(212,175,55,.35);animation:hsspin 22s linear infinite}
+.hs-ring.r2{width:400px;height:400px;border-color:rgba(255,255,255,.12);animation-duration:32s;animation-direction:reverse}
+@keyframes hsspin{to{transform:rotate(360deg)}}
+.hs-stage{position:relative;width:300px;height:360px}
+.hs-card{position:absolute;inset:0;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-lg);background:#fff;opacity:0;transform:translateY(24px) scale(.92);transition:opacity .7s var(--ease),transform .7s var(--ease);cursor:pointer;display:flex;flex-direction:column}
+.hs-card.active{opacity:1;transform:none;animation:hsfloat 5s ease-in-out infinite}
+@keyframes hsfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.hs-media{flex:1;display:grid;place-items:center;position:relative;min-height:210px;overflow:hidden}
+.hs-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hs-media .hs-ic{width:96px;height:96px;color:rgba(255,255,255,.95);position:relative;z-index:2;animation:hspulse 4s ease-in-out infinite}
+@keyframes hspulse{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.08) rotate(-3deg)}}
+.hs-tag{position:absolute;top:14px;inset-inline-start:14px;z-index:3;background:var(--gold-500);color:#3a2e07;font-size:.72rem;font-weight:700;padding:5px 12px;border-radius:999px;display:flex;align-items:center;gap:5px;box-shadow:var(--shadow-md)}
+.hs-tag svg{width:13px;height:13px}
+.hs-info{background:#fff;padding:16px 18px}
+.hs-info .hs-cat{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-700)}
+.hs-info h4{font-family:var(--font-display);font-size:1.15rem;color:var(--green-800);margin:3px 0 6px;line-height:1.2}
+.hs-info .hs-row{display:flex;align-items:center;justify-content:space-between}
+.hs-info .hs-price{font-family:var(--font-display);font-weight:700;font-size:1.25rem;color:var(--green-700)}
+.hs-info .hs-price small{font-size:.6em;color:var(--muted)}
+.hs-buy{background:#25D366;color:#063b1e;border-radius:999px;width:40px;height:40px;display:grid;place-items:center;box-shadow:0 6px 14px rgba(37,211,102,.4)}
+.hs-buy svg{width:22px;height:22px}
+.hs-dots{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:4}
+.hs-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35);transition:all .3s;cursor:pointer}
+.hs-dots i.on{background:var(--gold-500);width:22px;border-radius:4px}
+@media(prefers-reduced-motion:reduce){.hs-ring,.hs-card.active,.hs-media .hs-ic{animation:none}}
 .float-badge{position:absolute;inset-inline-start:-18px;bottom:30px;background:#fff;color:var(--ink);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;z-index:3}
 .float-badge .fb-ic{width:38px;height:38px;border-radius:10px;background:rgba(37,211,102,.15);display:grid;place-items:center;color:#1ebe5a}
 .float-badge .fb-ic svg{width:22px;height:22px}
@@ -254,6 +276,20 @@ html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
 .testi-av{width:44px;height:44px;border-radius:50%;background:var(--green-700);color:var(--gold-300,#e3c965);display:grid;place-items:center;font-weight:700;color:#fff}
 .testi-who b{font-size:.92rem;color:var(--ink)}
 .testi-who small{color:var(--muted);font-size:.78rem;display:block}
+
+/* review form */
+.review-cta{margin-top:30px;display:flex;justify-content:center}
+.review-card-form{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:26px;max-width:620px;width:100%;box-shadow:var(--shadow-sm);text-align:center}
+.review-card-form h3{font-size:1.3rem;color:var(--green-800);margin-bottom:4px}
+.review-card-form p{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.review-card-form .rf-row{display:flex;gap:12px;margin-bottom:12px}
+.review-card-form input,.review-card-form textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;background:#fff}
+.review-card-form input:focus,.review-card-form textarea:focus{border-color:var(--green-600);outline:none}
+.review-card-form textarea{margin-bottom:14px;resize:vertical}
+.rf-stars{display:flex;justify-content:center;gap:4px;font-size:1.8rem;color:var(--border);margin-bottom:14px;cursor:pointer}
+.rf-stars span{transition:color .15s;line-height:1}
+.rf-stars span.on{color:var(--gold-500)}
+@media(max-width:560px){.review-card-form .rf-row{flex-direction:column}}
 
 /* ---------- FAQ ---------- */
 .faq-wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
@@ -444,10 +480,7 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
 <header class="header" id="header">
   <div class="container nav">
     <a href="#top" class="brand" aria-label="Jeddah Trading home">
-      <span class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.3L20 8l-4 4 1 6-5-2.8L7 18l1-6-4-4 5.6-.7z" fill="#d4af37"/><circle cx="12" cy="12" r="2.4" fill="#0c3b22"/></svg>
-      </span>
-      <span class="brand-name">Jeddah Trading<small data-i18n="tagline">The Gambia</small></span>
+      <span class="brand-name">Jeddah Trading</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#shop" data-i18n="nav_shop">Shop</a>
@@ -497,7 +530,7 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
       </div>
     </div>
     <div class="hero-card reveal" data-d="2">
-      <div class="hero-collage" id="heroCollage"></div>
+      <div class="hero-showcase" id="heroShowcase"></div>
       <div class="float-badge">
         <span class="fb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span>
         <div><b data-i18n="fb_t">Cash on Delivery</b><small data-i18n="fb_s">Pay when it arrives</small></div>
@@ -566,6 +599,23 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
       <h2 class="section-title display reveal" data-d="1" data-i18n="testi_title">Loved by customers across The Gambia</h2>
     </div>
     <div class="testi-grid" id="testiGrid"></div>
+    <div class="review-cta reveal">
+      <div class="review-card-form">
+        <h3 class="display" data-i18n="write_review">Write a review</h3>
+        <p data-i18n="review_sub">Bought from us? Share your experience — your review appears after a quick check.</p>
+        <form id="reviewForm">
+          <div class="rf-row">
+            <input type="text" id="rv_name" required data-i18n-ph="review_name" placeholder="Your name">
+            <input type="text" id="rv_loc" data-i18n-ph="review_loc" placeholder="Your town (optional)">
+          </div>
+          <div class="rf-stars" id="rfStars" aria-label="rating">
+            <span data-star="1">★</span><span data-star="2">★</span><span data-star="3">★</span><span data-star="4">★</span><span data-star="5">★</span>
+          </div>
+          <textarea id="rv_text" required rows="3" data-i18n-ph="review_text" placeholder="Your review"></textarea>
+          <button type="submit" class="btn btn-primary" data-i18n="review_submit">Submit review</button>
+        </form>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -615,7 +665,7 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
   <div class="container">
     <div class="footer-grid">
       <div>
-        <div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.3L20 8l-4 4 1 6-5-2.8L7 18l1-6-4-4 5.6-.7z" fill="#d4af37"/><circle cx="12" cy="12" r="2.4" fill="#0c3b22"/></svg></span><span class="brand-name">Jeddah Trading</span></div>
+        <div class="brand"><span class="brand-name">Jeddah Trading</span></div>
         <p data-i18n="foot_about">Your trusted home for herbs, Islamic products, perfumes, dates, clothing, electronics and general goods in The Gambia. Quality you can trust, delivered to your door.</p>
         <div class="socials">
           <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
@@ -629,6 +679,7 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
         <li><a href="#why" data-i18n="nav_why">Why Us</a></li>
         <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
         <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+        <li><a href="/admin" target="_blank" data-i18n="foot_admin">Admin Login</a></li>
       </ul></div>
       <div><h4 data-i18n="foot_pay">We Accept</h4>
         <p style="margin-top:0" data-i18n="foot_pay_sub">Flexible payment for everyone:</p>
@@ -723,6 +774,9 @@ const ICONS = {
   grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
   beads:'<circle cx="6" cy="6" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="20" r="2.4"/><circle cx="4" cy="12" r="2"/>',
   oil:'<path d="M10 2h4v3l3 3v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V8l3-3z"/><path d="M9 13h6"/>',
+  product:'<path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.27 6.96 8.73 5.05 8.73-5.05M12 22.08V12"/>',
+  wallet:'<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
+  motorbike:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 17.5h-6l-2.5-5H4l1-3h4l2 3h4l2-3h2"/><path d="M14 6h3l1 3"/>',
 };
 function svg(name,cls){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="${cls||''}">${ICONS[name]||''}</svg>`}
 
@@ -940,11 +994,12 @@ const I18N = {
     testi_eyebrow:'Reviews', testi_title:'Loved by customers across The Gambia',
     faq_eyebrow:'Help', faq_title:'Frequently Asked Questions',
     contact_eyebrow:'Get in touch', contact_title:'Contact Jeddah Trading',
-    ci_addr_t:'Visit our shop', ci_addr_s:'Serrekunda Market Area, Greater Banjul, The Gambia',
-    ci_phone_t:'Call / WhatsApp', ci_email_t:'Email us', ci_hours_t:'Opening hours', ci_hours_s:'Mon–Sat: 9am – 9pm · Sun: 3pm – 8pm',
+    ci_addr_t:'Visit our shop', ci_addr_s:'Bundungka Kunda, Near Jammeh Foundation Hospital, The Gambia',
+    ci_phone_t:'Call / WhatsApp', ci_email_t:'Email us', ci_hours_t:'Opening hours', ci_hours_s:'Mon – Sat: 9am – 10pm · Sun: 9am – 8pm',
     ci_wa_btn:'Chat with us now', f_name:'Your name', f_name_ph:'e.g. Fatou Jallow', f_phone:'Phone number', f_msg:'Message', f_msg_ph:'How can we help you?', f_send:'Send message',
     foot_about:'Your trusted home for herbs, Islamic products, perfumes, dates, clothing, electronics and general goods in The Gambia. Quality you can trust, delivered to your door.',
-    foot_shop:'Shop', foot_links:'Quick Links', foot_pay:'We Accept', foot_pay_sub:'Flexible payment for everyone:', pb_bank:'Bank Transfer', pb_cod:'Cash on Delivery', foot_rights:'All rights reserved',
+    foot_shop:'Shop', foot_links:'Quick Links', foot_pay:'We Accept', foot_pay_sub:'Flexible payment for everyone:', pb_bank:'Bank Transfer', pb_cod:'Cash on Delivery', foot_rights:'All rights reserved', foot_admin:'Admin Login',
+    write_review:'Write a review', review_sub:'Bought from us? Share your experience — your review appears after a quick check.', review_name:'Your name', review_loc:'Your town (optional)', review_rating:'Your rating', review_text:'Your review', review_submit:'Submit review', review_thanks:'Thank you! Your review will appear once approved.', review_fillin:'Please add your name and review',
     cart_title:'Your Cart', mn_home:'Home', mn_shop:'Shop', mn_cart:'Cart', mn_order:'Order',
     add_cart:'Add to Cart', order_wa:'WhatsApp', view:'View details', in_stock:'In stock', low_stock:'Only {n} left', out_stock:'Out of stock', featured:'Featured', units:'units',
     benefits:'Benefits', how_use:'How to use', description:'Description', availability:'Availability',
@@ -977,11 +1032,12 @@ const I18N = {
     testi_eyebrow:'التقييمات', testi_title:'محبوب من العملاء في كل غامبيا',
     faq_eyebrow:'مساعدة', faq_title:'الأسئلة الشائعة',
     contact_eyebrow:'تواصل معنا', contact_title:'اتصل بجدة للتجارة',
-    ci_addr_t:'زر متجرنا', ci_addr_s:'منطقة سوق سيريكوندا، بانجول الكبرى، غامبيا',
-    ci_phone_t:'اتصال / واتساب', ci_email_t:'راسلنا', ci_hours_t:'ساعات العمل', ci_hours_s:'الاثنين–السبت: ٩ص – ٩م · الأحد: ٣م – ٨م',
+    ci_addr_t:'زر متجرنا', ci_addr_s:'بوندونغكا كوندا، بالقرب من مستشفى مؤسسة جامع، غامبيا',
+    ci_phone_t:'اتصال / واتساب', ci_email_t:'راسلنا', ci_hours_t:'ساعات العمل', ci_hours_s:'الاثنين–السبت: ٩ص – ١٠م · الأحد: ٩ص – ٨م',
     ci_wa_btn:'تحدث معنا الآن', f_name:'اسمك', f_name_ph:'مثال: فاطو جالو', f_phone:'رقم الهاتف', f_msg:'الرسالة', f_msg_ph:'كيف يمكننا مساعدتك؟', f_send:'إرسال الرسالة',
     foot_about:'بيتك الموثوق للأعشاب والمنتجات الإسلامية والعطور والتمور والملابس والإلكترونيات والبضائع العامة في غامبيا. جودة تثق بها، تصل إلى بابك.',
-    foot_shop:'المتجر', foot_links:'روابط سريعة', foot_pay:'نقبل الدفع بـ', foot_pay_sub:'دفع مرن للجميع:', pb_bank:'تحويل بنكي', pb_cod:'الدفع عند الاستلام', foot_rights:'جميع الحقوق محفوظة',
+    foot_shop:'المتجر', foot_links:'روابط سريعة', foot_pay:'نقبل الدفع بـ', foot_pay_sub:'دفع مرن للجميع:', pb_bank:'تحويل بنكي', pb_cod:'الدفع عند الاستلام', foot_rights:'جميع الحقوق محفوظة', foot_admin:'دخول الإدارة',
+    write_review:'اكتب تقييماً', review_sub:'اشتريت منا؟ شاركنا تجربتك — يظهر تقييمك بعد مراجعة سريعة.', review_name:'اسمك', review_loc:'مدينتك (اختياري)', review_rating:'تقييمك', review_text:'تقييمك', review_submit:'إرسال التقييم', review_thanks:'شكراً لك! سيظهر تقييمك بعد الموافقة.', review_fillin:'يرجى إدخال اسمك وتقييمك',
     cart_title:'سلتك', mn_home:'الرئيسية', mn_shop:'المتجر', mn_cart:'السلة', mn_order:'اطلب',
     add_cart:'أضف للسلة', order_wa:'واتساب', view:'التفاصيل', in_stock:'متوفر', low_stock:'بقي {n} فقط', out_stock:'نفد المخزون', featured:'مميّز', units:'وحدة',
     benefits:'الفوائد', how_use:'طريقة الاستخدام', description:'الوصف', availability:'التوفر',
@@ -1022,10 +1078,10 @@ const TESTIMONIALS=[
    ar:['دفعت بسهولة عبر AfriMoney واخترت الدفع عند الاستلام للطلب الثاني. موثوقون ومحترفون جداً.','فاطو باه','بريكama']},
 ];
 const FEATURES=[
-  {icon:'leaf', en:['Wide range of goods','From herbs and Islamic essentials to electronics and household items — everything in one trusted place.']  ,ar:['تشكيلة واسعة','من الأعشاب والمستلزمات الإسلامية إلى الإلكترونيات والأدوات المنزلية — كل شيء في مكان موثوق.']},
-  {icon:'date', en:['Flexible payments','Pay with WAVE, AfriMoney, QMoney, bank transfer, or cash on delivery — whatever suits you best.'],ar:['دفع مرن','ادفع بـ WAVE أو AfriMoney أو QMoney أو تحويل بنكي أو عند الاستلام — كما يناسبك.']},
-  {icon:'device', en:['Order on WhatsApp','Prefer to chat? Order any product directly on WhatsApp and we\'ll guide you through every step.'],ar:['اطلب عبر واتساب','تفضل المحادثة؟ اطلب أي منتج مباشرة عبر واتساب وسنرشدك في كل خطوة.']},
-  {icon:'home', en:['Fast, reliable delivery','Quick delivery across Greater Banjul and nationwide, with free delivery on larger orders.'],ar:['توصيل سريع وموثوق','توصيل سريع في بانجول الكبرى وكل البلاد، مع توصيل مجاني للطلبات الكبيرة.']},
+  {icon:'product', en:['Wide range of goods','From herbs and Islamic essentials to electronics and household items — everything in one trusted place.']  ,ar:['تشكيلة واسعة','من الأعشاب والمستلزمات الإسلامية إلى الإلكترونيات والأدوات المنزلية — كل شيء في مكان موثوق.']},
+  {icon:'wallet', en:['Flexible payments','Pay with WAVE, AfriMoney, QMoney, bank transfer, or cash on delivery — whatever suits you best.'],ar:['دفع مرن','ادفع بـ WAVE أو AfriMoney أو QMoney أو تحويل بنكي أو عند الاستلام — كما يناسبك.']},
+  {icon:'phonewa', en:['Order on WhatsApp','Prefer to chat? Order any product directly on WhatsApp and we\'ll guide you through every step.'],ar:['اطلب عبر واتساب','تفضل المحادثة؟ اطلب أي منتج مباشرة عبر واتساب وسنرشدك في كل خطوة.']},
+  {icon:'motorbike', en:['Fast, reliable delivery','Quick delivery across Greater Banjul and nationwide, with free delivery on larger orders.'],ar:['توصيل سريع وموثوق','توصيل سريع في بانجول الكبرى وكل البلاد، مع توصيل مجاني للطلبات الكبيرة.']},
 ];
 
 /* ---------- State ---------- */
@@ -1059,12 +1115,42 @@ function waProduct(p){
 }
 function waGeneral(){openWa(LANG==='ar'?`السلام عليكم ${STORE_NAME}، أود الاستفسار عن منتجاتكم.`:`Assalamu alaikum ${STORE_NAME}, I'd like to ask about your products.`)}
 
-/* ---------- Renders ---------- */
-function renderHeroCollage(){
-  const picks=['perfume','date','book','leaf'];
-  const titles=LANG==='ar'?['العطور','التمور','المصاحف','الأعشاب']:['Perfumes','Dates','Quran','Herbs'];
-  const grads=['linear-gradient(135deg,#9a7b1f,#d4af37)','linear-gradient(135deg,#7a4a12,#bd9526)','linear-gradient(135deg,#072617,#10502f)','linear-gradient(135deg,#10502f,#1c7d4a)'];
-  $('#heroCollage').innerHTML=picks.map((ic,i)=>`<div class="tile ${i===0?'tall':''}" style="background:${grads[i]}">${svg(ic)}<span>${titles[i]}</span></div>`).join('');
+/* ---------- Animated bestseller showcase in hero ---------- */
+let hsTimer=null, hsIdx=0, hsList=[];
+function renderHeroShowcase(){
+  // bestsellers = featured products (fallback to first in-stock products)
+  hsList=PRODUCTS.filter(p=>p.feat&&stockState(p)!=='out');
+  if(hsList.length<3) hsList=hsList.concat(PRODUCTS.filter(p=>!hsList.includes(p)&&stockState(p)!=='out')).slice(0,6);
+  hsList=hsList.slice(0,6);
+  if(!hsList.length){$('#heroShowcase').innerHTML='';return;}
+  const starTag=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>`;
+  const cards=hsList.map((p,i)=>{
+    const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
+    const media=p.image?`<img src="${p.image}" alt="${p[LANG].name}">`:svg(p.icon,'hs-ic');
+    return `<div class="hs-card ${i===0?'active':''}" data-hs="${i}" data-view="${p.id}">
+      <div class="hs-media" style="background:${grad}"><span class="hs-tag">${starTag}${LANG==='ar'?'الأكثر مبيعاً':'Bestseller'}</span>${media}</div>
+      <div class="hs-info">
+        <div class="hs-cat">${(catMap[p.cat]&&catMap[p.cat][LANG])||''}</div>
+        <h4>${p[LANG].name}</h4>
+        <div class="hs-row"><span class="hs-price">${money(p.price)} <small>GMD</small></span>
+          <span class="hs-buy" data-wa="${p.id}" aria-label="${t('order_wa')}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></span>
+        </div>
+      </div></div>`;
+  }).join('');
+  const dots=hsList.map((p,i)=>`<i class="${i===0?'on':''}" data-hsdot="${i}"></i>`).join('');
+  $('#heroShowcase').innerHTML=`<span class="hs-ring"></span><span class="hs-ring r2"></span><div class="hs-stage">${cards}<div class="hs-dots">${dots}</div></div>`;
+  hsIdx=0; startHs();
+}
+function showHs(n){
+  hsIdx=(n+hsList.length)%hsList.length;
+  $$('#heroShowcase .hs-card').forEach((c,i)=>c.classList.toggle('active',i===hsIdx));
+  $$('#heroShowcase .hs-dots i').forEach((d,i)=>d.classList.toggle('on',i===hsIdx));
+}
+function startHs(){
+  if(hsTimer)clearInterval(hsTimer);
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||hsList.length<2)return;
+  hsTimer=setInterval(()=>showHs(hsIdx+1),3200);
 }
 function renderCategories(){
   $('#catGrid').innerHTML=CATEGORIES.map((c,i)=>{
@@ -1112,7 +1198,8 @@ function productCard(p){
           ${t('add_cart')}
         </button>
         <button class="btn btn-wa" data-wa="${p.id}" aria-label="${t('order_wa')}">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          <span style="font-size:.82rem">${t('order_wa')}</span>
         </button>
       </div>
     </div></article>`;
@@ -1126,14 +1213,26 @@ function renderProducts(){
   $('#noResults').style.display=list.length?'none':'block';
   observeReveals();
 }
+const WA_LOGO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>';
 function renderFeatures(){
-  $('#featGrid').innerHTML=FEATURES.map((f,i)=>`<div class="feat reveal" data-d="${(i%4)+1}"><div class="feat-ic">${svg(f.icon)}</div><h3>${f[LANG][0]}</h3><p>${f[LANG][1]}</p></div>`).join('');
+  $('#featGrid').innerHTML=FEATURES.map((f,i)=>{
+    const icon=f.icon==='phonewa'?`<span style="color:#25D366">${WA_LOGO}</span>`:svg(f.icon);
+    return `<div class="feat reveal" data-d="${(i%4)+1}"><div class="feat-ic">${icon}</div><h3>${f[LANG][0]}</h3><p>${f[LANG][1]}</p></div>`;
+  }).join('');
 }
+let REVIEW_LIVE=null, FAQ_LIVE=null;   // populated from the backend
 function renderTestimonials(){
-  $('#testiGrid').innerHTML=TESTIMONIALS.map((tt,i)=>`<div class="testi reveal" data-d="${(i%3)+1}"><span class="quote-mark">”</span><div class="stars">★★★★★</div><p>${tt[LANG][0]}</p><div class="testi-who"><span class="testi-av">${tt[LANG][1].charAt(0)}</span><div><b>${tt[LANG][1]}</b><small>${tt[LANG][2]}</small></div></div></div>`).join('');
+  // live reviews (English, customer-submitted) or fallback demo testimonials
+  const list = REVIEW_LIVE && REVIEW_LIVE.length
+    ? REVIEW_LIVE.map(r=>({text:r.text_en, name:r.name, loc:r.location||'', rating:r.rating||5}))
+    : TESTIMONIALS.map(tt=>({text:tt[LANG][0], name:tt[LANG][1], loc:tt[LANG][2], rating:5}));
+  $('#testiGrid').innerHTML=list.map((r,i)=>`<div class="testi reveal" data-d="${(i%3)+1}"><span class="quote-mark">”</span><div class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div><p>${r.text}</p><div class="testi-who"><span class="testi-av">${(r.name||'?').charAt(0)}</span><div><b>${r.name}</b><small>${r.loc}</small></div></div></div>`).join('');
 }
 function renderFaq(){
-  $('#faqWrap').innerHTML=FAQS.map((f,i)=>`<div class="faq-item reveal"><button class="faq-q" data-faq="${i}">${f[LANG][0]}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faq-a"><div class="faq-a-inner">${f[LANG][1]}</div></div></div>`).join('');
+  const list = FAQ_LIVE && FAQ_LIVE.length
+    ? FAQ_LIVE.map(f=>({q:(LANG==='ar'&&f.q_ar)?f.q_ar:f.q_en, a:(LANG==='ar'&&f.a_ar)?f.a_ar:f.a_en}))
+    : FAQS.map(f=>({q:f[LANG][0], a:f[LANG][1]}));
+  $('#faqWrap').innerHTML=list.map((f,i)=>`<div class="faq-item reveal"><button class="faq-q" data-faq="${i}">${f.q}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faq-a"><div class="faq-a-inner">${f.a}</div></div></div>`).join('');
 }
 
 /* ---------- Product modal ---------- */
@@ -1380,7 +1479,7 @@ function applyLang(){
   $('#langLabel').textContent=ar?'English':'العربية';
   $$('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(I18N[LANG][k]!==undefined)el.innerHTML=I18N[LANG][k]});
   $$('[data-i18n-ph]').forEach(el=>{const k=el.getAttribute('data-i18n-ph');if(I18N[LANG][k]!==undefined)el.placeholder=I18N[LANG][k]});
-  renderHeroCollage();renderCategories();renderChips();renderProducts();renderFeatures();renderTestimonials();renderFaq();updateCart();
+  renderHeroShowcase();renderCategories();renderChips();renderProducts();renderFeatures();renderTestimonials();renderFaq();updateCart();
 }
 
 /* ---------- Reveal on scroll ---------- */
@@ -1399,6 +1498,7 @@ document.addEventListener('click',e=>{
   const inc=e.target.closest('[data-inc]');if(inc){setQty(+inc.dataset.inc,1);return}
   const dec=e.target.closest('[data-dec]');if(dec){setQty(+dec.dataset.dec,-1);return}
   const rm=e.target.closest('[data-rm]');if(rm){removeItem(+rm.dataset.rm);return}
+  const hd=e.target.closest('[data-hsdot]');if(hd){showHs(+hd.dataset.hsdot);startHs();return}
   const cat=e.target.closest('[data-cat]');if(cat){activeCat=cat.dataset.cat;renderChips();renderProducts();if(cat.classList.contains('cat-card')||cat.classList.contains('foot-cat')){document.getElementById('shop').scrollIntoView({behavior:'smooth'})}return}
   const fq=e.target.closest('[data-faq]');if(fq){const item=fq.closest('.faq-item');const open=item.classList.contains('open');$$('.faq-item').forEach(x=>{x.classList.remove('open');x.querySelector('.faq-a').style.maxHeight=null});if(!open){item.classList.add('open');const a=item.querySelector('.faq-a');a.style.maxHeight=a.scrollHeight+'px'}return}
 });
@@ -1406,13 +1506,17 @@ document.addEventListener('click',e=>{
 /* ---------- Load live data from backend ---------- */
 async function loadLiveData(){
   try{
-    const [pr,ca,se]=await Promise.all([
+    const [pr,ca,se,fq,rv]=await Promise.all([
       fetch(API+'/api/products').then(r=>r.json()),
       fetch(API+'/api/categories').then(r=>r.json()),
       fetch(API+'/api/settings').then(r=>r.json()).catch(()=>null),
+      fetch(API+'/api/faqs').then(r=>r.json()).catch(()=>null),
+      fetch(API+'/api/reviews').then(r=>r.json()).catch(()=>null),
     ]);
     if(ca&&ca.categories&&ca.categories.length){CATEGORIES=ca.categories;catMap=Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));}
     if(pr&&pr.products&&pr.products.length){PRODUCTS=pr.products;}
+    if(fq&&fq.faqs)FAQ_LIVE=fq.faqs;
+    if(rv&&rv.reviews)REVIEW_LIVE=rv.reviews;
     if(se){
       if(se.whatsapp_number)WHATSAPP_NUMBER=String(se.whatsapp_number);
       if(se.store_name)STORE_NAME=se.store_name;
@@ -1420,6 +1524,10 @@ async function loadLiveData(){
       if(se.delivery_fee!=null)DELIVERY_FEE=Number(se.delivery_fee);
       if(se.announce_en)I18N.en.announce=se.announce_en;
       if(se.announce_ar)I18N.ar.announce=se.announce_ar;
+      if(se.contact_address_en)I18N.en.ci_addr_s=se.contact_address_en;
+      if(se.contact_address_ar)I18N.ar.ci_addr_s=se.contact_address_ar;
+      if(se.contact_hours_en)I18N.en.ci_hours_s=se.contact_hours_en;
+      if(se.contact_hours_ar)I18N.ar.ci_hours_s=se.contact_hours_ar;
     }
   }catch(e){ /* offline / no backend → keep built-in fallback catalog */ }
 }
@@ -1454,6 +1562,22 @@ async function init(){
   let st;$('#search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{search=e.target.value;renderProducts()},180)};
   // contact form
   $('#contactForm').onsubmit=e=>{e.preventDefault();toast(LANG==='ar'?'تم إرسال رسالتك، شكراً!':'Message sent — we\'ll reply soon!');e.target.reset()};
+  // review star picker
+  let rvRating=5;
+  const paintStars=n=>$$('#rfStars span').forEach((s,i)=>s.classList.toggle('on',i<n));
+  paintStars(5);
+  $$('#rfStars span').forEach(s=>{s.onclick=()=>{rvRating=+s.dataset.star;paintStars(rvRating);};s.onmouseenter=()=>paintStars(+s.dataset.star);});
+  $('#rfStars').onmouseleave=()=>paintStars(rvRating);
+  // review submit
+  $('#reviewForm').onsubmit=async e=>{
+    e.preventDefault();
+    const name=$('#rv_name').value.trim(), text=$('#rv_text').value.trim();
+    if(!name||!text){toast(t('review_fillin'));return;}
+    try{
+      await fetch(API+'/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,location:$('#rv_loc').value.trim(),rating:rvRating,text})});
+      toast(t('review_thanks'));e.target.reset();rvRating=5;paintStars(5);
+    }catch{toast(t('review_thanks'));e.target.reset();}
+  };
   // esc
   addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
 }
