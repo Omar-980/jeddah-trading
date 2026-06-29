@@ -1,0 +1,13 @@
+{
+  "name": "jeddah-trading-backend",
+  "version": "1.0.0",
+  "description": "Jeddah Trading — e-commerce storefront + admin backend (zero-dependency, Node.js built-in SQLite)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0c3b22" />
+<meta name="description" content="Jeddah Trading — herbs, Islamic products, perfumes, dates, clothing, electronics & general goods in The Gambia. Order on WhatsApp, pay with WAVE, AfriMoney, QMoney or cash on delivery." />
+<title>Jeddah Trading — Quality Goods for Every Home | The Gambia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   JEDDAH TRADING — Design System
+   Palette: deep Islamic green + gold + cream (luxury retail)
+   Fonts: Playfair Display (display) · Inter (body) · Amiri/Noto Sans Arabic (AR)
+   ============================================================ */
+:root{
+  /* Brand */
+  --green-900:#072617;
+  --green-800:#0c3b22;
+  --green-700:#10502f;
+  --green-600:#16653c;
+  --green-500:#1c7d4a;
+  --green-400:#3ca06b;
+  --gold-700:#9a7b1f;
+  --gold-600:#bd9526;
+  --gold-500:#d4af37;
+  --gold-400:#e3c965;
+  --gold-200:#f3e6b8;
+  --cream:#faf6ec;
+  --cream-2:#f3ecdb;
+  --sand:#efe6d2;
+  --ink:#0f1d15;
+  --ink-soft:#3a4a40;
+  --muted:#6b7a70;
+  --white:#ffffff;
+  --card:#ffffff;
+  --danger:#c0392b;
+  --success:#1c7d4a;
+  /* Semantic */
+  --bg:var(--cream);
+  --fg:var(--ink);
+  --primary:var(--green-800);
+  --accent:var(--gold-500);
+  --border:#e6dcc4;
+  --shadow-sm:0 1px 3px rgba(7,38,23,.08),0 1px 2px rgba(7,38,23,.06);
+  --shadow-md:0 8px 24px rgba(7,38,23,.10);
+  --shadow-lg:0 22px 60px rgba(7,38,23,.18);
+  --radius:16px;
+  --radius-sm:10px;
+  --radius-lg:26px;
+  --maxw:1240px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --header-h:70px;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-ar:'Amiri','Noto Sans Arabic',serif;
+}
+html[dir="rtl"] body{font-family:'Noto Sans Arabic','Amiri',var(--font-body);}
+html[dir="rtl"] .display{font-family:'Amiri','Noto Sans Arabic',serif;}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--font-body);
+  background:var(--bg);
+  color:var(--fg);
+  line-height:1.6;
+  font-size:16px;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+body.no-scroll{overflow:hidden}
+.display{font-family:var(--font-display);font-weight:700;line-height:1.12;letter-spacing:-.01em}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+ul{list-style:none}
+:focus-visible{outline:3px solid var(--gold-500);outline-offset:2px;border-radius:6px}
+
+/* Islamic geometric pattern (subtle, repeatable) */
+.pattern-bg{
+  background-color:var(--green-800);
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(212,175,55,.10) 0 2px, transparent 2px),
+    url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23d4af37' stroke-opacity='0.10' stroke-width='1.2'%3E%3Cpath d='M40 0l40 40-40 40L0 40z'/%3E%3Cpath d='M40 14l26 26-26 26-26-26z'/%3E%3Cpath d='M40 28l12 12-12 12-12-12z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:auto, 80px 80px;
+}
+.pattern-soft{
+  background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2316653c' stroke-opacity='0.06' stroke-width='1'%3E%3Cpath d='M30 0l30 30-30 30L0 30z'/%3E%3Cpath d='M30 10l20 20-20 20-20-20z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:60px 60px;
+}
+
+/* ---------- Layout helpers ---------- */
+.container{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 20px}
+.section{padding:72px 0}
+.section-head{text-align:center;max-width:640px;margin:0 auto 44px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-700);margin-bottom:14px}
+.eyebrow::before,.eyebrow::after{content:"";width:26px;height:1px;background:var(--gold-500)}
+.section-title{font-size:clamp(1.7rem,4vw,2.6rem);color:var(--green-800)}
+.section-sub{margin-top:14px;color:var(--muted);font-size:1.02rem}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:600;font-size:.95rem;padding:13px 22px;border-radius:999px;transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s;white-space:nowrap;touch-action:manipulation;min-height:46px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--green-700);color:#fff;box-shadow:0 8px 20px rgba(16,80,47,.28)}
+.btn-primary:hover{background:var(--green-600);box-shadow:0 12px 28px rgba(16,80,47,.36);transform:translateY(-2px)}
+.btn-gold{background:linear-gradient(135deg,var(--gold-500),var(--gold-600));color:#3a2e07;box-shadow:0 8px 20px rgba(212,175,55,.35)}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(212,175,55,.45)}
+.btn-wa{background:#25D366;color:#063b1e;box-shadow:0 8px 20px rgba(37,211,102,.32)}
+.btn-wa:hover{background:#1ebe5a;transform:translateY(-2px)}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35)}
+.btn-ghost:hover{background:rgba(255,255,255,.22)}
+.btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--green-800)}
+.btn-outline:hover{border-color:var(--green-600);color:var(--green-700)}
+.btn-block{width:100%}
+.btn-sm{padding:9px 16px;min-height:40px;font-size:.86rem}
+
+/* ---------- Announcement bar ---------- */
+.announce{background:var(--green-900);color:var(--gold-200);font-size:.82rem;text-align:center;padding:8px 16px;letter-spacing:.02em}
+.announce strong{color:var(--gold-400)}
+
+/* ---------- Header ---------- */
+.header{position:sticky;top:0;z-index:100;background:rgba(250,246,236,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);transition:box-shadow .3s}
+.header.scrolled{box-shadow:var(--shadow-md)}
+.nav{display:flex;align-items:center;gap:22px;height:var(--header-h)}
+.brand{display:flex;align-items:center;gap:11px;flex-shrink:0}
+.brand-mark{width:42px;height:42px;border-radius:11px;background:var(--green-800);display:grid;place-items:center;box-shadow:var(--shadow-sm);flex-shrink:0}
+.brand-mark svg{width:26px;height:26px}
+.brand-name{font-family:var(--font-display);font-weight:800;font-size:1.18rem;color:var(--green-800);line-height:1}
+.brand-name small{display:block;font-family:var(--font-body);font-weight:500;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-700);margin-top:3px}
+.nav-links{display:flex;align-items:center;gap:4px;margin-inline-start:auto}
+.nav-links a{padding:9px 14px;border-radius:999px;font-weight:500;font-size:.92rem;color:var(--ink-soft);transition:background .2s,color .2s}
+.nav-links a:hover{background:rgba(16,80,47,.08);color:var(--green-700)}
+.nav-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--green-800);position:relative;transition:background .2s}
+.icon-btn:hover{background:rgba(16,80,47,.08)}
+.icon-btn svg{width:23px;height:23px}
+.cart-count{position:absolute;top:5px;inset-inline-end:5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold-500);color:#3a2e07;font-size:.68rem;font-weight:700;display:grid;place-items:center;transform:scale(0);transition:transform .25s var(--ease)}
+.cart-count.show{transform:scale(1)}
+.lang-toggle{border:1.5px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:600;font-size:.82rem;color:var(--green-800);display:flex;align-items:center;gap:6px;transition:border-color .2s}
+.lang-toggle:hover{border-color:var(--green-600)}
+.menu-btn{display:none}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;overflow:hidden;color:#fff}
+.hero-inner{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:64px 0 76px}
+.hero-glow{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;z-index:1}
+.hero-glow.g1{width:420px;height:420px;background:var(--green-500);top:-120px;inset-inline-start:-120px}
+.hero-glow.g2{width:380px;height:380px;background:var(--gold-600);bottom:-150px;inset-inline-end:-100px;opacity:.35}
+.hero h1{font-size:clamp(2.2rem,5.4vw,3.9rem);color:#fff;margin-bottom:18px}
+.hero h1 .hl{color:var(--gold-400);font-style:italic}
+.hero-lead{font-size:clamp(1rem,2.2vw,1.18rem);color:rgba(255,255,255,.86);max-width:540px;margin-bottom:28px}
+.hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:34px}
+.hero-stats{display:flex;gap:30px;flex-wrap:wrap}
+.hero-stats .stat{display:flex;flex-direction:column}
+.hero-stats .num{font-family:var(--font-display);font-size:1.7rem;font-weight:700;color:var(--gold-400)}
+.hero-stats .lbl{font-size:.8rem;color:rgba(255,255,255,.72)}
+.hero-card{position:relative}
+.hero-collage{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hero-collage .tile{border-radius:var(--radius);overflow:hidden;aspect-ratio:1;box-shadow:var(--shadow-lg);position:relative;display:grid;place-items:center;text-align:center;color:#fff;font-weight:600;padding:14px}
+.hero-collage .tile span{position:relative;z-index:2;font-size:.95rem;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+.hero-collage .tile.tall{grid-row:span 2;aspect-ratio:auto}
+.hero-collage .tile svg{width:46px;height:46px;margin-bottom:8px;position:relative;z-index:2}
+.float-badge{position:absolute;inset-inline-start:-18px;bottom:30px;background:#fff;color:var(--ink);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;z-index:3}
+.float-badge .fb-ic{width:38px;height:38px;border-radius:10px;background:rgba(37,211,102,.15);display:grid;place-items:center;color:#1ebe5a}
+.float-badge .fb-ic svg{width:22px;height:22px}
+.float-badge b{display:block;font-size:.9rem}
+.float-badge small{color:var(--muted);font-size:.74rem}
+
+/* trust strip */
+.trust-strip{background:var(--green-900);border-top:1px solid rgba(212,175,55,.2)}
+.trust-strip .container{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 38px;padding:18px 20px}
+.trust-item{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.85);font-size:.86rem;font-weight:500}
+.trust-item svg{width:20px;height:20px;color:var(--gold-400);flex-shrink:0}
+
+/* ---------- Categories ---------- */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.cat-card{position:relative;border-radius:var(--radius);padding:22px 16px;text-align:center;color:#fff;overflow:hidden;cursor:pointer;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:transform .25s var(--ease),box-shadow .25s}
+.cat-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg)}
+.cat-card .cat-ic{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.16);display:grid;place-items:center;backdrop-filter:blur(4px)}
+.cat-card .cat-ic svg{width:28px;height:28px}
+.cat-card h3{font-size:.98rem;font-weight:600;position:relative;z-index:2}
+.cat-card .cat-count{font-size:.74rem;opacity:.85}
+
+/* ---------- Toolbar (filters) ---------- */
+.shop-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:26px}
+.search-box{flex:1;min-width:220px;position:relative}
+.search-box input{width:100%;padding:13px 16px 13px 44px;border:1.5px solid var(--border);border-radius:999px;font-size:.95rem;background:#fff;transition:border-color .2s}
+.search-box input:focus{border-color:var(--green-600);outline:none}
+.search-box svg{position:absolute;inset-inline-start:15px;top:50%;transform:translateY(-50%);width:20px;height:20px;color:var(--muted)}
+html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:9px 16px;border-radius:999px;border:1.5px solid var(--border);background:#fff;font-size:.86rem;font-weight:500;color:var(--ink-soft);transition:all .2s}
+.chip:hover{border-color:var(--green-500)}
+.chip.active{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+
+/* ---------- Product grid ---------- */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px}
+.prod-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;transition:transform .25s var(--ease),box-shadow .25s;position:relative}
+.prod-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.prod-media{position:relative;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}
+.prod-media .pm-icon{width:64px;height:64px;color:rgba(255,255,255,.92);transition:transform .4s var(--ease)}
+.prod-card:hover .pm-icon{transform:scale(1.12) rotate(-3deg)}
+.prod-badge{position:absolute;top:11px;inset-inline-start:11px;background:var(--gold-500);color:#3a2e07;font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.03em;z-index:2}
+.prod-badge.out{background:#9aa39c;color:#fff}
+.prod-badge.low{background:#e08a1e;color:#fff}
+.fav-btn{position:absolute;top:9px;inset-inline-end:9px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;z-index:2;transition:transform .2s}
+.fav-btn:hover{transform:scale(1.1)}
+.fav-btn svg{width:19px;height:19px;color:var(--ink-soft)}
+.fav-btn.active svg{color:var(--danger);fill:var(--danger)}
+.prod-body{padding:15px 15px 17px;display:flex;flex-direction:column;flex:1}
+.prod-cat{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-700);margin-bottom:5px}
+.prod-name{font-weight:600;font-size:1rem;color:var(--ink);margin-bottom:6px;line-height:1.3}
+.prod-desc{font-size:.84rem;color:var(--muted);margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1}
+.prod-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.price{font-family:var(--font-display);font-weight:700;font-size:1.18rem;color:var(--green-800)}
+.price small{font-size:.72rem;font-weight:600;color:var(--muted)}
+.stock-line{display:flex;align-items:center;gap:6px;font-size:.76rem;margin-bottom:12px}
+.stock-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.in-stock{color:var(--success)}.in-stock .stock-dot{background:var(--success)}
+.low-stock{color:#d98012}.low-stock .stock-dot{background:#e08a1e}
+.no-stock{color:#9aa39c}.no-stock .stock-dot{background:#9aa39c}
+.prod-actions{display:flex;gap:8px}
+.prod-actions .btn{flex:1;padding:10px;font-size:.84rem;min-height:42px}
+.prod-actions .btn svg{width:17px;height:17px}
+
+/* ---------- Reveal animations ---------- */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+.reveal[data-d="1"]{transition-delay:.08s}
+.reveal[data-d="2"]{transition-delay:.16s}
+.reveal[data-d="3"]{transition-delay:.24s}
+.reveal[data-d="4"]{transition-delay:.32s}
+
+/* ---------- Why / features ---------- */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+.feat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:26px 22px;transition:transform .25s,box-shadow .25s}
+.feat:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
+.feat-ic{width:54px;height:54px;border-radius:15px;background:linear-gradient(135deg,var(--green-700),var(--green-500));display:grid;place-items:center;margin-bottom:16px;box-shadow:0 8px 18px rgba(16,80,47,.25)}
+.feat-ic svg{width:28px;height:28px;color:var(--gold-400)}
+.feat h3{font-size:1.08rem;color:var(--green-800);margin-bottom:8px}
+.feat p{font-size:.9rem;color:var(--muted)}
+
+/* ---------- Testimonials ---------- */
+.testi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+.testi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:26px;position:relative}
+.testi .quote-mark{font-family:var(--font-display);font-size:3.4rem;color:var(--gold-200);line-height:.6;position:absolute;top:18px;inset-inline-end:20px}
+.testi .stars{color:var(--gold-500);margin-bottom:12px;font-size:.95rem;letter-spacing:2px}
+.testi p{font-size:.95rem;color:var(--ink-soft);margin-bottom:18px;position:relative;z-index:2}
+.testi-who{display:flex;align-items:center;gap:12px}
+.testi-av{width:44px;height:44px;border-radius:50%;background:var(--green-700);color:var(--gold-300,#e3c965);display:grid;place-items:center;font-weight:700;color:#fff}
+.testi-who b{font-size:.92rem;color:var(--ink)}
+.testi-who small{color:var(--muted);font-size:.78rem;display:block}
+
+/* ---------- FAQ ---------- */
+.faq-wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.faq-item{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.faq-q{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px;text-align:start;font-weight:600;font-size:.98rem;color:var(--green-800)}
+.faq-q svg{width:20px;height:20px;flex-shrink:0;transition:transform .3s var(--ease);color:var(--gold-600)}
+.faq-item.open .faq-q svg{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .35s var(--ease)}
+.faq-a-inner{padding:0 20px 18px;color:var(--muted);font-size:.92rem}
+
+/* ---------- Contact ---------- */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:start}
+.contact-info .ci-row{display:flex;gap:14px;align-items:flex-start;margin-bottom:22px}
+.contact-info .ci-ic{width:46px;height:46px;border-radius:12px;background:rgba(16,80,47,.1);display:grid;place-items:center;flex-shrink:0;color:var(--green-700)}
+.contact-info .ci-ic svg{width:23px;height:23px}
+.contact-info b{display:block;color:var(--ink);font-size:.98rem}
+.contact-info span{color:var(--muted);font-size:.9rem}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-sm)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.85rem;font-weight:600;color:var(--ink-soft);margin-bottom:7px}
+.field input,.field textarea,.field select{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.95rem;font-family:inherit;background:#fff;transition:border-color .2s}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--green-600);outline:none}
+.field textarea{resize:vertical;min-height:110px}
+
+/* ---------- Footer ---------- */
+.footer{color:rgba(255,255,255,.78);padding-top:60px}
+.footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1.2fr;gap:34px;padding-bottom:40px}
+.footer .brand-name{color:#fff}
+.footer p{font-size:.9rem;margin:16px 0;max-width:320px}
+.footer h4{color:#fff;font-size:1rem;margin-bottom:16px;font-family:var(--font-display)}
+.footer-links li{margin-bottom:10px}
+.footer-links a{font-size:.9rem;transition:color .2s}
+.footer-links a:hover{color:var(--gold-400)}
+.socials{display:flex;gap:10px;margin-top:8px}
+.socials a{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.1);display:grid;place-items:center;transition:background .2s}
+.socials a:hover{background:var(--gold-500);color:#3a2e07}
+.socials svg{width:20px;height:20px}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.14);padding:20px 0;text-align:center;font-size:.82rem;color:rgba(255,255,255,.6)}
+.pay-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pay-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 10px;font-size:.74rem;font-weight:600;color:#fff}
+
+/* ---------- Drawer / Cart ---------- */
+.overlay{position:fixed;inset:0;background:rgba(7,38,23,.55);backdrop-filter:blur(3px);z-index:200;opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
+.overlay.show{opacity:1;visibility:visible}
+.drawer{position:fixed;top:0;inset-inline-end:0;height:100%;width:min(420px,100%);background:var(--cream);z-index:210;display:flex;flex-direction:column;transform:translateX(110%);transition:transform .4s var(--ease);box-shadow:var(--shadow-lg)}
+html[dir="rtl"] .drawer{transform:translateX(-110%)}
+.drawer.show{transform:translateX(0)}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:20px;border-bottom:1px solid var(--border);background:#fff}
+.drawer-head h3{font-family:var(--font-display);font-size:1.3rem;color:var(--green-800)}
+.drawer-body{flex:1;overflow-y:auto;padding:18px 20px}
+.drawer-foot{border-top:1px solid var(--border);padding:18px 20px;background:#fff}
+.close-x{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--ink);transition:background .2s}
+.close-x:hover{background:rgba(0,0,0,.06)}
+.close-x svg{width:24px;height:24px}
+.cart-item{display:flex;gap:13px;padding:14px 0;border-bottom:1px solid var(--border)}
+.cart-item .ci-img{width:66px;height:66px;border-radius:12px;flex-shrink:0;display:grid;place-items:center}
+.cart-item .ci-img svg{width:32px;height:32px;color:#fff}
+.cart-item .ci-main{flex:1;min-width:0}
+.cart-item .ci-name{font-weight:600;font-size:.92rem;margin-bottom:3px}
+.cart-item .ci-price{color:var(--green-700);font-weight:600;font-size:.9rem}
+.qty{display:inline-flex;align-items:center;border:1.5px solid var(--border);border-radius:999px;overflow:hidden;margin-top:8px;background:#fff}
+.qty button{width:30px;height:30px;display:grid;place-items:center;color:var(--green-800);font-size:1.1rem;font-weight:600}
+.qty button:hover{background:rgba(16,80,47,.08)}
+.qty span{min-width:30px;text-align:center;font-weight:600;font-size:.9rem}
+.ci-remove{color:var(--muted);font-size:.76rem;margin-top:6px;text-decoration:underline}
+.ci-remove:hover{color:var(--danger)}
+.cart-empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.cart-empty svg{width:64px;height:64px;color:var(--border);margin:0 auto 16px}
+.summary-row{display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:9px;color:var(--ink-soft)}
+.summary-row.total{font-size:1.18rem;font-weight:700;color:var(--green-800);font-family:var(--font-display);border-top:1px dashed var(--border);padding-top:12px;margin-top:6px}
+
+/* ---------- Modal (product / checkout) ---------- */
+.modal{position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
+.modal.show{opacity:1;visibility:visible}
+.modal-card{background:var(--cream);border-radius:var(--radius-lg);width:100%;max-width:860px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);transform:scale(.94) translateY(10px);transition:transform .35s var(--ease)}
+.modal.show .modal-card{transform:none}
+.modal-card.narrow{max-width:560px}
+.pd-grid{display:grid;grid-template-columns:1fr 1fr}
+.pd-media{aspect-ratio:1;display:grid;place-items:center;position:relative;min-height:280px}
+.pd-media .pd-icon{width:110px;height:110px;color:rgba(255,255,255,.95)}
+.pd-info{padding:30px}
+.pd-info .prod-cat{font-size:.78rem}
+.pd-title{font-family:var(--font-display);font-size:1.7rem;color:var(--green-800);margin:4px 0 10px}
+.pd-price{font-family:var(--font-display);font-size:1.9rem;font-weight:700;color:var(--green-800);margin-bottom:6px}
+.pd-section{margin:16px 0}
+.pd-section h5{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-700);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.pd-section h5 svg{width:16px;height:16px}
+.pd-section p,.pd-section li{font-size:.9rem;color:var(--ink-soft)}
+.pd-benefits li{display:flex;gap:8px;margin-bottom:6px;align-items:flex-start}
+.pd-benefits svg{width:17px;height:17px;color:var(--success);flex-shrink:0;margin-top:2px}
+.pd-actions{display:flex;gap:10px;margin-top:22px}
+.pd-actions .btn{flex:1}
+
+/* checkout steps */
+.steps{display:flex;align-items:center;justify-content:center;gap:6px;padding:22px 20px 4px}
+.step-dot{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;max-width:90px}
+.step-dot .sd-num{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid var(--border);font-weight:700;font-size:.9rem;color:var(--muted);transition:all .3s}
+.step-dot .sd-lbl{font-size:.7rem;color:var(--muted);text-align:center;font-weight:500}
+.step-dot.active .sd-num{background:var(--green-700);border-color:var(--green-700);color:#fff}
+.step-dot.done .sd-num{background:var(--gold-500);border-color:var(--gold-500);color:#3a2e07}
+.step-dot.active .sd-lbl{color:var(--green-800);font-weight:600}
+.step-line{height:2px;flex:1;background:var(--border);max-width:40px}
+.checkout-body{padding:10px 28px 28px}
+.checkout-pane{display:none;animation:fadeUp .4s var(--ease)}
+.checkout-pane.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.pay-opt{display:flex;align-items:center;gap:14px;padding:15px;border:1.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:11px;cursor:pointer;transition:all .2s;background:#fff}
+.pay-opt:hover{border-color:var(--green-500)}
+.pay-opt.sel{border-color:var(--green-700);background:rgba(16,80,47,.04);box-shadow:0 0 0 1px var(--green-700)}
+.pay-opt .po-logo{width:50px;height:42px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:.74rem;color:#fff;flex-shrink:0;text-align:center;line-height:1.05}
+.pay-opt .po-main{flex:1}
+.pay-opt .po-main b{font-size:.95rem;color:var(--ink);display:block}
+.pay-opt .po-main small{font-size:.8rem;color:var(--muted)}
+.pay-opt .po-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:grid;place-items:center;flex-shrink:0}
+.pay-opt.sel .po-check{border-color:var(--green-700);background:var(--green-700)}
+.pay-opt .po-check svg{width:13px;height:13px;color:#fff;opacity:0;transition:opacity .2s}
+.pay-opt.sel .po-check svg{opacity:1}
+.checkout-foot{display:flex;gap:12px;margin-top:8px}
+.order-success{text-align:center;padding:20px 10px}
+.os-ic{width:84px;height:84px;border-radius:50%;background:rgba(37,211,102,.15);display:grid;place-items:center;margin:0 auto 18px;animation:pop .5s var(--ease)}
+.os-ic svg{width:46px;height:46px;color:#1ebe5a}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+/* ---------- Toast ---------- */
+.toast-wrap{position:fixed;bottom:24px;inset-inline:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:300;pointer-events:none;padding:0 16px}
+.toast{background:var(--green-800);color:#fff;padding:13px 20px;border-radius:999px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:.9rem;font-weight:500;transform:translateY(20px);opacity:0;transition:all .35s var(--ease);max-width:100%}
+.toast.show{transform:none;opacity:1}
+.toast svg{width:20px;height:20px;color:var(--gold-400);flex-shrink:0}
+
+/* ---------- Floating WhatsApp ---------- */
+.fab-wa{position:fixed;bottom:22px;inset-inline-end:22px;width:58px;height:58px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 30px rgba(37,211,102,.5);z-index:150;transition:transform .25s}
+.fab-wa:hover{transform:scale(1.1)}
+.fab-wa svg{width:30px;height:30px;color:#fff}
+.fab-wa::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid #25D366;animation:ring 2s infinite}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+
+/* ---------- Mobile bottom nav ---------- */
+.mobile-nav{display:none;position:fixed;bottom:0;inset-inline:0;background:#fff;border-top:1px solid var(--border);z-index:140;padding:6px 8px calc(6px + env(safe-area-inset-bottom));grid-template-columns:repeat(4,1fr)}
+.mobile-nav a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;color:var(--muted);font-size:.68rem;font-weight:500;position:relative}
+.mobile-nav a.active{color:var(--green-700)}
+.mobile-nav svg{width:23px;height:23px}
+.mobile-nav .mn-badge{position:absolute;top:2px;inset-inline-end:calc(50% - 20px);min-width:16px;height:16px;background:var(--gold-500);color:#3a2e07;border-radius:8px;font-size:.62rem;font-weight:700;display:grid;place-items:center;padding:0 4px}
+
+/* ---------- Responsive ---------- */
+@media(max-width:980px){
+  .hero-inner{grid-template-columns:1fr;padding:44px 0 56px}
+  .hero-card{display:none}
+  .contact-grid{grid-template-columns:1fr;gap:26px}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:28px}
+  .pd-grid{grid-template-columns:1fr}
+  .pd-media{min-height:200px;aspect-ratio:16/9}
+}
+@media(max-width:760px){
+  .nav-links{display:none}
+  .menu-btn{display:grid}
+  .section{padding:52px 0}
+  .footer{padding-bottom:84px}
+  .mobile-nav{display:grid}
+  .fab-wa{bottom:78px}
+  .hero-stats{gap:22px}
+  .nav{gap:12px}
+  body{padding-bottom:0}
+}
+@media(max-width:480px){
+  .footer-grid{grid-template-columns:1fr}
+  .prod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+  .cat-grid{grid-template-columns:repeat(2,1fr)}
+  .pd-info{padding:22px}
+  .brand-name{font-size:1.05rem}
+}
+
+/* Reduced motion */
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+  .reveal{opacity:1;transform:none}
+  .fab-wa::after{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ ANNOUNCEMENT ============ -->
+<div class="announce">
+  <span data-i18n="announce">🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime</span>
+</div>
+
+<!-- ============ HEADER ============ -->
+<header class="header" id="header">
+  <div class="container nav">
+    <a href="#top" class="brand" aria-label="Jeddah Trading home">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.3L20 8l-4 4 1 6-5-2.8L7 18l1-6-4-4 5.6-.7z" fill="#d4af37"/><circle cx="12" cy="12" r="2.4" fill="#0c3b22"/></svg>
+      </span>
+      <span class="brand-name">Jeddah Trading<small data-i18n="tagline">The Gambia</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#shop" data-i18n="nav_shop">Shop</a>
+      <a href="#categories" data-i18n="nav_cat">Categories</a>
+      <a href="#why" data-i18n="nav_why">Why Us</a>
+      <a href="#testimonials" data-i18n="nav_testi">Reviews</a>
+      <a href="#faq" data-i18n="nav_faq">FAQ</a>
+      <a href="#contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="lang-toggle" id="langToggle" aria-label="Switch language">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg>
+        <span id="langLabel">العربية</span>
+      </button>
+      <button class="icon-btn" id="cartBtn" aria-label="Open cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section class="hero pattern-bg">
+  <span class="hero-glow g1"></span><span class="hero-glow g2"></span>
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <span class="eyebrow reveal" style="color:var(--gold-400)" data-i18n="hero_eyebrow">Trusted in The Gambia</span>
+      <h1 class="display reveal" data-d="1"><span data-i18n="hero_h1a">Quality goods for</span> <span class="hl" data-i18n="hero_h1b">every home & soul</span></h1>
+      <p class="hero-lead reveal" data-d="2" data-i18n="hero_lead">Herbs, Islamic essentials, perfumes, premium dates, clothing, electronics and everyday household goods — all in one trusted store. Shop online and pay your way.</p>
+      <div class="hero-cta reveal" data-d="3">
+        <a href="#shop" class="btn btn-gold" data-i18n="hero_cta1">Shop Now</a>
+        <button class="btn btn-wa" id="heroWa">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          <span data-i18n="hero_cta2">Order on WhatsApp</span>
+        </button>
+      </div>
+      <div class="hero-stats reveal" data-d="4">
+        <div class="stat"><span class="num">10+</span><span class="lbl" data-i18n="stat1">Product categories</span></div>
+        <div class="stat"><span class="num">2,000+</span><span class="lbl" data-i18n="stat2">Happy customers</span></div>
+        <div class="stat"><span class="num">24/7</span><span class="lbl" data-i18n="stat3">WhatsApp orders</span></div>
+      </div>
+    </div>
+    <div class="hero-card reveal" data-d="2">
+      <div class="hero-collage" id="heroCollage"></div>
+      <div class="float-badge">
+        <span class="fb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <div><b data-i18n="fb_t">Cash on Delivery</b><small data-i18n="fb_s">Pay when it arrives</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="trust-strip">
+    <div class="container">
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg><span data-i18n="t_auth">100% Authentic goods</span></div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7zM5.5 18.5A1.5 1.5 0 1 0 5.5 21M18.5 18.5A1.5 1.5 0 1 0 18.5 21"/></svg><span data-i18n="t_deliv">Nationwide delivery</span></div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span data-i18n="t_pay">WAVE · AfriMoney · QMoney</span></div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span data-i18n="t_supp">Friendly support</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CATEGORIES ============ -->
+<section class="section" id="categories">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="cat_eyebrow">Browse</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="cat_title">Shop by Category</h2>
+      <p class="section-sub reveal" data-d="2" data-i18n="cat_sub">From spiritual essentials to everyday needs — find exactly what you're looking for.</p>
+    </div>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+</section>
+
+<!-- ============ SHOP / PRODUCTS ============ -->
+<section class="section pattern-soft" id="shop">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="shop_eyebrow">Our Products</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="shop_title">Featured & Bestsellers</h2>
+      <p class="section-sub reveal" data-d="2" data-i18n="shop_sub">Every item shows live stock, price in Dalasi, and lets you add to cart or order on WhatsApp instantly.</p>
+    </div>
+    <div class="shop-toolbar reveal">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="search" placeholder="Search products…" data-i18n-ph="search_ph" aria-label="Search products">
+      </div>
+    </div>
+    <div class="chips reveal" id="filterChips"></div>
+    <div style="height:20px"></div>
+    <div class="prod-grid" id="prodGrid"></div>
+    <div id="noResults" style="display:none;text-align:center;padding:50px;color:var(--muted)"><p data-i18n="no_results">No products match your search.</p></div>
+  </div>
+</section>
+
+<!-- ============ WHY US ============ -->
+<section class="section" id="why">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="why_eyebrow">Why Jeddah Trading</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="why_title">Shopping made simple & trusted</h2>
+    </div>
+    <div class="feat-grid" id="featGrid"></div>
+  </div>
+</section>
+
+<!-- ============ TESTIMONIALS ============ -->
+<section class="section pattern-soft" id="testimonials">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="testi_eyebrow">Reviews</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="testi_title">Loved by customers across The Gambia</h2>
+    </div>
+    <div class="testi-grid" id="testiGrid"></div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="faq">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="faq_eyebrow">Help</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="faq_title">Frequently Asked Questions</h2>
+    </div>
+    <div class="faq-wrap" id="faqWrap"></div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="section pattern-soft" id="contact">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal" data-i18n="contact_eyebrow">Get in touch</span>
+      <h2 class="section-title display reveal" data-d="1" data-i18n="contact_title">Contact Jeddah Trading</h2>
+    </div>
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <div class="ci-row"><span class="ci-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><div><b data-i18n="ci_addr_t">Visit our shop</b><span data-i18n="ci_addr_s">Serrekunda Market Area, Greater Banjul, The Gambia</span></div></div>
+        <div class="ci-row"><span class="ci-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><div><b data-i18n="ci_phone_t">Call / WhatsApp</b><span dir="ltr">+220 709 3900</span></div></div>
+        <div class="ci-row"><span class="ci-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 5L2 7"/></svg></span><div><b data-i18n="ci_email_t">Email us</b><span>orders@jeddahtrading.gm</span></div></div>
+        <div class="ci-row"><span class="ci-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><div><b data-i18n="ci_hours_t">Opening hours</b><span data-i18n="ci_hours_s">Mon–Sat: 9am – 9pm · Sun: 3pm – 8pm</span></div></div>
+        <a href="#" id="contactWa" class="btn btn-wa btn-block" style="margin-top:8px">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          <span data-i18n="ci_wa_btn">Chat with us now</span>
+        </a>
+      </div>
+      <form class="form-card reveal" data-d="1" id="contactForm">
+        <div class="field"><label data-i18n="f_name">Your name</label><input type="text" required placeholder="e.g. Fatou Jallow" data-i18n-ph="f_name_ph"></div>
+        <div class="field"><label data-i18n="f_phone">Phone number</label><input type="tel" required placeholder="+220 …" dir="ltr"></div>
+        <div class="field"><label data-i18n="f_msg">Message</label><textarea required placeholder="How can we help you?" data-i18n-ph="f_msg_ph"></textarea></div>
+        <button type="submit" class="btn btn-primary btn-block" data-i18n="f_send">Send message</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer pattern-bg">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.3L20 8l-4 4 1 6-5-2.8L7 18l1-6-4-4 5.6-.7z" fill="#d4af37"/><circle cx="12" cy="12" r="2.4" fill="#0c3b22"/></svg></span><span class="brand-name">Jeddah Trading</span></div>
+        <p data-i18n="foot_about">Your trusted home for herbs, Islamic products, perfumes, dates, clothing, electronics and general goods in The Gambia. Quality you can trust, delivered to your door.</p>
+        <div class="socials">
+          <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+          <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
+          <a href="#" id="footWa" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a>
+        </div>
+      </div>
+      <div><h4 data-i18n="foot_shop">Shop</h4><ul class="footer-links" id="footCats"></ul></div>
+      <div><h4 data-i18n="foot_links">Quick Links</h4><ul class="footer-links">
+        <li><a href="#shop" data-i18n="nav_shop">Shop</a></li>
+        <li><a href="#why" data-i18n="nav_why">Why Us</a></li>
+        <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
+        <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+      </ul></div>
+      <div><h4 data-i18n="foot_pay">We Accept</h4>
+        <p style="margin-top:0" data-i18n="foot_pay_sub">Flexible payment for everyone:</p>
+        <div class="pay-badges">
+          <span class="pay-badge">WAVE</span><span class="pay-badge">AfriMoney</span><span class="pay-badge">QMoney</span><span class="pay-badge" data-i18n="pb_bank">Bank Transfer</span><span class="pay-badge" data-i18n="pb_cod">Cash on Delivery</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom"><div class="container">© <span id="yr"></span> Jeddah Trading · <span data-i18n="foot_rights">All rights reserved</span> · The Gambia 🇬🇲</div></div>
+</footer>
+
+<!-- ============ CART DRAWER ============ -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="cartDrawer" aria-label="Shopping cart">
+  <div class="drawer-head">
+    <h3 class="display" data-i18n="cart_title">Your Cart</h3>
+    <button class="close-x" id="closeCart" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-foot" id="cartFoot"></div>
+</aside>
+
+<!-- ============ MOBILE MENU DRAWER ============ -->
+<aside class="drawer" id="menuDrawer" style="inset-inline-start:0;inset-inline-end:auto;transform:translateX(-110%)" aria-label="Menu">
+  <div class="drawer-head"><h3 class="display">Menu</h3><button class="close-x" id="closeMenu" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="drawer-body">
+    <nav style="display:flex;flex-direction:column;gap:6px">
+      <a class="mm-link" href="#shop" data-i18n="nav_shop">Shop</a>
+      <a class="mm-link" href="#categories" data-i18n="nav_cat">Categories</a>
+      <a class="mm-link" href="#why" data-i18n="nav_why">Why Us</a>
+      <a class="mm-link" href="#testimonials" data-i18n="nav_testi">Reviews</a>
+      <a class="mm-link" href="#faq" data-i18n="nav_faq">FAQ</a>
+      <a class="mm-link" href="#contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+  </div>
+</aside>
+
+<!-- ============ PRODUCT MODAL ============ -->
+<div class="modal" id="prodModal" role="dialog" aria-modal="true">
+  <div class="modal-card" id="prodModalCard"></div>
+</div>
+
+<!-- ============ CHECKOUT MODAL ============ -->
+<div class="modal" id="checkoutModal" role="dialog" aria-modal="true">
+  <div class="modal-card narrow" id="checkoutCard"></div>
+</div>
+
+<!-- ============ MOBILE BOTTOM NAV ============ -->
+<nav class="mobile-nav">
+  <a href="#top" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="mn_home">Home</span></a>
+  <a href="#shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg><span data-i18n="mn_shop">Shop</span></a>
+  <a href="#" id="mnCart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><span class="mn-badge" id="mnBadge" style="display:none">0</span><span data-i18n="mn_cart">Cart</span></a>
+  <a href="#" id="mnWa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044z"/></svg><span data-i18n="mn_order">Order</span></a>
+</nav>
+
+<!-- ============ FLOATING WHATSAPP ============ -->
+<a href="#" class="fab-wa" id="fabWa" aria-label="Order on WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+</a>
+
+<style>.mm-link{padding:13px 16px;border-radius:12px;font-weight:600;color:var(--green-800);font-size:1.02rem}.mm-link:hover{background:rgba(16,80,47,.08)}</style>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* =========================================================
+   JEDDAH TRADING — App logic
+   ========================================================= */
+
+/* These now load LIVE from the backend (admin Settings + Products).
+   Values below are only fallbacks if the API is unreachable. */
+let WHATSAPP_NUMBER = "2207093900"; // +220 709 3900
+let STORE_NAME = "Jeddah Trading";
+const CURRENCY = "D"; // Gambian Dalasi (GMD)
+let FREE_DELIVERY_OVER = 2500;
+let DELIVERY_FEE = 150;
+const API = ''; // same origin; or set to e.g. 'https://api.yoursite.com' if backend is hosted elsewhere
+
+/* ---------- SVG icon library (inline, no emoji-as-icon) ---------- */
+const ICONS = {
+  leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
+  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  perfume:'<path d="M9 2h6v3H9z"/><rect x="6" y="7" width="12" height="14" rx="3"/><path d="M9 12h6"/>',
+  date:'<path d="M12 22c4-3 6-7 6-11a6 6 0 0 0-12 0c0 4 2 8 6 11z"/><path d="M12 22V11"/>',
+  shirt:'<path d="M16 3l4 2-2 4-2-1v13H8V8L6 9 4 5l4-2 4 3z"/>',
+  dress:'<path d="M8 2l4 3 4-3 1 6-2 2 3 11H6l3-11-2-2z"/>',
+  device:'<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  gift:'<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M3 12h18M12 8S10 2 7 4s5 4 5 4zm0 0s2-6 5-4-5 4-5 4z"/>',
+  box:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',
+  grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
+  beads:'<circle cx="6" cy="6" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="20" r="2.4"/><circle cx="4" cy="12" r="2"/>',
+  oil:'<path d="M10 2h4v3l3 3v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V8l3-3z"/><path d="M9 13h6"/>',
+};
+function svg(name,cls){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="${cls||''}">${ICONS[name]||''}</svg>`}
+
+/* ---------- Category definitions (fallback; replaced by API on load) ---------- */
+let CATEGORIES = [
+  {id:'herbs',     icon:'leaf',    grad:'linear-gradient(135deg,#10502f,#1c7d4a)', en:'Herbs & Natural', ar:'الأعشاب والطبيعية'},
+  {id:'islamic',   icon:'book',    grad:'linear-gradient(135deg,#072617,#10502f)', en:'Islamic Products', ar:'منتجات إسلامية'},
+  {id:'perfumes',  icon:'perfume', grad:'linear-gradient(135deg,#9a7b1f,#d4af37)', en:'Perfumes & Oud', ar:'العطور والعود'},
+  {id:'dates',     icon:'date',    grad:'linear-gradient(135deg,#7a4a12,#bd9526)', en:'Dates & Foods', ar:'التمور والأطعمة'},
+  {id:'men',       icon:'shirt',   grad:'linear-gradient(135deg,#0c3b22,#16653c)', en:"Men's Clothing", ar:'ملابس رجالية'},
+  {id:'women',     icon:'dress',   grad:'linear-gradient(135deg,#5a3b6b,#8a5fa3)', en:"Women's Clothing", ar:'ملابس نسائية'},
+  {id:'electronics',icon:'device', grad:'linear-gradient(135deg,#1d3a5f,#2f6db0)', en:'Electronics', ar:'الإلكترونيات'},
+  {id:'household', icon:'home',    grad:'linear-gradient(135deg,#10502f,#3ca06b)', en:'Household Items', ar:'أدوات منزلية'},
+  {id:'hajj',      icon:'gift',    grad:'linear-gradient(135deg,#072617,#9a7b1f)', en:'Hajj & Umrah Gifts', ar:'هدايا الحج والعمرة'},
+  {id:'packaging', icon:'box',     grad:'linear-gradient(135deg,#5c4326,#9a7b1f)', en:'Packaging Materials', ar:'مواد التغليف'},
+  {id:'general',   icon:'grid',    grad:'linear-gradient(135deg,#3a4a40,#6b7a70)', en:'General Goods', ar:'بضائع عامة'},
+];
+let catMap = Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));
+
+/* ---------- Product catalog (fallback; replaced by API on load) ---------- */
+let UID=1;
+function P(cat,icon,price,stock,en,ar,benEn,benAr,feat){
+  return {id:UID++,cat,icon,price,stock,feat:!!feat,image:null,
+    en:{name:en[0],desc:en[1],use:en[2],benefits:benEn},
+    ar:{name:ar[0],desc:ar[1],use:ar[2],benefits:benAr}};
+}
+let PRODUCTS = [
+  P('herbs','leaf',350,40,
+    ['Pure Moringa Powder 250g','Nutrient-rich moringa leaf powder, locally sourced and sun-dried.','Mix 1 teaspoon into water, juice, or porridge daily.'],
+    ['مسحوق المورينجا النقي ٢٥٠غ','مسحوق أوراق المورينجا الغني بالعناصر الغذائية، مجفف بالشمس.','اخلط ملعقة صغيرة في الماء أو العصير يومياً.'],
+    ['Boosts energy & immunity','Rich in iron, calcium & vitamins','100% natural, no additives'],
+    ['يعزز الطاقة والمناعة','غني بالحديد والكالسيوم والفيتامينات','طبيعي ١٠٠٪ بدون إضافات'],true),
+  P('herbs','oil',500,25,
+    ['Black Seed Oil (Habbatus Sauda) 100ml','Cold-pressed black seed oil, prized in prophetic medicine.','Take 1 teaspoon daily or apply to skin and hair.'],
+    ['زيت الحبة السوداء ١٠٠مل','زيت حبة البركة المعصور على البارد، من الطب النبوي.','تناول ملعقة صغيرة يومياً أو ادهن البشرة والشعر.'],
+    ['Supports immune system','Good for skin & hair','Traditional remedy'],
+    ['يدعم جهاز المناعة','مفيد للبشرة والشعر','علاج تقليدي'],true),
+  P('herbs','leaf',280,0,
+    ['Dried Hibiscus (Wonjo) 200g','Premium dried hibiscus flowers for refreshing wonjo juice.','Boil with water and sugar, chill and serve.'],
+    ['الكركديه المجفف ٢٠٠غ','أزهار الكركديه المجففة الفاخرة لعصير منعش.','اغلِ مع الماء والسكر، ثم برّد وقدّم.'],
+    ['Rich in antioxidants','Supports healthy blood pressure','Refreshing & natural'],
+    ['غني بمضادات الأكسدة','يدعم ضغط الدم الصحي','منعش وطبيعي'],false),
+  P('herbs','oil',420,18,
+    ['Pure Honey 500g','Raw, unfiltered honey from local beekeepers.','Take a spoonful daily or sweeten drinks naturally.'],
+    ['عسل نقي ٥٠٠غ','عسل خام غير مصفى من النحالين المحليين.','تناول ملعقة يومياً أو حلِّ المشروبات طبيعياً.'],
+    ['Natural energy source','Soothes throat & cough','No added sugar'],
+    ['مصدر طاقة طبيعي','يهدئ الحلق والسعال','بدون سكر مضاف'],false),
+
+  P('islamic','book',650,30,
+    ['The Holy Quran (Hardcover, Uthmani)','Beautifully printed mushaf with clear Uthmani script.','Keep in a clean, respectful place for daily recitation.'],
+    ['المصحف الشريف (غلاف صلب، عثماني)','مصحف مطبوع بخط عثماني واضح وجميل.','احفظه في مكان نظيف للتلاوة اليومية.'],
+    ['Clear, large print','Durable hardcover','Ideal gift'],
+    ['طباعة واضحة وكبيرة','غلاف صلب متين','هدية مثالية'],true),
+  P('islamic','beads','120',60,
+    ['Tasbih Prayer Beads (99 beads)','Elegant 99-bead misbaha for dhikr, in assorted colours.','Use for counting dhikr after prayers.'],
+    ['مسبحة (٩٩ حبة)','مسبحة أنيقة من ٩٩ حبة للذكر بألوان متنوعة.','تُستخدم لعدّ الأذكار بعد الصلاة.'],
+    ['Smooth, quality beads','Helps focus in dhikr','Comes in a gift pouch'],
+    ['حبات ناعمة وعالية الجودة','تساعد على التركيز في الذكر','تأتي في كيس هدية'],false),
+  P('islamic','home',900,12,
+    ['Premium Prayer Mat (Padded)','Thick, padded prayer mat with Islamic arch design.','Roll out on a clean surface for comfortable salah.'],
+    ['سجادة صلاة فاخرة (مبطنة)','سجادة صلاة سميكة مبطنة بتصميم المحراب الإسلامي.','افرشها على سطح نظيف لصلاة مريحة.'],
+    ['Extra cushioning for knees','Non-slip backing','Elegant design'],
+    ['بطانة إضافية للركبتين','ظهر مانع للانزلاق','تصميم أنيق'],true),
+  P('islamic','oil',180,45,
+    ['Bakhoor Incense (Assorted)','Fragrant bakhoor chips to perfume your home and clothes.','Burn a small piece on charcoal in a burner.'],
+    ['بخور (متنوع)','رقائق بخور عطرية لتعطير المنزل والملابس.','احرق قطعة صغيرة على الفحم في المبخرة.'],
+    ['Long-lasting aroma','Traditional fragrance','Great for gatherings'],
+    ['رائحة تدوم طويلاً','عبق تقليدي','مثالي للمناسبات'],false),
+
+  P('perfumes','perfume',1200,20,
+    ['Royal Oud Perfume 50ml','Long-lasting alcohol-free attar with rich oud notes.','Apply to wrists and neck; a little goes a long way.'],
+    ['عطر العود الملكي ٥٠مل','عطر زيتي خالٍ من الكحول يدوم طويلاً بنفحات العود.','ضعه على المعصمين والرقبة؛ القليل يكفي.'],
+    ['Alcohol-free (halal)','Rich, premium scent','Lasts all day'],
+    ['خالٍ من الكحول (حلال)','رائحة فاخرة وغنية','يدوم طوال اليوم'],true),
+  P('perfumes','oil',450,35,
+    ['Musk Al Tahara Roll-on 10ml','Clean, pure white musk roll-on, gentle on skin.','Roll lightly onto pulse points.'],
+    ['مسك الطهارة رول ١٠مل','مسك أبيض نقي لطيف على البشرة.','مرره بخفة على مواضع النبض.'],
+    ['Subtle, clean fragrance','Skin-friendly','Pocket size'],
+    ['رائحة نظيفة وخفيفة','لطيف على البشرة','حجم صغير للجيب'],false),
+  P('perfumes','perfume',800,0,
+    ['Arabian Body Spray Gift Set','Set of 3 long-lasting Arabian-inspired body sprays.','Spray onto clothes and body after dressing.'],
+    ['طقم بخاخ معطر عربي','مجموعة من ٣ بخاخات معطرة عربية تدوم طويلاً.','رشها على الملابس والجسم بعد ارتداء الثياب.'],
+    ['Great value gift set','Three signature scents','Elegant packaging'],
+    ['طقم هدية بقيمة ممتازة','ثلاث روائح مميزة','تغليف أنيق'],false),
+
+  P('dates','date',600,50,
+    ['Premium Ajwa Dates 500g','Soft, sweet Ajwa dates — a Sunnah favourite.','Enjoy daily, especially to break your fast.'],
+    ['تمر العجوة الفاخر ٥٠٠غ','تمر العجوة الطري والحلو — من السنة.','تناوله يومياً، خاصة عند الإفطار.'],
+    ['Naturally sweet & nutritious','Loved in Sunnah','Perfect for Ramadan'],
+    ['حلو ومغذٍ طبيعياً','محبوب في السنة','مثالي لرمضان'],true),
+  P('dates','date',400,40,
+    ['Medjool Dates 1kg','Large, juicy Medjool dates packed with energy.','A wholesome snack any time of day.'],
+    ['تمر المجدول ١كغ','تمر مجدول كبير وعصيري مليء بالطاقة.','وجبة خفيفة صحية في أي وقت.'],
+    ['Big and soft','High in fibre & energy','Family pack'],
+    ['كبير وطري','غني بالألياف والطاقة','عبوة عائلية'],false),
+  P('dates','box',750,22,
+    ['Mixed Dates & Nuts Gift Box','Assorted premium dates with almonds — ideal for gifting.','Present at gatherings or gift to loved ones.'],
+    ['علبة هدايا تمر ومكسرات','تشكيلة تمور فاخرة مع اللوز — مثالية للإهداء.','قدمها في المناسبات أو أهدها لأحبابك.'],
+    ['Elegant gift box','Variety of flavours','Ready to gift'],
+    ['علبة هدية أنيقة','تشكيلة نكهات','جاهزة للإهداء'],false),
+
+  P('men','shirt',850,28,
+    ['Premium Cotton Thobe (Jubba)','Classic men\'s thobe in breathable cotton, multiple sizes.','Wear for prayers, Jumu\'ah and special occasions.'],
+    ['ثوب قطني فاخر (جبة)','ثوب رجالي كلاسيكي من القطن المسامي، بمقاسات متعددة.','يُلبس للصلاة والجمعة والمناسبات.'],
+    ['Breathable cotton','Smart, modest fit','Available in many sizes'],
+    ['قطن مسامي','قصة محتشمة وأنيقة','متوفر بمقاسات عديدة'],true),
+  P('men','shirt',300,55,
+    ['Cotton Kufi Prayer Cap','Comfortable embroidered kufi cap for daily wear.','Wear during prayer and everyday.'],
+    ['طاقية قطنية مطرزة','طاقية مريحة مطرزة للاستخدام اليومي.','تُلبس أثناء الصلاة وكل يوم.'],
+    ['Soft & breathable','Elegant embroidery','One size fits most'],
+    ['ناعمة ومريحة','تطريز أنيق','مقاس واحد يناسب الجميع'],false),
+  P('men','perfume',550,30,
+    ['Men\'s Ghutra & Agal Set','Premium white ghutra headscarf with black agal.','Wear for formal and religious occasions.'],
+    ['طقم غترة وعقال رجالي','غترة بيضاء فاخرة مع عقال أسود.','تُلبس في المناسبات الرسمية والدينية.'],
+    ['Crisp premium fabric','Complete set','Classic style'],
+    ['قماش فاخر','طقم كامل','أناقة كلاسيكية'],false),
+
+  P('women','dress',1100,24,
+    ['Elegant Abaya (Embroidered)','Flowing black abaya with subtle gold embroidery.','Wear over clothing for modest, elegant style.'],
+    ['عباءة أنيقة (مطرزة)','عباءة سوداء انسيابية بتطريز ذهبي راقٍ.','تُلبس فوق الملابس لإطلالة محتشمة وأنيقة.'],
+    ['Premium flowing fabric','Tasteful gold detail','Comfortable & modest'],
+    ['قماش انسيابي فاخر','تفاصيل ذهبية راقية','مريحة ومحتشمة'],true),
+  P('women','dress',350,48,
+    ['Soft Jersey Hijab (Set of 3)','Breathable jersey hijabs in neutral everyday tones.','Style for daily wear and occasions.'],
+    ['حجاب جيرسيه ناعم (٣ قطع)','حجابات جيرسيه مسامية بألوان يومية هادئة.','للاستخدام اليومي والمناسبات.'],
+    ['Stretchy & non-slip','Three colours included','All-day comfort'],
+    ['مطاطي وغير منزلق','ثلاثة ألوان','راحة طوال اليوم'],false),
+  P('women','dress',650,20,
+    ['Two-Piece Prayer Khimar','Comfortable one-piece prayer garment for women.','Slip on quickly for salah at home or travel.'],
+    ['خمار صلاة قطعتين','ثوب صلاة مريح للنساء.','ارتديه بسرعة للصلاة في البيت أو السفر.'],
+    ['Quick & easy to wear','Full coverage','Soft fabric'],
+    ['سهل وسريع الارتداء','تغطية كاملة','قماش ناعم'],false),
+
+  P('electronics','device',2800,15,
+    ['Digital Azan Clock','Auto prayer-time clock with Azan for The Gambia.','Set your city; it calls the Azan automatically.'],
+    ['ساعة أذان رقمية','ساعة مواقيت الصلاة مع الأذان لغامبيا.','اضبط مدينتك؛ تؤذن تلقائياً.'],
+    ['Automatic prayer alerts','Clear Azan audio','Wall or desk mount'],
+    ['تنبيهات صلاة تلقائية','صوت أذان واضح','تعليق على الحائط أو المكتب'],true),
+  P('electronics','device',1500,18,
+    ['Bluetooth Speaker (Portable)','Powerful portable speaker with deep bass.','Pair via Bluetooth and play for hours.'],
+    ['مكبر صوت بلوتوث (محمول)','مكبر صوت محمول قوي بصوت جهير عميق.','اقرنه عبر البلوتوث واستمع لساعات.'],
+    ['Long battery life','Rich sound','Compact & portable'],
+    ['بطارية تدوم طويلاً','صوت غني','صغير ومحمول'],false),
+  P('electronics','device',450,0,
+    ['Fast USB-C Charger + Cable','20W fast charger with durable braided cable.','Plug in for rapid, safe charging.'],
+    ['شاحن USB-C سريع + كابل','شاحن سريع ٢٠ واط مع كابل مجدول متين.','وصّله لشحن سريع وآمن.'],
+    ['20W fast charging','Durable braided cable','Universal USB-C'],
+    ['شحن سريع ٢٠ واط','كابل مجدول متين','USB-C عالمي'],false),
+
+  P('household','home',1800,16,
+    ['Stainless Steel Cookware Set','5-piece non-stick stainless cookware for the family kitchen.','Use for daily cooking; easy to clean.'],
+    ['طقم أواني طهي ستانلس','طقم من ٥ قطع غير لاصق لمطبخ العائلة.','للطهي اليومي؛ سهل التنظيف.'],
+    ['Durable stainless steel','Non-stick coating','Family size set'],
+    ['ستانلس متين','طلاء غير لاصق','حجم عائلي'],true),
+  P('household','home',650,30,
+    ['Insulated Water Flask 1.5L','Keeps water cold or hot for hours — great for travel.','Fill and seal; ideal for journeys and the mosque.'],
+    ['ترمس ماء معزول ١.٥ل','يحافظ على الماء بارداً أو ساخناً لساعات.','املأه وأحكم إغلاقه؛ مثالي للسفر والمسجد.'],
+    ['Keeps temperature for hours','Leak-proof seal','Large capacity'],
+    ['يحافظ على الحرارة لساعات','إغلاق مانع للتسرب','سعة كبيرة'],false),
+  P('household','box',280,40,
+    ['Microfibre Cleaning Set','Pack of 6 absorbent microfibre cloths for home cleaning.','Use dry or damp on any surface.'],
+    ['طقم تنظيف ميكروفايبر','عبوة من ٦ قطع ماصة لتنظيف المنزل.','استخدمها جافة أو مبللة على أي سطح.'],
+    ['Highly absorbent','Lint-free shine','Reusable & washable'],
+    ['ماص للغاية','لمعان بلا وبر','قابل لإعادة الاستخدام'],false),
+
+  P('hajj','gift',2200,14,
+    ['Complete Hajj & Umrah Kit','Ihram, belt, travel mat, mini Quran & toiletries in one bag.','Everything a pilgrim needs for the journey.'],
+    ['طقم الحج والعمرة الكامل','إحرام، حزام، سجادة سفر، مصحف صغير ومستلزمات في حقيبة.','كل ما يحتاجه الحاج للرحلة.'],
+    ['All essentials in one bag','Lightweight for travel','Thoughtful pilgrim gift'],
+    ['كل الأساسيات في حقيبة','خفيف للسفر','هدية مثالية للحاج'],true),
+  P('hajj','perfume',950,20,
+    ['Zamzam-Style Gift Hamper','Elegant hamper with dates, attar, tasbih and a card.','Present to returning pilgrims or loved ones.'],
+    ['سلة هدايا فاخرة','سلة أنيقة بها تمر وعطر ومسبحة وبطاقة.','قدمها للحجاج العائدين أو للأحباب.'],
+    ['Ready-to-give hamper','Premium contents','Personalised card'],
+    ['سلة جاهزة للإهداء','محتويات فاخرة','بطاقة شخصية'],false),
+
+  P('packaging','box',150,200,
+    ['Kraft Gift Boxes (Pack of 10)','Sturdy brown kraft boxes for gifts and small business.','Assemble and fill for products or gifts.'],
+    ['علب كرافت للهدايا (١٠ قطع)','علب كرافت بنية متينة للهدايا والأعمال الصغيرة.','ركّبها واملأها بالمنتجات أو الهدايا.'],
+    ['Eco-friendly kraft','Bulk pack value','Perfect for resellers'],
+    ['كرافت صديق للبيئة','عبوة بالجملة','مثالية للتجار'],false),
+  P('packaging','box',200,150,
+    ['Clear Gift Bags & Ribbon Set','50 clear bags with gold ribbon for packaging treats.','Fill, tie with ribbon and gift.'],
+    ['أكياس هدايا شفافة وشريط','٥٠ كيساً شفافاً مع شريط ذهبي للتغليف.','املأها واربطها بالشريط وأهدها.'],
+    ['Clear, food-safe bags','Includes gold ribbon','Great for small business'],
+    ['أكياس شفافة آمنة للطعام','يشمل شريطاً ذهبياً','رائع للأعمال الصغيرة'],false),
+
+  P('general','grid',900,26,
+    ['Solar LED Lantern','Rechargeable solar lantern — reliable light during outages.','Charge in sun or by USB; use anywhere.'],
+    ['فانوس LED يعمل بالطاقة الشمسية','فانوس شمسي قابل للشحن — إضاءة موثوقة عند انقطاع الكهرباء.','اشحنه بالشمس أو USB؛ استخدمه في أي مكان.'],
+    ['Solar + USB charging','Bright, long runtime','Ideal for power cuts'],
+    ['شحن شمسي و USB','إضاءة ساطعة تدوم','مثالي لانقطاع الكهرباء'],true),
+  P('general','grid',350,60,
+    ['School Stationery Bundle','Notebooks, pens and essentials for students.','Ready for the school term.'],
+    ['حزمة قرطاسية مدرسية','دفاتر وأقلام ومستلزمات للطلاب.','جاهزة للفصل الدراسي.'],
+    ['Great back-to-school value','Quality notebooks & pens','Everything in one pack'],
+    ['قيمة ممتازة للعودة للمدرسة','دفاتر وأقلام جيدة','كل شيء في حزمة'],false),
+];
+
+/* ---------- i18n dictionary ---------- */
+const I18N = {
+  en:{
+    announce:'🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime',
+    tagline:'The Gambia', nav_shop:'Shop', nav_cat:'Categories', nav_why:'Why Us', nav_testi:'Reviews', nav_faq:'FAQ', nav_contact:'Contact',
+    hero_eyebrow:'Trusted in The Gambia', hero_h1a:'Quality goods for', hero_h1b:'every home & soul',
+    hero_lead:'Herbs, Islamic essentials, perfumes, premium dates, clothing, electronics and everyday household goods — all in one trusted store. Shop online and pay your way.',
+    hero_cta1:'Shop Now', hero_cta2:'Order on WhatsApp',
+    stat1:'Product categories', stat2:'Happy customers', stat3:'WhatsApp orders',
+    fb_t:'Cash on Delivery', fb_s:'Pay when it arrives',
+    t_auth:'100% Authentic goods', t_deliv:'Nationwide delivery', t_pay:'WAVE · AfriMoney · QMoney', t_supp:'Friendly support',
+    cat_eyebrow:'Browse', cat_title:'Shop by Category', cat_sub:"From spiritual essentials to everyday needs — find exactly what you're looking for.",
+    shop_eyebrow:'Our Products', shop_title:'Featured & Bestsellers', shop_sub:'Every item shows live stock, price in Dalasi, and lets you add to cart or order on WhatsApp instantly.',
+    search_ph:'Search products…', no_results:'No products match your search.',
+    why_eyebrow:'Why Jeddah Trading', why_title:'Shopping made simple & trusted',
+    testi_eyebrow:'Reviews', testi_title:'Loved by customers across The Gambia',
+    faq_eyebrow:'Help', faq_title:'Frequently Asked Questions',
+    contact_eyebrow:'Get in touch', contact_title:'Contact Jeddah Trading',
+    ci_addr_t:'Visit our shop', ci_addr_s:'Serrekunda Market Area, Greater Banjul, The Gambia',
+    ci_phone_t:'Call / WhatsApp', ci_email_t:'Email us', ci_hours_t:'Opening hours', ci_hours_s:'Mon–Sat: 9am – 9pm · Sun: 3pm – 8pm',
+    ci_wa_btn:'Chat with us now', f_name:'Your name', f_name_ph:'e.g. Fatou Jallow', f_phone:'Phone number', f_msg:'Message', f_msg_ph:'How can we help you?', f_send:'Send message',
+    foot_about:'Your trusted home for herbs, Islamic products, perfumes, dates, clothing, electronics and general goods in The Gambia. Quality you can trust, delivered to your door.',
+    foot_shop:'Shop', foot_links:'Quick Links', foot_pay:'We Accept', foot_pay_sub:'Flexible payment for everyone:', pb_bank:'Bank Transfer', pb_cod:'Cash on Delivery', foot_rights:'All rights reserved',
+    cart_title:'Your Cart', mn_home:'Home', mn_shop:'Shop', mn_cart:'Cart', mn_order:'Order',
+    add_cart:'Add to Cart', order_wa:'WhatsApp', view:'View details', in_stock:'In stock', low_stock:'Only {n} left', out_stock:'Out of stock', featured:'Featured', units:'units',
+    benefits:'Benefits', how_use:'How to use', description:'Description', availability:'Availability',
+    cart_empty:'Your cart is empty', cart_empty_sub:'Start adding products to see them here.', browse:'Browse products',
+    subtotal:'Subtotal', delivery:'Delivery', free:'FREE', total:'Total', checkout:'Proceed to Checkout', clear_cart:'Clear cart',
+    co_step1:'Details', co_step2:'Delivery', co_step3:'Payment', co_step4:'Confirm',
+    co_yourdetails:'Your details', co_fullname:'Full name', co_phone:'Phone (WhatsApp)', co_deliv_method:'Delivery method',
+    co_home:'Home delivery', co_home_s:'We deliver to your address', co_pickup:'Shop pickup', co_pickup_s:'Collect from Serrekunda', co_address:'Delivery address', co_area:'Area / Town', co_notes:'Order notes (optional)', co_notes_ph:'Landmark, preferred time, etc.',
+    co_choose_pay:'Choose payment method', pay_confirm_wa:'You\'ll confirm & send payment details on WhatsApp',
+    wave_s:'Mobile money', afri_s:'Africell mobile money', qmoney_s:'QCell mobile money', bank_s:'Direct bank transfer', cod_s:'Pay cash when delivered', wachat_s:'Place order via WhatsApp chat',
+    co_review:'Review your order', co_name_l:'Name', co_phone_l:'Phone', co_deliv_l:'Delivery', co_pay_l:'Payment', co_items:'Items',
+    co_place:'Place Order on WhatsApp', co_back:'Back', co_next:'Continue', co_placed:'Order ready!', co_placed_sub:'Your order summary is opening in WhatsApp. Send the message to confirm and we\'ll reply right away.',
+    co_open_wa:'Open WhatsApp', co_done:'Done',
+    toast_added:'Added to cart', toast_removed:'Removed from cart', toast_cleared:'Cart cleared', toast_msg_sent:'Message ready — opening WhatsApp', toast_fill:'Please fill in your name and phone',
+    order_now:'Order Now', continue_shop:'Continue shopping',
+  },
+  ar:{
+    announce:'🌙 توصيل مجاني في منطقة بانجول الكبرى للطلبات فوق <strong>٢٬٥٠٠ دلاسي</strong> · اطلب عبر واتساب في أي وقت',
+    tagline:'غامبيا', nav_shop:'المتجر', nav_cat:'الأقسام', nav_why:'لماذا نحن', nav_testi:'التقييمات', nav_faq:'الأسئلة', nav_contact:'تواصل',
+    hero_eyebrow:'موثوق في غامبيا', hero_h1a:'بضائع عالية الجودة', hero_h1b:'لكل بيت وروح',
+    hero_lead:'أعشاب، مستلزمات إسلامية، عطور، تمور فاخرة، ملابس، إلكترونيات وأدوات منزلية — كل ذلك في متجر واحد موثوق. تسوّق أونلاين وادفع بطريقتك.',
+    hero_cta1:'تسوّق الآن', hero_cta2:'اطلب عبر واتساب',
+    stat1:'أقسام المنتجات', stat2:'عميل سعيد', stat3:'طلبات واتساب',
+    fb_t:'الدفع عند الاستلام', fb_s:'ادفع عند وصول طلبك',
+    t_auth:'بضائع أصلية ١٠٠٪', t_deliv:'توصيل لكل البلاد', t_pay:'WAVE · AfriMoney · QMoney', t_supp:'دعم ودود',
+    cat_eyebrow:'تصفّح', cat_title:'تسوّق حسب القسم', cat_sub:'من المستلزمات الروحية إلى الاحتياجات اليومية — ابحث عمّا تريد بالضبط.',
+    shop_eyebrow:'منتجاتنا', shop_title:'المميّز والأكثر مبيعاً', shop_sub:'كل منتج يعرض المخزون والسعر بالدلاسي، ويتيح الإضافة للسلة أو الطلب عبر واتساب فوراً.',
+    search_ph:'ابحث عن منتجات…', no_results:'لا توجد منتجات مطابقة لبحثك.',
+    why_eyebrow:'لماذا جدة للتجارة', why_title:'تسوّق بسيط وموثوق',
+    testi_eyebrow:'التقييمات', testi_title:'محبوب من العملاء في كل غامبيا',
+    faq_eyebrow:'مساعدة', faq_title:'الأسئلة الشائعة',
+    contact_eyebrow:'تواصل معنا', contact_title:'اتصل بجدة للتجارة',
+    ci_addr_t:'زر متجرنا', ci_addr_s:'منطقة سوق سيريكوندا، بانجول الكبرى، غامبيا',
+    ci_phone_t:'اتصال / واتساب', ci_email_t:'راسلنا', ci_hours_t:'ساعات العمل', ci_hours_s:'الاثنين–السبت: ٩ص – ٩م · الأحد: ٣م – ٨م',
+    ci_wa_btn:'تحدث معنا الآن', f_name:'اسمك', f_name_ph:'مثال: فاطو جالو', f_phone:'رقم الهاتف', f_msg:'الرسالة', f_msg_ph:'كيف يمكننا مساعدتك؟', f_send:'إرسال الرسالة',
+    foot_about:'بيتك الموثوق للأعشاب والمنتجات الإسلامية والعطور والتمور والملابس والإلكترونيات والبضائع العامة في غامبيا. جودة تثق بها، تصل إلى بابك.',
+    foot_shop:'المتجر', foot_links:'روابط سريعة', foot_pay:'نقبل الدفع بـ', foot_pay_sub:'دفع مرن للجميع:', pb_bank:'تحويل بنكي', pb_cod:'الدفع عند الاستلام', foot_rights:'جميع الحقوق محفوظة',
+    cart_title:'سلتك', mn_home:'الرئيسية', mn_shop:'المتجر', mn_cart:'السلة', mn_order:'اطلب',
+    add_cart:'أضف للسلة', order_wa:'واتساب', view:'التفاصيل', in_stock:'متوفر', low_stock:'بقي {n} فقط', out_stock:'نفد المخزون', featured:'مميّز', units:'وحدة',
+    benefits:'الفوائد', how_use:'طريقة الاستخدام', description:'الوصف', availability:'التوفر',
+    cart_empty:'سلتك فارغة', cart_empty_sub:'ابدأ بإضافة المنتجات لتظهر هنا.', browse:'تصفّح المنتجات',
+    subtotal:'المجموع الفرعي', delivery:'التوصيل', free:'مجاني', total:'الإجمالي', checkout:'إتمام الطلب', clear_cart:'إفراغ السلة',
+    co_step1:'البيانات', co_step2:'التوصيل', co_step3:'الدفع', co_step4:'تأكيد',
+    co_yourdetails:'بياناتك', co_fullname:'الاسم الكامل', co_phone:'الهاتف (واتساب)', co_deliv_method:'طريقة التوصيل',
+    co_home:'توصيل للمنزل', co_home_s:'نوصل إلى عنوانك', co_pickup:'استلام من المتجر', co_pickup_s:'استلم من سيريكوندا', co_address:'عنوان التوصيل', co_area:'المنطقة / المدينة', co_notes:'ملاحظات الطلب (اختياري)', co_notes_ph:'معلم قريب، الوقت المفضل، إلخ.',
+    co_choose_pay:'اختر طريقة الدفع', pay_confirm_wa:'ستؤكد وترسل تفاصيل الدفع عبر واتساب',
+    wave_s:'محفظة إلكترونية', afri_s:'محفظة أفريسيل', qmoney_s:'محفظة كيوسيل', bank_s:'تحويل بنكي مباشر', cod_s:'ادفع نقداً عند التوصيل', wachat_s:'أرسل الطلب عبر محادثة واتساب',
+    co_review:'راجع طلبك', co_name_l:'الاسم', co_phone_l:'الهاتف', co_deliv_l:'التوصيل', co_pay_l:'الدفع', co_items:'المنتجات',
+    co_place:'أرسل الطلب عبر واتساب', co_back:'رجوع', co_next:'متابعة', co_placed:'الطلب جاهز!', co_placed_sub:'ملخص طلبك يُفتح الآن في واتساب. أرسل الرسالة للتأكيد وسنرد فوراً.',
+    co_open_wa:'فتح واتساب', co_done:'تم',
+    toast_added:'أُضيف للسلة', toast_removed:'حُذف من السلة', toast_cleared:'تم إفراغ السلة', toast_msg_sent:'الرسالة جاهزة — يتم فتح واتساب', toast_fill:'يرجى إدخال اسمك ورقم هاتفك',
+    order_now:'اطلب الآن', continue_shop:'مواصلة التسوق',
+  }
+};
+
+/* ---------- FAQ / testimonials / features data ---------- */
+const FAQS=[
+  {en:['How do I place an order?','You can add items to your cart and checkout, or tap "Order on WhatsApp" on any product. We confirm every order on WhatsApp before delivery.'],
+   ar:['كيف أقدّم طلباً؟','يمكنك إضافة المنتجات إلى السلة وإتمام الطلب، أو الضغط على "اطلب عبر واتساب" على أي منتج. نؤكد كل طلب عبر واتساب قبل التوصيل.']},
+  {en:['What payment methods do you accept?','We accept WAVE, AfriMoney, QMoney, bank transfer, and cash on delivery. You confirm payment details with us on WhatsApp.'],
+   ar:['ما طرق الدفع المتاحة؟','نقبل WAVE و AfriMoney و QMoney والتحويل البنكي والدفع عند الاستلام. تؤكد تفاصيل الدفع معنا عبر واتساب.']},
+  {en:['Do you deliver across The Gambia?','Yes. Delivery in Greater Banjul is fast and free over D2,500. We also ship to other regions — delivery fees vary by location.'],
+   ar:['هل توصلون إلى كل غامبيا؟','نعم. التوصيل في بانجول الكبرى سريع ومجاني للطلبات فوق ٢٬٥٠٠ دلاسي. نوصل أيضاً لباقي المناطق برسوم تختلف حسب الموقع.']},
+  {en:['Are your products authentic?','Absolutely. We source genuine, quality products and stand behind everything we sell.'],
+   ar:['هل منتجاتكم أصلية؟','بالتأكيد. نوفر منتجات أصلية وعالية الجودة ونضمن كل ما نبيعه.']},
+  {en:['Can I return an item?','If an item arrives damaged or incorrect, contact us within 48 hours on WhatsApp and we\'ll make it right.'],
+   ar:['هل يمكنني إرجاع منتج؟','إذا وصل المنتج تالفاً أو خاطئاً، تواصل معنا خلال ٤٨ ساعة عبر واتساب وسنصلح الأمر.']},
+];
+const TESTIMONIALS=[
+  {en:['The Ajwa dates and oud perfume were excellent quality. Delivery to Serrekunda was fast and the WhatsApp ordering is so easy!','Aminata Ceesay','Serrekunda'],
+   ar:['تمر العجوة وعطر العود كانا بجودة ممتازة. التوصيل إلى سيريكوندا كان سريعاً والطلب عبر واتساب سهل جداً!','أميناتا سيساي','سيريكوندا']},
+  {en:['I bought a thobe and prayer mat for Eid. Beautiful items and great prices. Jeddah Trading is now my go-to shop.','Modou Njie','Banjul'],
+   ar:['اشتريت ثوباً وسجادة صلاة للعيد. منتجات جميلة وأسعار رائعة. أصبح جدة للتجارة متجري المفضل.','مودو نجي','بانجول']},
+  {en:['Paid easily with AfriMoney and chose cash on delivery for my second order. Trustworthy and very professional.','Fatou Bah','Brikama'],
+   ar:['دفعت بسهولة عبر AfriMoney واخترت الدفع عند الاستلام للطلب الثاني. موثوقون ومحترفون جداً.','فاطو باه','بريكama']},
+];
+const FEATURES=[
+  {icon:'leaf', en:['Wide range of goods','From herbs and Islamic essentials to electronics and household items — everything in one trusted place.']  ,ar:['تشكيلة واسعة','من الأعشاب والمستلزمات الإسلامية إلى الإلكترونيات والأدوات المنزلية — كل شيء في مكان موثوق.']},
+  {icon:'date', en:['Flexible payments','Pay with WAVE, AfriMoney, QMoney, bank transfer, or cash on delivery — whatever suits you best.'],ar:['دفع مرن','ادفع بـ WAVE أو AfriMoney أو QMoney أو تحويل بنكي أو عند الاستلام — كما يناسبك.']},
+  {icon:'device', en:['Order on WhatsApp','Prefer to chat? Order any product directly on WhatsApp and we\'ll guide you through every step.'],ar:['اطلب عبر واتساب','تفضل المحادثة؟ اطلب أي منتج مباشرة عبر واتساب وسنرشدك في كل خطوة.']},
+  {icon:'home', en:['Fast, reliable delivery','Quick delivery across Greater Banjul and nationwide, with free delivery on larger orders.'],ar:['توصيل سريع وموثوق','توصيل سريع في بانجول الكبرى وكل البلاد، مع توصيل مجاني للطلبات الكبيرة.']},
+];
+
+/* ---------- State ---------- */
+let LANG='en';
+let activeCat='all';
+let search='';
+let cart=[]; // {id, qty}
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+const t=k=>(I18N[LANG][k]!==undefined?I18N[LANG][k]:k);
+const money=n=>CURRENCY+Number(n).toLocaleString('en-US');
+const prod=id=>PRODUCTS.find(p=>p.id===id);
+function stockState(p){return p.stock<=0?'out':(p.stock<=5?'low':'in')}
+
+/* ---------- Toast ---------- */
+function toast(msg){
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>${msg}</span>`;
+  $('#toastWrap').appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),350)},2600);
+}
+
+/* ---------- WhatsApp helpers ---------- */
+function waLink(text){return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`}
+function openWa(text){window.open(waLink(text),'_blank')}
+function waProduct(p){
+  const d=p[LANG];
+  return openWa(`${LANG==='ar'?'السلام عليكم، أود طلب':'Assalamu alaikum, I would like to order'}:\n\n*${d.name}*\n${LANG==='ar'?'السعر':'Price'}: ${money(p.price)}\n\n${LANG==='ar'?'من متجر':'From'} ${STORE_NAME}`);
+}
+function waGeneral(){openWa(LANG==='ar'?`السلام عليكم ${STORE_NAME}، أود الاستفسار عن منتجاتكم.`:`Assalamu alaikum ${STORE_NAME}, I'd like to ask about your products.`)}
+
+/* ---------- Renders ---------- */
+function renderHeroCollage(){
+  const picks=['perfume','date','book','leaf'];
+  const titles=LANG==='ar'?['العطور','التمور','المصاحف','الأعشاب']:['Perfumes','Dates','Quran','Herbs'];
+  const grads=['linear-gradient(135deg,#9a7b1f,#d4af37)','linear-gradient(135deg,#7a4a12,#bd9526)','linear-gradient(135deg,#072617,#10502f)','linear-gradient(135deg,#10502f,#1c7d4a)'];
+  $('#heroCollage').innerHTML=picks.map((ic,i)=>`<div class="tile ${i===0?'tall':''}" style="background:${grads[i]}">${svg(ic)}<span>${titles[i]}</span></div>`).join('');
+}
+function renderCategories(){
+  $('#catGrid').innerHTML=CATEGORIES.map((c,i)=>{
+    const n=PRODUCTS.filter(p=>p.cat===c.id).length;
+    return `<button class="cat-card reveal" data-d="${(i%4)+1}" style="background:${c.grad}" data-cat="${c.id}">
+      <span class="cat-ic">${svg(c.icon)}</span>
+      <h3>${c[LANG]}</h3><span class="cat-count">${n} ${LANG==='ar'?'منتج':'items'}</span></button>`;
+  }).join('');
+  // footer categories
+  $('#footCats').innerHTML=CATEGORIES.slice(0,6).map(c=>`<li><a href="#shop" data-cat="${c.id}" class="foot-cat">${c[LANG]}</a></li>`).join('');
+}
+function renderChips(){
+  const all=`<button class="chip ${activeCat==='all'?'active':''}" data-cat="all">${LANG==='ar'?'الكل':'All'}</button>`;
+  $('#filterChips').innerHTML=all+CATEGORIES.map(c=>`<button class="chip ${activeCat===c.id?'active':''}" data-cat="${c.id}">${c[LANG]}</button>`).join('');
+}
+function productCard(p){
+  const d=p[LANG], ss=stockState(p), out=ss==='out';
+  let badge='';
+  if(out) badge=`<span class="prod-badge out">${t('out_stock')}</span>`;
+  else if(ss==='low') badge=`<span class="prod-badge low">${t('low_stock').replace('{n}',p.stock)}</span>`;
+  else if(p.feat) badge=`<span class="prod-badge">${t('featured')}</span>`;
+  let stockLine;
+  if(out) stockLine=`<div class="stock-line no-stock"><span class="stock-dot"></span>${t('out_stock')}</div>`;
+  else if(ss==='low') stockLine=`<div class="stock-line low-stock"><span class="stock-dot"></span>${t('low_stock').replace('{n}',p.stock)}</div>`;
+  else stockLine=`<div class="stock-line in-stock"><span class="stock-dot"></span>${t('in_stock')} · ${p.stock} ${t('units')}</div>`;
+  const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
+  const media=p.image
+    ? `<img src="${p.image}" alt="${d.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+    : svg(p.icon,'pm-icon');
+  return `<article class="prod-card reveal">
+    <div class="prod-media" style="background:${grad}" data-view="${p.id}">
+      ${badge}
+      <button class="fav-btn" data-fav="${p.id}" aria-label="Save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>
+      ${media}
+    </div>
+    <div class="prod-body">
+      <span class="prod-cat">${(catMap[p.cat]&&catMap[p.cat][LANG])||''}</span>
+      <h3 class="prod-name" data-view="${p.id}" style="cursor:pointer">${d.name}</h3>
+      <p class="prod-desc">${d.desc}</p>
+      <div class="prod-meta"><span class="price">${money(p.price)} <small>GMD</small></span></div>
+      ${stockLine}
+      <div class="prod-actions">
+        <button class="btn ${out?'btn-outline':'btn-primary'}" data-add="${p.id}" ${out?'disabled style="opacity:.5"':''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+          ${t('add_cart')}
+        </button>
+        <button class="btn btn-wa" data-wa="${p.id}" aria-label="${t('order_wa')}">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>
+        </button>
+      </div>
+    </div></article>`;
+}
+function renderProducts(){
+  let list=PRODUCTS.slice();
+  if(activeCat!=='all') list=list.filter(p=>p.cat===activeCat);
+  if(search){const q=search.toLowerCase();list=list.filter(p=>(p.en.name+p.ar.name+p.en.desc+((catMap[p.cat]&&catMap[p.cat].en)||'')).toLowerCase().includes(q));}
+  list.sort((a,b)=>(b.feat-a.feat));
+  $('#prodGrid').innerHTML=list.map(productCard).join('');
+  $('#noResults').style.display=list.length?'none':'block';
+  observeReveals();
+}
+function renderFeatures(){
+  $('#featGrid').innerHTML=FEATURES.map((f,i)=>`<div class="feat reveal" data-d="${(i%4)+1}"><div class="feat-ic">${svg(f.icon)}</div><h3>${f[LANG][0]}</h3><p>${f[LANG][1]}</p></div>`).join('');
+}
+function renderTestimonials(){
+  $('#testiGrid').innerHTML=TESTIMONIALS.map((tt,i)=>`<div class="testi reveal" data-d="${(i%3)+1}"><span class="quote-mark">”</span><div class="stars">★★★★★</div><p>${tt[LANG][0]}</p><div class="testi-who"><span class="testi-av">${tt[LANG][1].charAt(0)}</span><div><b>${tt[LANG][1]}</b><small>${tt[LANG][2]}</small></div></div></div>`).join('');
+}
+function renderFaq(){
+  $('#faqWrap').innerHTML=FAQS.map((f,i)=>`<div class="faq-item reveal"><button class="faq-q" data-faq="${i}">${f[LANG][0]}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faq-a"><div class="faq-a-inner">${f[LANG][1]}</div></div></div>`).join('');
+}
+
+/* ---------- Product modal ---------- */
+function openProduct(id){
+  const p=prod(id),d=p[LANG],ss=stockState(p),out=ss==='out';
+  let avail;
+  if(out)avail=`<span class="no-stock" style="font-weight:600"><span class="stock-dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#9aa39c;margin-inline-end:6px"></span>${t('out_stock')}</span>`;
+  else if(ss==='low')avail=`<span class="low-stock" style="font-weight:600">${t('low_stock').replace('{n}',p.stock)}</span>`;
+  else avail=`<span class="in-stock" style="font-weight:600">${t('in_stock')} · ${p.stock} ${t('units')}</span>`;
+  const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
+  const catLabel=(catMap[p.cat]&&catMap[p.cat][LANG])||'';
+  const pdMedia=p.image?`<img src="${p.image}" alt="${d.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:svg(p.icon,'pd-icon');
+  $('#prodModalCard').innerHTML=`
+    <div class="pd-grid">
+      <div class="pd-media" style="background:${grad}">
+        <button class="close-x" id="pdClose" style="position:absolute;top:12px;inset-inline-end:12px;background:rgba(255,255,255,.85);z-index:2" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        ${pdMedia}
+      </div>
+      <div class="pd-info">
+        <span class="prod-cat">${catLabel}</span>
+        <h3 class="pd-title">${d.name}</h3>
+        <div class="pd-price">${money(p.price)} <small style="font-size:.5em;color:var(--muted)">GMD</small></div>
+        <div style="margin-bottom:6px">${avail}</div>
+        <div class="pd-section"><h5>${svg('book')}${t('description')}</h5><p>${d.desc}</p></div>
+        <div class="pd-section"><h5><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>${t('how_use')}</h5><p>${d.use}</p></div>
+        <div class="pd-section"><h5><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>${t('benefits')}</h5>
+          <ul class="pd-benefits">${d.benefits.map(b=>`<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>${b}</span></li>`).join('')}</ul>
+        </div>
+        <div class="pd-actions">
+          <button class="btn ${out?'btn-outline':'btn-primary'}" data-add="${p.id}" ${out?'disabled style="opacity:.5"':''}>${t('add_cart')}</button>
+          <button class="btn btn-wa" data-wa="${p.id}"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('order_wa')}</button>
+        </div>
+      </div>
+    </div>`;
+  showModal('#prodModal');
+  $('#pdClose').onclick=()=>hideModal('#prodModal');
+}
+
+/* ---------- Cart ---------- */
+function cartQty(){return cart.reduce((s,i)=>s+i.qty,0)}
+function cartSubtotal(){return cart.reduce((s,i)=>s+prod(i.id).price*i.qty,0)}
+function addToCart(id){
+  const p=prod(id); if(stockState(p)==='out')return;
+  const e=cart.find(i=>i.id===id);
+  if(e){if(e.qty<p.stock)e.qty++;}else cart.push({id,qty:1});
+  updateCart(); bump(); toast(t('toast_added'));
+}
+function setQty(id,delta){
+  const e=cart.find(i=>i.id===id); if(!e)return;
+  e.qty+=delta;
+  if(e.qty<=0)cart=cart.filter(i=>i.id!==id);
+  else{const p=prod(id);if(e.qty>p.stock)e.qty=p.stock;}
+  updateCart();
+}
+function removeItem(id){cart=cart.filter(i=>i.id!==id);updateCart();toast(t('toast_removed'))}
+function clearCart(){cart=[];updateCart();toast(t('toast_cleared'))}
+function bump(){const c=$('#cartCount');c.style.transform='scale(1.4)';setTimeout(()=>c.style.transform='',180)}
+function updateCart(){
+  const q=cartQty();
+  const cc=$('#cartCount');cc.textContent=q;cc.classList.toggle('show',q>0);
+  const mb=$('#mnBadge');mb.textContent=q;mb.style.display=q>0?'grid':'none';
+  // body
+  if(!cart.length){
+    $('#cartBody').innerHTML=`<div class="cart-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><h4 style="font-family:var(--font-display);color:var(--green-800);margin-bottom:6px">${t('cart_empty')}</h4><p style="font-size:.9rem">${t('cart_empty_sub')}</p></div>`;
+    $('#cartFoot').innerHTML=`<a href="#shop" class="btn btn-primary btn-block" id="emptyBrowse">${t('browse')}</a>`;
+    $('#emptyBrowse').onclick=()=>closeAll();
+    return;
+  }
+  $('#cartBody').innerHTML=cart.map(i=>{const p=prod(i.id),d=p[LANG];return `
+    <div class="cart-item">
+      <div class="ci-img" style="background:${(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)'}">${p.image?`<img src="${p.image}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:svg(p.icon)}</div>
+      <div class="ci-main">
+        <div class="ci-name">${d.name}</div>
+        <div class="ci-price">${money(p.price)} × ${i.qty} = ${money(p.price*i.qty)}</div>
+        <div class="qty"><button data-dec="${i.id}" aria-label="Decrease">−</button><span>${i.qty}</span><button data-inc="${i.id}" aria-label="Increase">+</button></div>
+        <div><button class="ci-remove" data-rm="${i.id}">${LANG==='ar'?'إزالة':'Remove'}</button></div>
+      </div>
+    </div>`}).join('');
+  const sub=cartSubtotal();
+  const fee=sub>=FREE_DELIVERY_OVER?0:DELIVERY_FEE;
+  $('#cartFoot').innerHTML=`
+    <div class="summary-row"><span>${t('subtotal')}</span><span>${money(sub)}</span></div>
+    <div class="summary-row"><span>${t('delivery')}</span><span>${fee===0?`<b style="color:var(--success)">${t('free')}</b>`:money(fee)}</span></div>
+    <div class="summary-row total"><span>${t('total')}</span><span>${money(sub+fee)}</span></div>
+    <button class="btn btn-primary btn-block" id="goCheckout" style="margin-top:12px">${t('checkout')}</button>
+    <button class="btn btn-outline btn-block" id="clearCartBtn" style="margin-top:8px">${t('clear_cart')}</button>`;
+  $('#goCheckout').onclick=openCheckout;
+  $('#clearCartBtn').onclick=clearCart;
+}
+
+/* ---------- Checkout ---------- */
+const PAYMENTS=[
+  {id:'wave',label:'WAVE',color:'#1DC3F0',sub:'wave_s',short:'WAVE'},
+  {id:'afri',label:'AfriMoney',color:'#FFD200',color2:'#0a2a5e',sub:'afri_s',short:'AFRI\nMONEY',dark:true},
+  {id:'qmoney',label:'QMoney',color:'#E2001A',sub:'qmoney_s',short:'Q\nMONEY'},
+  {id:'bank',label:'bank',color:'#10502f',sub:'bank_s',icon:'<path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/>'},
+  {id:'cod',label:'cod',color:'#bd9526',sub:'cod_s',icon:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>'},
+  {id:'wachat',label:'WhatsApp',color:'#25D366',sub:'wachat_s',icon:'<path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/>'},
+];
+let coStep=1, coData={deliv:'home',pay:'wave'};
+function payLabel(id){const m={wave:'WAVE',afri:'AfriMoney',qmoney:'QMoney',bank:(LANG==='ar'?'تحويل بنكي':'Bank Transfer'),cod:(LANG==='ar'?'الدفع عند الاستلام':'Cash on Delivery'),wachat:(LANG==='ar'?'تأكيد عبر واتساب':'WhatsApp Order')};return m[id]}
+function openCheckout(){
+  if(!cart.length)return;
+  coStep=1; closeAll(); renderCheckout(); showModal('#checkoutModal');
+}
+function renderCheckout(){
+  const sub=cartSubtotal();const fee=sub>=FREE_DELIVERY_OVER?0:DELIVERY_FEE;
+  const steps=[['1','co_step1'],['2','co_step2'],['3','co_step3'],['4','co_step4']];
+  const stepsHtml=steps.map((s,i)=>{
+    const n=i+1;const cls=coStep>n?'done':(coStep===n?'active':'');
+    return `<div class="step-dot ${cls}"><div class="sd-num">${coStep>n?'✓':s[0]}</div><div class="sd-lbl">${t(s[1])}</div></div>${i<3?'<div class="step-line"></div>':''}`;
+  }).join('');
+  $('#checkoutCard').innerHTML=`
+    <div class="drawer-head" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+      <h3 class="display">${t('checkout')}</h3>
+      <button class="close-x" id="coClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="steps">${stepsHtml}</div>
+    <div class="checkout-body">
+      <!-- Step 1 -->
+      <div class="checkout-pane ${coStep===1?'active':''}" data-pane="1">
+        <h4 class="display" style="color:var(--green-800);margin-bottom:14px">${t('co_yourdetails')}</h4>
+        <div class="field"><label>${t('co_fullname')} *</label><input type="text" id="coName" value="${coData.name||''}" placeholder="${t('co_fullname')}"></div>
+        <div class="field"><label>${t('co_phone')} *</label><input type="tel" id="coPhone" dir="ltr" value="${coData.phone||''}" placeholder="+220 …"></div>
+      </div>
+      <!-- Step 2 -->
+      <div class="checkout-pane ${coStep===2?'active':''}" data-pane="2">
+        <h4 class="display" style="color:var(--green-800);margin-bottom:14px">${t('co_deliv_method')}</h4>
+        <div class="pay-opt ${coData.deliv==='home'?'sel':''}" data-deliv="home"><div class="po-logo" style="background:var(--green-700)">${svg('home')}</div><div class="po-main"><b>${t('co_home')}</b><small>${t('co_home_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
+        <div class="pay-opt ${coData.deliv==='pickup'?'sel':''}" data-deliv="pickup"><div class="po-logo" style="background:var(--gold-600)">${svg('box')}</div><div class="po-main"><b>${t('co_pickup')}</b><small>${t('co_pickup_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
+        <div id="addrFields" style="${coData.deliv==='home'?'':'display:none'}">
+          <div class="field" style="margin-top:14px"><label>${t('co_address')} *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="${t('co_address')}"></div>
+          <div class="field"><label>${t('co_area')}</label><input type="text" id="coArea" value="${coData.area||''}" placeholder="${t('co_area')}"></div>
+        </div>
+        <div class="field"><label>${t('co_notes')}</label><textarea id="coNotes" placeholder="${t('co_notes_ph')}">${coData.notes||''}</textarea></div>
+      </div>
+      <!-- Step 3 -->
+      <div class="checkout-pane ${coStep===3?'active':''}" data-pane="3">
+        <h4 class="display" style="color:var(--green-800);margin-bottom:6px">${t('co_choose_pay')}</h4>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">${t('pay_confirm_wa')}</p>
+        ${PAYMENTS.map(pm=>{
+          const logo=pm.icon?`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'}"><svg viewBox="0 0 24 24" fill="${pm.id==='wachat'?'currentColor':'none'}" stroke="${pm.id==='wachat'?'none':'currentColor'}" stroke-width="2" style="width:24px;height:24px">${pm.icon}</svg></div>`
+            :`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'};white-space:pre-line">${pm.short}</div>`;
+          return `<div class="pay-opt ${coData.pay===pm.id?'sel':''}" data-pay="${pm.id}">${logo}<div class="po-main"><b>${payLabel(pm.id)}</b><small>${t(pm.sub)}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>`;
+        }).join('')}
+      </div>
+      <!-- Step 4 -->
+      <div class="checkout-pane ${coStep===4?'active':''}" data-pane="4">
+        <h4 class="display" style="color:var(--green-800);margin-bottom:14px">${t('co_review')}</h4>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:14px">
+          <div class="summary-row"><span>${t('co_name_l')}</span><b id="rvName">—</b></div>
+          <div class="summary-row"><span>${t('co_phone_l')}</span><b id="rvPhone" dir="ltr">—</b></div>
+          <div class="summary-row"><span>${t('co_deliv_l')}</span><b id="rvDeliv">—</b></div>
+          <div class="summary-row"><span>${t('co_pay_l')}</span><b id="rvPay">—</b></div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-weight:600;color:var(--green-800);margin-bottom:10px">${t('co_items')}</div>
+          ${cart.map(i=>{const p=prod(i.id);return `<div class="summary-row"><span>${p[LANG].name} ×${i.qty}</span><span>${money(p.price*i.qty)}</span></div>`}).join('')}
+          <div class="summary-row"><span>${t('delivery')}</span><span>${fee===0?t('free'):money(fee)}</span></div>
+          <div class="summary-row total"><span>${t('total')}</span><span>${money(sub+fee)}</span></div>
+        </div>
+      </div>
+
+      <div class="checkout-foot">
+        ${coStep>1?`<button class="btn btn-outline" id="coBack" style="flex:0 0 auto">${t('co_back')}</button>`:''}
+        ${coStep<4?`<button class="btn btn-primary btn-block" id="coNext">${t('co_next')}</button>`
+          :`<button class="btn btn-wa btn-block" id="coPlace"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_place')}</button>`}
+      </div>
+    </div>`;
+  // wire
+  $('#coClose').onclick=()=>hideModal('#checkoutModal');
+  if($('#coBack'))$('#coBack').onclick=()=>{coStep--;renderCheckout()};
+  if($('#coNext'))$('#coNext').onclick=coNext;
+  if($('#coPlace'))$('#coPlace').onclick=placeOrder;
+  $$('#checkoutCard [data-deliv]').forEach(el=>el.onclick=()=>{coData.deliv=el.dataset.deliv;$('#addrFields').style.display=coData.deliv==='home'?'block':'none';$$('#checkoutCard [data-deliv]').forEach(x=>x.classList.toggle('sel',x===el))});
+  $$('#checkoutCard [data-pay]').forEach(el=>el.onclick=()=>{coData.pay=el.dataset.pay;$$('#checkoutCard [data-pay]').forEach(x=>x.classList.toggle('sel',x===el))});
+  if(coStep===4)fillReview();
+}
+function captureStep(){
+  if(coStep===1){coData.name=$('#coName').value.trim();coData.phone=$('#coPhone').value.trim();}
+  if(coStep===2){coData.addr=$('#coAddr')?.value.trim();coData.area=$('#coArea')?.value.trim();coData.notes=$('#coNotes').value.trim();}
+}
+function coNext(){
+  captureStep();
+  if(coStep===1&&(!coData.name||!coData.phone)){toast(t('toast_fill'));return;}
+  coStep++; renderCheckout();
+}
+function fillReview(){
+  $('#rvName').textContent=coData.name||'—';
+  $('#rvPhone').textContent=coData.phone||'—';
+  $('#rvDeliv').textContent=coData.deliv==='home'?`${t('co_home')}${coData.area?' · '+coData.area:''}`:t('co_pickup');
+  $('#rvPay').textContent=payLabel(coData.pay);
+}
+function placeOrder(){
+  captureStep();
+  const sub=cartSubtotal();const fee=sub>=FREE_DELIVERY_OVER?0:DELIVERY_FEE;
+  const L=LANG==='ar';
+  let msg=L?`السلام عليكم ${STORE_NAME} 🌙\nأرغب في تأكيد الطلب التالي:\n\n`:`Assalamu alaikum ${STORE_NAME} 🌙\nI'd like to confirm this order:\n\n`;
+  msg+=`*${L?'المنتجات':'Order'}:*\n`;
+  cart.forEach(i=>{const p=prod(i.id);msg+=`• ${p[LANG].name} ×${i.qty} — ${money(p.price*i.qty)}\n`});
+  msg+=`\n${L?'المجموع الفرعي':'Subtotal'}: ${money(sub)}\n${L?'التوصيل':'Delivery'}: ${fee===0?t('free'):money(fee)}\n*${L?'الإجمالي':'Total'}: ${money(sub+fee)}*\n\n`;
+  msg+=`*${L?'بيانات العميل':'Customer'}:*\n${L?'الاسم':'Name'}: ${coData.name}\n${L?'الهاتف':'Phone'}: ${coData.phone}\n`;
+  msg+=`${L?'التوصيل':'Delivery'}: ${coData.deliv==='home'?(L?'توصيل للمنزل':'Home delivery'):(L?'استلام من المتجر':'Shop pickup')}\n`;
+  if(coData.deliv==='home'&&coData.addr)msg+=`${L?'العنوان':'Address'}: ${coData.addr}${coData.area?', '+coData.area:''}\n`;
+  msg+=`${L?'طريقة الدفع':'Payment'}: ${payLabel(coData.pay)}\n`;
+  if(coData.notes)msg+=`${L?'ملاحظات':'Notes'}: ${coData.notes}\n`;
+  // Save the order to the backend (so it appears in the admin dashboard).
+  // Fire-and-forget: even if the API is down, the WhatsApp order still works.
+  fetch(API+'/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    customer_name:coData.name, customer_phone:coData.phone, delivery_method:coData.deliv,
+    delivery_address:coData.addr||'', delivery_area:coData.area||'', payment_method:coData.pay,
+    notes:coData.notes||'', language:LANG,
+    items:cart.map(i=>({id:i.id, qty:i.qty}))
+  })}).then(r=>r.json()).then(d=>{ if(d&&d.order_number){ const el=$('#osOrderNum'); if(el) el.textContent=d.order_number; } }).catch(()=>{});
+  // success view
+  $('#checkoutCard').innerHTML=`<div style="padding:34px 28px"><div class="order-success">
+    <div id="osOrderNum2" style="display:none"></div>
+    <div class="os-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <h3 class="display" style="color:var(--green-800);font-size:1.5rem;margin-bottom:8px">${t('co_placed')}</h3>
+    <div style="font-weight:600;color:var(--green-700);margin-bottom:10px">${LANG==='ar'?'رقم الطلب':'Order'}: <span id="osOrderNum">…</span></div>
+    <p style="color:var(--muted);max-width:380px;margin:0 auto 22px">${t('co_placed_sub')}</p>
+    <a href="${waLink(msg)}" target="_blank" class="btn btn-wa btn-block" id="finalWa"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_open_wa')}</a>
+    <button class="btn btn-outline btn-block" id="coDone" style="margin-top:10px">${t('co_done')}</button>
+  </div></div>`;
+  window.open(waLink(msg),'_blank');
+  toast(t('toast_msg_sent'));
+  cart=[];updateCart();
+  $('#coDone').onclick=()=>hideModal('#checkoutModal');
+}
+
+/* ---------- Modal / drawer helpers ---------- */
+function showModal(sel){$('#overlay').classList.add('show');$(sel).classList.add('show');document.body.classList.add('no-scroll')}
+function hideModal(sel){$(sel).classList.remove('show');if(!anyOpen())closeChrome()}
+function openDrawer(sel){$('#overlay').classList.add('show');$(sel).classList.add('show');document.body.classList.add('no-scroll')}
+function anyOpen(){return $('#cartDrawer').classList.contains('show')||$('#menuDrawer').classList.contains('show')||$('#prodModal').classList.contains('show')||$('#checkoutModal').classList.contains('show')}
+function closeChrome(){$('#overlay').classList.remove('show');document.body.classList.remove('no-scroll')}
+function closeAll(){$$('.drawer,.modal').forEach(d=>d.classList.remove('show'));closeChrome()}
+
+/* ---------- Language ---------- */
+function applyLang(){
+  const ar=LANG==='ar';
+  document.documentElement.lang=ar?'ar':'en';
+  document.documentElement.dir=ar?'rtl':'ltr';
+  $('#langLabel').textContent=ar?'English':'العربية';
+  $$('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(I18N[LANG][k]!==undefined)el.innerHTML=I18N[LANG][k]});
+  $$('[data-i18n-ph]').forEach(el=>{const k=el.getAttribute('data-i18n-ph');if(I18N[LANG][k]!==undefined)el.placeholder=I18N[LANG][k]});
+  renderHeroCollage();renderCategories();renderChips();renderProducts();renderFeatures();renderTestimonials();renderFaq();updateCart();
+}
+
+/* ---------- Reveal on scroll ---------- */
+let io;
+function observeReveals(){
+  if(!io){io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -40px 0px'})}
+  $$('.reveal:not(.in)').forEach(el=>io.observe(el));
+}
+
+/* ---------- Global event delegation ---------- */
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]');if(a){addToCart(+a.dataset.add);return}
+  const w=e.target.closest('[data-wa]');if(w){waProduct(prod(+w.dataset.wa));return}
+  const v=e.target.closest('[data-view]');if(v){openProduct(+v.dataset.view);return}
+  const f=e.target.closest('[data-fav]');if(f){f.classList.toggle('active');return}
+  const inc=e.target.closest('[data-inc]');if(inc){setQty(+inc.dataset.inc,1);return}
+  const dec=e.target.closest('[data-dec]');if(dec){setQty(+dec.dataset.dec,-1);return}
+  const rm=e.target.closest('[data-rm]');if(rm){removeItem(+rm.dataset.rm);return}
+  const cat=e.target.closest('[data-cat]');if(cat){activeCat=cat.dataset.cat;renderChips();renderProducts();if(cat.classList.contains('cat-card')||cat.classList.contains('foot-cat')){document.getElementById('shop').scrollIntoView({behavior:'smooth'})}return}
+  const fq=e.target.closest('[data-faq]');if(fq){const item=fq.closest('.faq-item');const open=item.classList.contains('open');$$('.faq-item').forEach(x=>{x.classList.remove('open');x.querySelector('.faq-a').style.maxHeight=null});if(!open){item.classList.add('open');const a=item.querySelector('.faq-a');a.style.maxHeight=a.scrollHeight+'px'}return}
+});
+
+/* ---------- Load live data from backend ---------- */
+async function loadLiveData(){
+  try{
+    const [pr,ca,se]=await Promise.all([
+      fetch(API+'/api/products').then(r=>r.json()),
+      fetch(API+'/api/categories').then(r=>r.json()),
+      fetch(API+'/api/settings').then(r=>r.json()).catch(()=>null),
+    ]);
+    if(ca&&ca.categories&&ca.categories.length){CATEGORIES=ca.categories;catMap=Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));}
+    if(pr&&pr.products&&pr.products.length){PRODUCTS=pr.products;}
+    if(se){
+      if(se.whatsapp_number)WHATSAPP_NUMBER=String(se.whatsapp_number);
+      if(se.store_name)STORE_NAME=se.store_name;
+      if(se.free_delivery_over)FREE_DELIVERY_OVER=Number(se.free_delivery_over);
+      if(se.delivery_fee!=null)DELIVERY_FEE=Number(se.delivery_fee);
+      if(se.announce_en)I18N.en.announce=se.announce_en;
+      if(se.announce_ar)I18N.ar.announce=se.announce_ar;
+    }
+  }catch(e){ /* offline / no backend → keep built-in fallback catalog */ }
+}
+
+/* ---------- Init ---------- */
+async function init(){
+  $('#yr').textContent='2026';
+  await loadLiveData();
+  applyLang();
+  observeReveals();
+  // header shadow
+  addEventListener('scroll',()=>{$('#header').classList.toggle('scrolled',scrollY>10)},{passive:true});
+  // cart
+  $('#cartBtn').onclick=()=>openDrawer('#cartDrawer');
+  $('#closeCart').onclick=()=>hideModal('#cartDrawer');
+  $('#mnCart').onclick=e=>{e.preventDefault();openDrawer('#cartDrawer')};
+  // menu
+  $('#menuBtn').onclick=()=>openDrawer('#menuDrawer');
+  $('#closeMenu').onclick=()=>hideModal('#menuDrawer');
+  $$('.mm-link').forEach(l=>l.onclick=()=>closeAll());
+  // overlay closes
+  $('#overlay').onclick=closeAll;
+  // lang
+  $('#langToggle').onclick=()=>{LANG=LANG==='ar'?'en':'ar';applyLang()};
+  // whatsapp triggers
+  $('#heroWa').onclick=waGeneral;
+  $('#fabWa').onclick=e=>{e.preventDefault();waGeneral()};
+  $('#contactWa').onclick=e=>{e.preventDefault();waGeneral()};
+  $('#footWa').onclick=e=>{e.preventDefault();waGeneral()};
+  $('#mnWa').onclick=e=>{e.preventDefault();waGeneral()};
+  // search
+  let st;$('#search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{search=e.target.value;renderProducts()},180)};
+  // contact form
+  $('#contactForm').onsubmit=e=>{e.preventDefault();toast(LANG==='ar'?'تم إرسال رسالتك، شكراً!':'Message sent — we\'ll reply soon!');e.target.reset()};
+  // esc
+  addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
