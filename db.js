@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS categories (
   name_ar TEXT NOT NULL,
   icon TEXT DEFAULT 'grid',
   grad TEXT DEFAULT 'linear-gradient(135deg,#10502f,#1c7d4a)',
+  image TEXT,
   sort_order INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1
 );
@@ -66,7 +67,19 @@ CREATE TABLE IF NOT EXISTS orders (
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   language TEXT DEFAULT 'en',
+  channel TEXT DEFAULT 'online',
+  staff TEXT DEFAULT '',
   items_json TEXT DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  spent_on TEXT DEFAULT (date('now')),
+  category TEXT DEFAULT 'General',
+  description TEXT DEFAULT '',
+  amount REAL NOT NULL DEFAULT 0,
+  created_by TEXT DEFAULT '',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -119,6 +132,9 @@ function columnExists(table, col) {
 }
 if (!columnExists('products', 'cost')) db.exec('ALTER TABLE products ADD COLUMN cost REAL NOT NULL DEFAULT 0');
 if (!columnExists('sessions', 'user_id')) db.exec('ALTER TABLE sessions ADD COLUMN user_id INTEGER');
+if (!columnExists('orders', 'channel')) db.exec("ALTER TABLE orders ADD COLUMN channel TEXT DEFAULT 'online'");
+if (!columnExists('orders', 'staff')) db.exec("ALTER TABLE orders ADD COLUMN staff TEXT DEFAULT ''");
+if (!columnExists('categories', 'image')) db.exec('ALTER TABLE categories ADD COLUMN image TEXT');
 
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
@@ -163,7 +179,7 @@ function verifyPassword(pw, stored) {
 }
 
 /* ---------- All permission keys (owner always has every one) ---------- */
-const ALL_PERMS = ['products', 'orders', 'reviews', 'faqs', 'profit', 'users', 'settings'];
+const ALL_PERMS = ['products', 'orders', 'sales', 'expenses', 'reviews', 'faqs', 'profit', 'users', 'settings'];
 
 /* ---------- Seed the owner user (once) ---------- */
 if (db.prepare('SELECT COUNT(*) c FROM users').get().c === 0) {
@@ -281,12 +297,25 @@ function rowToProduct(r, includeCost) {
 }
 function safeArr(s){ try { const a = JSON.parse(s||'[]'); return Array.isArray(a)?a:[]; } catch { return []; } }
 
+// Best sellers = products with the most units sold across all non-cancelled orders (online + on-site).
+function bestSellerIds(limit = 8) {
+  const counts = {};
+  for (const o of db.prepare("SELECT items_json FROM orders WHERE status!='cancelled'").all()) {
+    try { JSON.parse(o.items_json).forEach(i => { counts[i.id] = (counts[i.id] || 0) + (i.qty || 0); }); } catch {}
+  }
+  return Object.entries(counts).filter(([,q]) => q > 0)
+    .sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => Number(id));
+}
+
 const queries = {
-  activeProducts: () => db.prepare('SELECT * FROM products WHERE is_active=1 ORDER BY is_featured DESC, id ASC').all().map(r => rowToProduct(r)),
-  allProducts:    () => db.prepare('SELECT * FROM products ORDER BY id DESC').all().map(r => rowToProduct(r, true)),
+  activeProducts: () => { const best = new Set(bestSellerIds(8)); return db.prepare('SELECT * FROM products WHERE is_active=1 ORDER BY is_featured DESC, id ASC').all().map(r => { const p = rowToProduct(r); p.bestseller = best.has(r.id); return p; }); },
+  allProducts:    () => { const best = new Set(bestSellerIds(8)); return db.prepare('SELECT * FROM products ORDER BY id DESC').all().map(r => { const p = rowToProduct(r, true); p.bestseller = best.has(r.id); return p; }); },
   productById:    (id) => { const r = db.prepare('SELECT * FROM products WHERE id=?').get(id); return r ? rowToProduct(r, true) : null; },
-  activeCategories: () => db.prepare('SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order ASC').all().map(c => ({ id:c.slug, slug:c.slug, en:c.name_en, ar:c.name_ar, icon:c.icon, grad:c.grad })),
+  bestSellerIds,
+  activeCategories: () => db.prepare('SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order ASC').all().map(c => ({ id:c.slug, slug:c.slug, en:c.name_en, ar:c.name_ar, icon:c.icon, grad:c.grad, image:c.image||null })),
   allCategories:  () => db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all(),
+  allExpenses:    () => db.prepare('SELECT * FROM expenses ORDER BY spent_on DESC, id DESC').all(),
+  totalExpenses:  () => db.prepare('SELECT COALESCE(SUM(amount),0) s FROM expenses').get().s,
   // FAQs
   activeFaqs:  () => db.prepare('SELECT * FROM faqs WHERE is_active=1 ORDER BY sort_order ASC, id ASC').all(),
   allFaqs:     () => db.prepare('SELECT * FROM faqs ORDER BY sort_order ASC, id ASC').all(),

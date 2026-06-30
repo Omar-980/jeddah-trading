@@ -193,15 +193,25 @@ async function api(req, res, url) {
       const lowStockItems = db.prepare('SELECT name_en, stock FROM products WHERE stock>0 AND stock<=? ORDER BY stock ASC').all(threshold);
       const outItems = db.prepare('SELECT name_en, stock FROM products WHERE stock<=0').all();
       const byPay = db.prepare("SELECT payment_method m, COUNT(*) c FROM orders GROUP BY payment_method").all();
+      const onlineCount = db.prepare("SELECT COUNT(*) c FROM orders WHERE channel='online'").get().c;
+      const onsiteCount = db.prepare("SELECT COUNT(*) c FROM orders WHERE channel='onsite'").get().c;
+      // top selling products (by units sold)
+      const sold = {};
+      const allItems = db.prepare("SELECT items_json FROM orders WHERE status!='cancelled'").all();
+      for (const o of allItems) { try { JSON.parse(o.items_json).forEach(i => { sold[i.name] = (sold[i.name]||0) + (i.qty||0); }); } catch {} }
+      const topSellers = Object.entries(sold).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,qty])=>({name,qty}));
       // profit = sum over non-cancelled order items of (price - cost) * qty
-      let profit = 0;
+      let grossProfit = 0;
       if (hasPerm(me, 'profit')) {
-        const rows = db.prepare("SELECT items_json FROM orders WHERE status!='cancelled'").all();
-        for (const o of rows) { try { JSON.parse(o.items_json).forEach(i => { profit += ((i.price||0) - (i.cost||0)) * (i.qty||0); }); } catch {} }
+        for (const o of allItems) { try { JSON.parse(o.items_json).forEach(i => { grossProfit += ((i.price||0) - (i.cost||0)) * (i.qty||0); }); } catch {} }
       }
+      const expenses = queries.totalExpenses();
+      const seeFin = hasPerm(me, 'profit');
       return send(res, 200, { totalOrders, newOrders, revenue, products,
         lowStock: lowStockItems.length, outStock: outItems.length, lowStockItems, outItems,
-        threshold, byPay, profit: hasPerm(me, 'profit') ? profit : null, canSeeProfit: hasPerm(me, 'profit') });
+        threshold, byPay, onlineCount, onsiteCount, topSellers,
+        profit: seeFin ? grossProfit : null, expenses: seeFin ? expenses : null,
+        netProfit: seeFin ? (grossProfit - expenses) : null, canSeeProfit: seeFin });
     }
 
     // ---- PRODUCTS ----
@@ -265,6 +275,90 @@ async function api(req, res, url) {
       if (!cur) return send(res, 404, { error: 'not found' });
       db.prepare('UPDATE orders SET status=?, payment_status=? WHERE id=?').run(
         b.status||cur.status, b.payment_status||cur.payment_status, id);
+      return send(res, 200, { ok: true });
+    }
+
+    // ---- RECORD ON-SITE (SHOP) SALE — for salespeople ----
+    if (r[1] === 'sales' && method === 'POST') {
+      if (!requirePerm(req, res, 'sales')) return;
+      const b = await readBody(req);
+      if (!Array.isArray(b.items) || !b.items.length) return send(res, 400, { error: 'Add at least one product to the sale' });
+      let subtotal = 0; const items = [];
+      for (const it of b.items) {
+        const p = queries.productById(Number(it.id));
+        if (!p) continue;
+        const qty = Math.max(1, Number(it.qty) || 1);
+        const line = p.price * qty;
+        subtotal += line;
+        items.push({ id: p.id, name: p.en.name, name_ar: p.ar.name, price: p.price, cost: p.cost || 0, qty, line });
+      }
+      if (!items.length) return send(res, 400, { error: 'No valid products in the sale' });
+      const orderNumber = nextOrderNumber();
+      const info = db.prepare(`INSERT INTO orders
+        (order_number,customer_name,customer_phone,delivery_method,payment_method,status,payment_status,subtotal,delivery_fee,total,notes,channel,staff,items_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+          orderNumber, String(b.customer_name||'Walk-in customer').slice(0,120), String(b.customer_phone||'').slice(0,40),
+          'pickup', String(b.payment_method||'cash').slice(0,30), 'delivered', 'paid',
+          subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', me.username, JSON.stringify(items));
+      const dec = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
+      items.forEach(it => dec.run(it.qty, it.id));
+      return send(res, 201, { ok: true, order_number: orderNumber, total: subtotal });
+    }
+
+    // ---- EXPENSES ----
+    if (r[1] === 'expenses' && method === 'GET') {
+      if (!hasPerm(me, 'expenses')) return send(res, 403, { error: 'No permission' });
+      return send(res, 200, { expenses: queries.allExpenses(), total: queries.totalExpenses() });
+    }
+    if (r[1] === 'expenses' && method === 'POST') {
+      if (!requirePerm(req, res, 'expenses')) return;
+      const b = await readBody(req);
+      if (!(Number(b.amount) > 0)) return send(res, 400, { error: 'Enter a valid amount' });
+      const info = db.prepare('INSERT INTO expenses(spent_on,category,description,amount,created_by) VALUES(?,?,?,?,?)')
+        .run(b.spent_on || new Date().toISOString().slice(0,10), String(b.category||'General').slice(0,60), String(b.description||'').slice(0,200), Number(b.amount), me.username);
+      return send(res, 201, { ok: true, id: info.lastInsertRowid });
+    }
+    if (r[1] === 'expenses' && r[2] && method === 'DELETE') {
+      if (!requirePerm(req, res, 'expenses')) return;
+      db.prepare('DELETE FROM expenses WHERE id=?').run(Number(r[2]));
+      return send(res, 200, { ok: true });
+    }
+
+    // ---- CATEGORY MANAGEMENT (add / edit / delete, with image) ----
+    if (r[1] === 'categories' && method === 'POST') {
+      if (!requirePerm(req, res, 'products')) return;
+      const b = await readBody(req);
+      let slug = String(b.slug || b.name_en || '').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      if (!slug) return send(res, 400, { error: 'Category needs a name' });
+      if (db.prepare('SELECT id FROM categories WHERE slug=?').get(slug)) slug += '-' + Date.now().toString().slice(-4);
+      let image = null;
+      try { if (b.image_data) image = saveImage(b.image_data); } catch (e) { return send(res, 400, { error: e.message }); }
+      const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 n FROM categories').get().n;
+      const info = db.prepare('INSERT INTO categories(slug,name_en,name_ar,icon,grad,image,sort_order,is_active) VALUES(?,?,?,?,?,?,?,1)')
+        .run(slug, String(b.name_en||'Untitled').slice(0,60), String(b.name_ar||'').slice(0,60), b.icon||'grid',
+             b.grad||'linear-gradient(135deg,#10502f,#1c7d4a)', image, sort);
+      return send(res, 201, { ok: true, id: info.lastInsertRowid, slug });
+    }
+    if (r[1] === 'categories' && r[2] && method === 'PATCH') {
+      if (!requirePerm(req, res, 'products')) return;
+      const id = Number(r[2]); const b = await readBody(req);
+      const cur = db.prepare('SELECT * FROM categories WHERE id=?').get(id);
+      if (!cur) return send(res, 404, { error: 'not found' });
+      let image = cur.image;
+      try { if (b.image_data) image = saveImage(b.image_data); } catch (e) { return send(res, 400, { error: e.message }); }
+      db.prepare('UPDATE categories SET name_en=?,name_ar=?,icon=?,image=?,is_active=? WHERE id=?').run(
+        b.name_en??cur.name_en, b.name_ar??cur.name_ar, b.icon??cur.icon, image,
+        b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      return send(res, 200, { ok: true });
+    }
+    if (r[1] === 'categories' && r[2] && method === 'DELETE') {
+      if (!requirePerm(req, res, 'products')) return;
+      const cur = db.prepare('SELECT slug FROM categories WHERE id=?').get(Number(r[2]));
+      if (cur) {
+        const used = db.prepare('SELECT COUNT(*) c FROM products WHERE category_slug=?').get(cur.slug).c;
+        if (used > 0) return send(res, 400, { error: `Move or delete the ${used} product(s) in this category first` });
+      }
+      db.prepare('DELETE FROM categories WHERE id=?').run(Number(r[2]));
       return send(res, 200, { ok: true });
     }
 
