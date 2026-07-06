@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Investor Portal — Jeddah Trading</title>
+<style>
+:root{--green-800:#0b3b2e;--green-700:#10502f;--green-600:#16653c;--gold-400:#d4af37;--gold-200:#e8cf7a;
+  --cream:#faf6ee;--border:#e7e0d2;--muted:#7d8a80;--ink:#1d2a22;--danger:#c0392b;--radius:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--cream);color:var(--ink);min-height:100vh}
+.login-wrap{min-height:100vh;display:grid;place-items:center;background:linear-gradient(160deg,#072617,#0b3b2e);padding:18px}
+.login-card{background:#fff;border-radius:18px;padding:36px 32px;width:min(400px,100%);text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.login-card h1{font-family:Georgia,serif;color:var(--green-800);font-size:1.5rem}
+.login-card .sub{color:var(--muted);font-size:.86rem;margin:6px 0 22px}
+.field{text-align:left;margin-bottom:15px}
+.field label{display:block;font-size:.84rem;font-weight:600;margin-bottom:6px;color:#3d4a42}
+.field input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:.95rem}
+.field input:focus{outline:none;border-color:var(--green-600)}
+.pw-wrap{position:relative}.pw-wrap input{padding-right:44px}
+.pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;padding:8px;color:var(--muted)}
+.pw-eye svg{width:20px;height:20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:11px;border:0;cursor:pointer;font-weight:600;font-size:.92rem}
+.btn-primary{background:var(--green-700);color:#fff;width:100%}
+.btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--green-800)}
+.err{color:var(--danger);font-size:.85rem;margin-top:10px;min-height:18px}
+.app{display:none}
+.topbar{background:var(--green-800);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar b{font-family:Georgia,serif;font-size:1.1rem}
+.topbar small{display:block;font-size:.66rem;letter-spacing:.2em;color:var(--gold-200);text-transform:uppercase}
+.topbar .who{margin-left:auto;font-size:.85rem;display:flex;gap:12px;align-items:center}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 18px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.stat .lbl{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat .num{font-family:Georgia,serif;font-size:1.45rem;font-weight:700;color:var(--green-800);margin-top:4px}
+.stat.gold .num{color:#9a7b1f}
+.panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:18px}
+.panel h3{font-family:Georgia,serif;color:var(--green-800);margin-bottom:14px}
+.inv{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.inv .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.inv b{color:var(--green-800)}
+.tag{font-size:.68rem;font-weight:700;border-radius:999px;padding:3px 10px}
+.tag.active{background:rgba(189,149,38,.15);color:#8a6d12}.tag.completed{background:rgba(28,125,74,.14);color:#1c7d4a}
+.tag.settled{background:rgba(47,109,176,.13);color:#2f6db0}
+.bar{height:9px;background:var(--cream);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin:9px 0 6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green-600),var(--gold-400));border-radius:999px}
+.meta{font-size:.8rem;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.meta b{color:var(--ink)}
+.led{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:.86rem}
+.led:last-child{border-bottom:0}
+.led .amt{font-weight:700;white-space:nowrap}
+.led .amt.pos{color:#1c7d4a}.led .amt.neg{color:var(--danger)}
+canvas{width:100%;height:180px}
+.note{font-size:.78rem;color:var(--muted);margin-top:8px}
+@media(max-width:640px){.wrap{padding:16px 12px 50px}}
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginWrap">
+  <form class="login-card" id="loginForm">
+    <h1>Jeddah Trading</h1>
+    <p class="sub">Investor Portal — sign in to view your investments</p>
+    <div class="field"><label>Phone number</label><input type="tel" id="phone" dir="ltr" placeholder="+220 …" autocomplete="username"></div>
+    <div class="field"><label>Password</label><div class="pw-wrap"><input type="password" id="pw" autocomplete="current-password"><button type="button" class="pw-eye" id="pwEye" aria-label="Show password"></button></div></div>
+    <button type="submit" class="btn btn-primary">Sign In</button>
+    <div class="err" id="err"></div>
+    <p style="margin-top:12px;font-size:.76rem;color:var(--muted)">Access is provided by Jeddah Trading. Forgot your password? Contact the store.</p>
+  </form>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div><b>Jeddah Trading</b><small>Investor Portal</small></div>
+    <div class="who"><span id="whoName">—</span><button class="btn btn-outline" id="logout" style="padding:7px 14px">Log out</button></div>
+  </div>
+  <div class="wrap">
+    <div class="grid" id="stats"></div>
+    <div class="panel"><h3>📈 Your profit — last 30 days</h3><canvas id="chart" width="1040" height="180"></canvas></div>
+    <div class="panel"><h3>📦 Your investments</h3><div id="invList"></div>
+      <p class="note">Profit is shared on <b>profit only</b> (selling price − cost), at your agreed percentage, using the actual selling price of every sale — discounts included. This page is read-only; contact Jeddah Trading for payouts or questions.</p></div>
+    <div class="panel"><h3>💬 Messages & enquiries</h3>
+      <div id="msgList" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="msgText" rows="2" placeholder="Ask us anything about your investments…" style="flex:1;border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;font-family:inherit;font-size:.9rem;resize:none"></textarea>
+        <button class="btn btn-primary" id="msgSend" style="width:auto">Send</button>
+      </div>
+      <p class="note">Your message goes straight to the Jeddah Trading team — replies appear here.</p>
+    </div>
+    <div class="panel"><h3>🧾 Transaction history</h3><div id="ledger"></div></div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const money=n=>'D'+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let TOKEN=sessionStorage.getItem('jt_inv')||'';
+const EYE_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10 10 0 0 1 12 20c-7 0-11-8-11-8a18.4 18.4 0 0 1 5.06-5.94M9.9 4.24A9 9 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+$('#pwEye').innerHTML=EYE_ON;
+$('#pwEye').onclick=()=>{const i=$('#pw');const s=i.type==='password';i.type=s?'text':'password';$('#pwEye').innerHTML=s?EYE_OFF:EYE_ON;};
+
+$('#loginForm').onsubmit=async e=>{
+  e.preventDefault();$('#err').textContent='';
+  try{
+    const r=await fetch('/api/investor/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({phone:$('#phone').value,password:$('#pw').value})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Login failed');
+    TOKEN=d.token;sessionStorage.setItem('jt_inv',TOKEN);
+    enter();
+  }catch(err){$('#err').textContent=err.message;}
+};
+$('#logout').onclick=async()=>{try{await fetch('/api/investor/logout',{method:'POST',headers:{'X-Investor-Token':TOKEN}});}catch{}
+  TOKEN='';sessionStorage.removeItem('jt_inv');$('#app').style.display='none';$('#loginWrap').style.display='grid';};
+
+async function enter(){
+  const r=await fetch('/api/investor/dashboard',{headers:{'X-Investor-Token':TOKEN}});
+  if(!r.ok){TOKEN='';sessionStorage.removeItem('jt_inv');return;}
+  const d=await r.json();
+  $('#loginWrap').style.display='none';$('#app').style.display='block';
+  $('#whoName').textContent=d.investor.name;
+  const t=d.totals;
+  $('#stats').innerHTML=[
+    ['Total invested',money(t.invested)],['Sales generated',money(t.revenue)],
+    ['Your profit earned',money(t.profit),'gold'],['Paid to you',money(t.paid)],
+    ['Balance owed to you',money(t.balance),'gold']
+  ].map(([l,n,c])=>`<div class="stat ${c||''}"><div class="lbl">${l}</div><div class="num">${n}</div></div>`).join('');
+  $('#invList').innerHTML=d.investments.map(i=>{
+    const pct=i.qty_funded?Math.round(i.qty_sold/i.qty_funded*100):0;
+    return `<div class="inv">
+      <div class="top"><b>${esc(i.product_name)}</b><span class="tag ${i.status}">${i.status}</span></div>
+      <div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div>
+      <div class="meta">
+        <span>Sold <b>${i.qty_sold}/${i.qty_funded}</b> (${pct}%)</span>
+        <span>Remaining <b>${i.qty_remaining}</b></span>
+        <span>Invested <b>${money(i.amount)}</b></span>
+        <span>Sales <b>${money(i.revenue)}</b></span>
+        <span>Your profit <b style="color:#9a7b1f">${money(i.investor_profit)}</b> (${i.investor_pct}%)</span>
+        ${i.batch_no?`<span>Batch <b>${esc(i.batch_no)}</b></span>`:''}
+        <span>Since <b>${i.invested_at}</b></span>
+        <button class="btn btn-outline" data-ask="${esc(i.product_name)}" style="padding:4px 12px;font-size:.78rem;margin-inline-start:auto">💬 Ask about this</button>
+      </div>
+    </div>`;
+  }).join('')||'<p style="color:var(--muted);font-size:.9rem">No investments yet.</p>';
+  $('#ledger').innerHTML=(d.ledger||[]).map(l=>{
+    const isPay=l.type==='payout', isRev=l.type==='reversal', isInv=l.type==='investment';
+    const amt=isInv?'':`<span class="amt ${l.amount>=0&&!isPay?'pos':'neg'}">${l.amount>=0&&!isPay?'+':''}${money(Math.abs(l.amount))}</span>`;
+    return `<div class="led"><span>${l.at.slice(0,16).replace('T',' ')} — ${esc(l.descr)}</span>${amt}</div>`;
+  }).join('')||'<p style="color:var(--muted);font-size:.9rem">Nothing yet.</p>';
+  drawChart(d.series||[]);
+  loadMsgs();
+  document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{
+    const t=$('#msgText');t.value=`Regarding my investment in ${b.dataset.ask}: `;t.focus();
+    t.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  setTimeout(refresh,60000);   // live: refresh every minute
+}
+async function loadMsgs(){
+  try{
+    const r=await fetch('/api/investor/enquiries',{headers:{'X-Investor-Token':TOKEN}});
+    const d=await r.json();
+    $('#msgList').innerHTML=(d.messages||[]).map(m=>{
+      const mine=m.sender_type==='customer';
+      return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:7px">
+        <div style="max-width:80%;padding:8px 13px;border-radius:13px;font-size:.87rem;line-height:1.45;
+          ${mine?'background:var(--green-700);color:#fff;border-bottom-right-radius:4px':'background:var(--cream);border:1px solid var(--border);border-bottom-left-radius:4px'}">
+          ${!mine&&m.sender_name?`<div style="font-size:.68rem;font-weight:700;color:var(--green-700);margin-bottom:2px">${esc(m.sender_name)}</div>`:''}
+          ${esc(m.text).replace(/\n/g,'<br>')}
+          <div style="font-size:.64rem;opacity:.6;margin-top:3px;text-align:right">${(m.created_at||'').slice(5,16).replace('T',' ')}${mine?(m.read_at?' ✓✓':' ✓'):''}</div>
+        </div></div>`;
+    }).join('')||'<p style="color:var(--muted);font-size:.88rem">No messages yet — ask us anything below.</p>';
+    const L=$('#msgList');L.scrollTop=L.scrollHeight;
+  }catch{}
+}
+$('#msgSend').onclick=async()=>{
+  const t=$('#msgText');if(!t.value.trim())return;
+  $('#msgSend').disabled=true;
+  try{
+    const r=await fetch('/api/investor/enquiries',{method:'POST',headers:{'Content-Type':'application/json','X-Investor-Token':TOKEN},
+      body:JSON.stringify({text:t.value.trim()})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'error');
+    t.value='';loadMsgs();
+  }catch(e){alert(e.message);}
+  $('#msgSend').disabled=false;
+};
+async function refresh(){if(TOKEN&&$('#app').style.display==='block')enter();}
+function drawChart(series){
+  const cv=$('#chart'),ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  // build a continuous 30-day series
+  const map={};series.forEach(s=>map[s.d]=s.p);
+  const days=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);days.push({d,p:map[d]||0});}
+  const max=Math.max(10,...days.map(x=>x.p));
+  const bw=W/days.length;
+  ctx.fillStyle='#e7e0d2';ctx.fillRect(0,H-1,W,1);
+  days.forEach((x,i)=>{
+    const h=Math.round((x.p/max)*(H-24));
+    const g=ctx.createLinearGradient(0,H-h,0,H);
+    g.addColorStop(0,'#d4af37');g.addColorStop(1,'#16653c');
+    ctx.fillStyle=x.p>0?g:'#eee7d8';
+    ctx.fillRect(i*bw+2,H-(x.p>0?h:3)-1,bw-4,(x.p>0?h:3));
+  });
+  ctx.fillStyle='#7d8a80';ctx.font='10px sans-serif';
+  ctx.fillText(days[0].d.slice(5),4,12);ctx.fillText(days[29].d.slice(5),W-38,12);
+  ctx.fillText('max '+money(max),W/2-30,12);
+}
+if(TOKEN)enter();
+</script>
+</body>
+</html>
