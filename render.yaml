@@ -1,31 +1,16 @@
-# Deploy config for Render.com
-# In Render: New + → "Blueprint" → connect the repo containing this file → Deploy.
-#
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ THIS FILE IS SET FOR FREE-TIER TESTING.                                  │
-# │ On the free plan the filesystem is EPHEMERAL: the database and uploaded  │
-# │ images reset whenever the service redeploys (e.g. when you push an       │
-# │ update). That's fine for trying things out.                              │
-# │                                                                          │
-# │ WHEN YOU GO LIVE (so data is kept permanently):                          │
-# │   1. change   plan: free   →   plan: starter                            │
-# │   2. uncomment the `disk:` block and the DATA_DIR env var below          │
-# │ That gives the app a 1 GB persistent disk for the database + uploads.    │
-# └─────────────────────────────────────────────────────────────────────────┘
 services:
   - type: web
     name: jeddah-trading
     runtime: node
-    plan: free               # free sleeps after ~15 min idle (≈30s to wake). For live: starter
-    buildCommand: ""          # nothing to build — zero dependencies
+    plan: starter
+    buildCommand: ""
     startCommand: node server.js
     envVars:
       - key: NODE_VERSION
-        value: "22"           # latest Node 22.x — has built-in SQLite, no flag needed
-    # --- FOR GOING LIVE: uncomment these two blocks (and set plan: starter above) ---
-    #   - key: DATA_DIR
-    #     value: /var/data
-    # disk:
-    #   name: jeddah-data
-    #   mountPath: /var/data
-    #   sizeGB: 1
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: jeddah-data
+      mountPath: /var/data
+      sizeGB: 1
