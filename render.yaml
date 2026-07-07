@@ -8,9 +8,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: DATA_DIR
-        value: /var/data
-    disk:
-      name: jeddah-data
-      mountPath: /var/data
-      sizeGB: 1
