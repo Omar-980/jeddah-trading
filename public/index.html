@@ -296,7 +296,7 @@ html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
    PREMIUM HERO (jh) — layered, alive, luxury dark-green
    ============================================================ */
 .hero.jh{min-height:min(94svh,980px);display:flex;flex-direction:column;background:radial-gradient(120% 90% at 50% 0%,#0e4a2c 0%,#072617 55%,#051d12 100%)}
-.jh-inner{position:relative;z-index:2;display:grid;grid-template-columns:1.08fr .92fr;gap:44px;align-items:center;padding:42px 0 88px;flex:1}
+.jh-inner{position:relative;z-index:2;display:grid;grid-template-columns:1.08fr .92fr;gap:44px;align-items:center;padding:42px 20px 88px;flex:1}
 /* --- background layers --- */
 .jh-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
 .jh-geo{position:absolute;inset:-40%;opacity:.10;
@@ -417,22 +417,43 @@ html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
 .jh-orb svg{width:23px;height:23px}
 @keyframes jhOrbFloat{0%,100%{transform:translate(var(--px,0),0)}50%{transform:translate(var(--px,0),-15px)}}
 /* --- responsive --- */
-@media(max-width:1020px){.jh-inner{grid-template-columns:1fr;gap:8px;padding:44px 0 90px}.jh-copy{max-width:100%}.jh-stage-wrap{min-height:470px;margin-top:10px}.hero.jh{min-height:auto}}
+@media(max-width:1020px){.jh-inner{grid-template-columns:1fr;gap:8px;padding:44px 20px 90px}.jh-copy{max-width:100%}.jh-stage-wrap{min-height:470px;margin-top:10px}.hero.jh{min-height:auto}}
 @media(max-width:640px){
-  .jh-inner{padding:34px 0 84px}
-  .jh .jh-h1{font-size:clamp(1.9rem,8.4vw,2.6rem)}
+  /* Compact phone hero: customers should reach real products within one swipe.
+     Smaller type, tighter spacing, primary CTA full-width with the two secondary
+     actions sharing one row, slimmer stats, and a much shorter showcase. */
+  .announce{font-size:.72rem;padding:7px 12px}
+  .jh-inner{padding:20px 18px 42px;gap:0}
+  .jh .jh-h1{font-size:clamp(1.6rem,7.2vw,2.05rem);margin-bottom:10px}
+  .jh-lead{font-size:.95rem;line-height:1.55;margin-bottom:18px}
+  .jh-cta{gap:9px;margin-bottom:18px}
   .jh-cta .jh-btn{flex:1 1 100%;justify-content:center}
-  .jh-cta .jh-btn .jh-btn-in{width:100%;justify-content:center;padding:14px 18px}
-  .jh-stats{gap:16px}.jh-div{display:none}
-  .jh-stage-wrap{min-height:430px}
-  .jh-showcase{height:420px}
-  .jh-card{width:236px;height:330px;margin:-165px 0 0 -118px}
-  [dir=rtl] .jh-card{margin:-165px -118px 0 0}
-  .jh-card.pos1{transform:translateX(105px) translateZ(-90px) rotateY(-24deg) scale(.82)}
-  .jh-card.pos2{transform:translateX(-105px) translateZ(-90px) rotateY(24deg) scale(.82)}
-  [dir=rtl] .jh-card.pos1{transform:translateX(-105px) translateZ(-90px) rotateY(24deg) scale(.82)}
-  [dir=rtl] .jh-card.pos2{transform:translateX(105px) translateZ(-90px) rotateY(-24deg) scale(.82)}
-  .jh-orb{width:42px;height:42px}.jh-orb svg{width:18px;height:18px}
+  .jh-cta .jh-btn .jh-btn-in{width:100%;justify-content:center;padding:13px 14px;font-size:.95rem}
+  .jh-cta .jh-btn.wa,.jh-cta .jh-btn.ghost{flex:1 1 calc(50% - 5px)}
+  .jh-cta .jh-btn.wa .jh-btn-in,.jh-cta .jh-btn.ghost .jh-btn-in{padding:11px 6px;font-size:.82rem;gap:6px}
+  .jh-stats{gap:18px}.jh-div{display:none}
+  .jh-stat .num{font-size:1.3rem}
+  .jh-stat .lbl{font-size:.68rem}
+  .jh-trustline{display:none}
+  /* trust strip: one tidy horizontal row instead of stacked lines */
+  .trust-strip .container{gap:8px 18px;padding:12px 14px}
+  .trust-item{font-size:.72rem;gap:6px}
+  .trust-item svg{width:15px;height:15px}
+  /* deal ticker: keep it one line with an ellipsis so it never covers the cards */
+  .jh-deal{width:94vw}
+  .jh-deal-pill{font-size:.68rem;padding:6px 12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .jh-stage-wrap{min-height:300px;margin-top:4px}
+  .jh-showcase{height:280px}
+  .jh-card{width:172px;height:240px;margin:-120px 0 0 -86px}
+  [dir=rtl] .jh-card{margin:-120px -86px 0 0}
+  .jh-card.pos1{transform:translateX(78px) translateZ(-80px) rotateY(-24deg) scale(.8)}
+  .jh-card.pos2{transform:translateX(-78px) translateZ(-80px) rotateY(24deg) scale(.8)}
+  [dir=rtl] .jh-card.pos1{transform:translateX(-78px) translateZ(-80px) rotateY(24deg) scale(.8)}
+  [dir=rtl] .jh-card.pos2{transform:translateX(78px) translateZ(-80px) rotateY(-24deg) scale(.8)}
+  .jh-card .jc-info{padding:10px 12px 12px}
+  .jh-card .jc-media svg{width:58px;height:58px}
+  .jh-card .jc-price{font-size:.9rem}
+  .jh-orb{display:none}
   .jh-light{display:none}
 }
 @media(prefers-reduced-motion:reduce){
@@ -849,8 +870,10 @@ body.viewing-account #accountPage{display:block;animation:fadeUp .4s var(--ease)
 .chat-ctx-btn{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:9px 15px;border-radius:999px;border:1.5px solid var(--green-700);color:var(--green-700);font-weight:600;font-size:.85rem;background:#fff;cursor:pointer}
 .chat-ctx-btn:hover{background:var(--green-700);color:#fff}
 @media(max-width:640px){
-  .fab-chat{bottom:78px;inset-inline-start:14px;padding:0 15px}
+  /* one tidy chat bubble, bottom-right, sitting just above the bottom nav */
+  .fab-chat{bottom:76px;inset-inline-start:auto;inset-inline-end:14px;width:54px;height:54px;padding:0;justify-content:center;border-radius:50%}
   .fab-chat span.lbl{display:none}
+  .fab-chat svg{width:24px;height:24px}
   .chat-panel{bottom:0;inset-inline-start:0;width:100vw;height:calc(100dvh - 54px);border-radius:18px 18px 0 0}
 }
 .fab-wa:hover{transform:scale(1.1)}
@@ -955,7 +978,9 @@ body.viewing-product .pp-sticky{display:none}
   .section{padding:52px 0}
   .footer{padding-bottom:84px}
   .mobile-nav{display:grid}
-  .fab-wa{bottom:78px}
+  /* the bottom-nav "Order" tab already opens WhatsApp — the floating bubble
+     would only crowd the small screen, so hide it on phones */
+  .fab-wa{display:none}
   .hero-stats{gap:22px}
   .nav{gap:12px}
   body{padding-bottom:0}
@@ -963,9 +988,20 @@ body.viewing-product .pp-sticky{display:none}
 @media(max-width:480px){
   .footer-grid{grid-template-columns:1fr}
   .prod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
-  .cat-grid{grid-template-columns:repeat(2,1fr)}
   .pd-info{padding:22px}
   .brand-name{font-size:1.05rem}
+}
+@media(max-width:640px){
+  /* On phones, categories become a compact swipe strip (like the big shopping
+     apps) instead of a tall grid — so products appear right after the hero. */
+  #categories{padding:36px 0 30px}
+  .cat-grid{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 10px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .cat-grid::-webkit-scrollbar{display:none}
+  .cat-card{flex:0 0 112px;min-height:112px;padding:14px 8px;gap:7px;scroll-snap-align:start;border-radius:14px}
+  .cat-card .cat-ic{width:38px;height:38px;border-radius:11px}
+  .cat-card .cat-ic svg{width:21px;height:21px}
+  .cat-card h3{font-size:.76rem;line-height:1.25}
+  .cat-card .cat-count{display:none}
 }
 
 /* Reduced motion */
