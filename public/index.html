@@ -982,14 +982,23 @@ body.viewing-product .pp-sticky{display:none}
      would only crowd the small screen, so hide it on phones */
   .fab-wa{display:none}
   .hero-stats{gap:22px}
-  .nav{gap:12px}
+  /* Compact header so the whole nav row fits within a 360px phone without
+     overflowing (which was creating a right-side gap + zoom-in default view). */
+  .nav{gap:8px}
+  .brand{gap:8px}
+  .brand-name{font-size:1rem}
+  .nav-actions{gap:4px}
+  .icon-btn{width:40px;height:40px}
+  .menu-btn{width:40px;height:40px}
+  .lang-toggle{padding:8px;gap:0}
+  .lang-toggle #langLabel{display:none}
   body{padding-bottom:0}
 }
 @media(max-width:480px){
   .footer-grid{grid-template-columns:1fr}
   .prod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
   .pd-info{padding:22px}
-  .brand-name{font-size:1.05rem}
+  .brand-name{font-size:1rem}
 }
 @media(max-width:640px){
   /* On phones, categories become a compact swipe strip (like the big shopping
