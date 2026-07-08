@@ -265,9 +265,19 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
   .sidebar.open{transform:none}
   .mobile-top{display:flex;align-items:center;gap:12px;background:var(--green-800);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:30}
   .mobile-top b{font-family:'Playfair Display',serif}
-  .mt-user{margin-inline-start:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.13);border-radius:999px;padding:5px 12px 5px 9px;font-size:.8rem;font-weight:600;color:#fff;max-width:46%;white-space:nowrap;overflow:hidden}
-  .mt-user svg{width:16px;height:16px;flex-shrink:0;color:var(--gold-200)}
+  .mt-user{margin-inline-start:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.13);border-radius:999px;padding:5px 10px 5px 9px;font-size:.8rem;font-weight:600;color:#fff;max-width:52%;white-space:nowrap;overflow:hidden;cursor:pointer}
+  .mt-user>svg{width:16px;height:16px;flex-shrink:0;color:var(--gold-200)}
   .mt-user #mtUserName{overflow:hidden;text-overflow:ellipsis}
+  .mt-user .mt-caret{width:14px;height:14px;flex-shrink:0;color:rgba(255,255,255,.75);transition:transform .2s}
+  .mt-user.open .mt-caret{transform:rotate(180deg)}
+  .mt-menu{display:none;position:absolute;top:calc(100% - 3px);inset-inline-end:12px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(7,38,23,.22);z-index:45;min-width:172px;overflow:hidden}
+  .mt-menu.on{display:block}
+  .mt-menu button{display:flex;align-items:center;gap:11px;width:100%;padding:13px 15px;font-size:.9rem;font-weight:600;color:var(--ink);background:#fff;text-align:start;cursor:pointer;border:0}
+  .mt-menu button+button{border-top:1px solid var(--border)}
+  .mt-menu button:active{background:rgba(16,80,47,.07)}
+  .mt-menu button svg{width:18px;height:18px;flex-shrink:0;color:var(--green-700)}
+  .mt-menu .mt-danger{color:var(--danger)}
+  .mt-menu .mt-danger svg{color:var(--danger)}
   .hamb{width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.12);display:grid;place-items:center}
   .hamb svg{width:22px;height:22px;color:#fff}
   .main{padding:18px 16px}.grid2{grid-template-columns:1fr}.perm-grid{grid-template-columns:1fr}
@@ -333,7 +343,11 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
   </aside>
 
   <div>
-    <div class="mobile-top"><button class="hamb" id="hamb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><b>Jeddah Trading</b><span class="mt-user" id="mtUser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="mtUserName">—</span></span></div>
+    <div class="mobile-top"><button class="hamb" id="hamb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><b>Jeddah Trading</b><button class="mt-user" id="mtUser" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="mtUserName">—</span><svg class="mt-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mt-menu" id="mtMenu">
+        <button id="mtSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 7 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3 14.6a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 7l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 11 3.09V3a2 2 0 0 1 4 0v.09c0 .68.41 1.29 1.02 1.51"/></svg>Settings</button>
+        <button id="mtLogout" class="mt-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Log out</button>
+      </div></div>
     <main class="main">
 
       <section class="view on" id="view-overview">
@@ -1077,6 +1091,7 @@ async function enterApp(){
   $('#sbRole').textContent=roleLabel(ME.role);
   $('#sbUser').textContent=(ME.name||ME.username)+' · '+roleLabel(ME.role);
   if($('#mtUserName'))$('#mtUserName').textContent=(ME.name||ME.username);
+  if($('#mtSettings'))$('#mtSettings').style.display=can('settings')?'':'none';
   // gate nav by permission
   $$('.navbtn[data-perm]').forEach(b=>{const pm=b.dataset.perm;b.style.display=(pm==='*'||can(pm))?'flex':'none';});
   await loadAll();
@@ -1516,7 +1531,14 @@ function closeSidebar(){$('#sidebar').classList.remove('open');$('#sbOverlay').c
 $('#hamb').onclick=()=>$('#sidebar').classList.contains('open')?closeSidebar():openSidebar();
 $('#sbOverlay').onclick=closeSidebar;
 $('#sbClose').onclick=closeSidebar;
-addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+addEventListener('keydown',e=>{if(e.key==='Escape'){closeSidebar();closeUserMenu();}});
+
+/* top-bar user menu (Settings + Log out) */
+function closeUserMenu(){$('#mtMenu').classList.remove('on');$('#mtUser').classList.remove('open');}
+$('#mtUser').onclick=e=>{e.stopPropagation();const open=$('#mtMenu').classList.toggle('on');$('#mtUser').classList.toggle('open',open);};
+$('#mtSettings').onclick=()=>{closeUserMenu();const s=$('.navbtn[data-view=settings]');if(s)s.click();};
+$('#mtLogout').onclick=()=>{closeUserMenu();$('#logout').click();};
+document.addEventListener('click',e=>{if(!e.target.closest('#mtMenu')&&!e.target.closest('#mtUser'))closeUserMenu();});
 
 /* ---------- Overview ---------- */
 const SICON={inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',cart:'<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>',cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',box:ICONS.box,alert:'<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',x:'<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>'};
