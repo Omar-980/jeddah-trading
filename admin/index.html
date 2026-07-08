@@ -158,6 +158,19 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .close-x{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;background:none}
 .close-x:hover{background:rgba(0,0,0,.06)}.close-x svg{width:22px;height:22px}
+/* sales receipt (preview + print/download share these styles) */
+.rc-wrap{max-width:320px;margin:0 auto;background:#fff;color:#111;font-family:'Courier New',ui-monospace,monospace;padding:16px 18px;border:1px solid #e2ded2;border-radius:10px}
+.rc-store{text-align:center;font-weight:700;font-size:1.15rem;font-family:'Playfair Display',Georgia,serif;color:#0f3a24}
+.rc-sub{text-align:center;font-size:.72rem;color:#666;margin-bottom:6px}
+.rc-title{text-align:center;font-weight:700;letter-spacing:2px;font-size:.78rem;border-top:1px dashed #b9b9b9;border-bottom:1px dashed #b9b9b9;padding:5px 0;margin:8px 0}
+.rc-meta{display:flex;justify-content:space-between;gap:10px;font-size:.76rem;margin:3px 0}
+.rc-meta span{color:#777}.rc-meta b{text-align:right}
+.rc-items{width:100%;border-collapse:collapse;margin:8px 0 0;border-top:1px dashed #b9b9b9}
+.rc-items td{padding:6px 0;font-size:.78rem;vertical-align:top;border-bottom:1px dotted #d3d3d3}
+.rc-items td.r{text-align:right;white-space:nowrap;padding-left:10px}
+.rc-items .q{color:#777;font-size:.7rem;margin-top:1px}
+.rc-total{display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:2px solid #111;padding-top:9px;margin-top:2px;color:#0f3a24}
+.rc-thanks{text-align:center;font-size:.74rem;color:#666;margin-top:12px}
 .img-drop{border:2px dashed var(--border);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s;background:#fff}
 .img-drop:hover{border-color:var(--green-600)}
 .img-preview{width:90px;height:90px;border-radius:10px;object-fit:cover;margin:0 auto 10px;display:none}
@@ -322,6 +335,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
     <button class="navbtn" data-view="inventory" data-perm="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7v10l8 4 8-4z"/><path d="M4 7l8 4 8-4M12 11v10"/><path d="M8 5l8 4"/></svg>Inventory</button>
     <button class="navbtn" data-view="purchasing" data-perm="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11V6a3 3 0 0 1 6 0v5"/><path d="M5 9h14l1 12H4z"/></svg>Purchasing</button>
     <button class="navbtn" data-view="recordsale" data-perm="sales"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 9h20M6 13h4"/></svg>Record Sale</button>
+    <button class="navbtn" data-view="saleshistory" data-perm="sales"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/><path d="M18 8h.01"/></svg>Sales History</button>
     <button class="navbtn" data-view="orders" data-perm="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>Orders<span class="pill" id="ordPill" style="display:none">0</span></button>
     <button class="navbtn" data-view="deliveries" data-perm="delivery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Deliveries<span class="pill" id="delPill" style="display:none">0</span></button>
     <button class="navbtn" data-view="expenses" data-perm="expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Expenses</button>
@@ -577,6 +591,20 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <button class="btn btn-primary btn-block" id="posSubmit" disabled style="opacity:.5">Record Sale</button>
           </div>
         </div>
+      </section>
+
+      <!-- SALES HISTORY -->
+      <section class="view" id="view-saleshistory">
+        <div class="page-head"><div><h2>Sales History</h2><p>Every in-shop sale — product sold, quantity, date and who made the sale</p></div><button class="btn btn-outline" id="shExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export CSV</button></div>
+        <div class="stat-grid" id="shStats"></div>
+        <div class="toolbar">
+          <input class="grow" id="shSearch" placeholder="Search product, sale # or seller…">
+          <select id="shSeller"><option value="">All sellers</option></select>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Date &amp; time</th><th>Sale #</th><th>Items sold (product × qty)</th><th>Total</th><th>Seller</th><th></th></tr></thead>
+          <tbody id="shRows"></tbody>
+        </table></div>
       </section>
 
       <!-- EXPENSES -->
@@ -1025,6 +1053,18 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
     </div>
     <div class="field"><label>Reset password (blank = keep)</label><input id="cu_pass" type="password" placeholder="Type a new password for this customer" autocomplete="new-password"><div class="hint">For customers who forgot their password — set a temporary one and send it to them on WhatsApp. They stay signed out everywhere until they use it.</div></div>
     <button class="btn btn-primary btn-block" id="cuSave">Save</button>
+  </div>
+</div></div>
+
+<!-- SALE RECEIPT MODAL -->
+<div class="modal" id="saleReceiptModal"><div class="modal-card" style="max-width:400px">
+  <div class="modal-head"><h3 id="srTitle">Receipt</h3><button class="close-x" data-close="saleReceiptModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="modal-body">
+    <div id="receiptPreview"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-outline" style="flex:1" id="rcDownload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download</button>
+      <button class="btn btn-primary" style="flex:1" id="rcPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>Print</button>
+    </div>
   </div>
 </div></div>
 
@@ -1522,6 +1562,7 @@ $$('.navbtn[data-view]').forEach(b=>b.onclick=()=>{
   $$('.view').forEach(v=>v.classList.remove('on'));$('#view-'+b.dataset.view).classList.add('on');
   closeSidebar();
   if(b.dataset.view==='recordsale'){const s=$('#posScan');if(s)setTimeout(()=>s.focus(),60);}
+  if(b.dataset.view==='saleshistory'&&typeof loadSalesHistory==='function')loadSalesHistory();
   if(b.dataset.view==='chat'&&typeof loadChats==='function')loadChats();
   if(b.dataset.view==='loans'){if(typeof loadLoans==='function')loadLoans();if($('#ln_taken')&&!$('#ln_taken').value)$('#ln_taken').value=new Date().toISOString().slice(0,10);if($('#ln_kind').value==='product')fillLoanProducts();}
   if(b.dataset.view==='investors'){if(typeof loadInvestors==='function')loadInvestors();if($('#in_date')&&!$('#in_date').value)$('#in_date').value=new Date().toISOString().slice(0,10);}
@@ -2412,9 +2453,123 @@ $('#posSubmit').onclick=async()=>{
   if(!POSCART.length)return;
   try{const d=await api('/admin/sales',{method:'POST',body:JSON.stringify({items:POSCART.map(i=>({id:i.id,qty:i.qty})),customer_name:$('#posName').value.trim(),payment_method:$('#posPay').value})});
     toast('Sale recorded: '+d.order_number+' · '+money(d.total));POSCART=[];$('#posName').value='';await loadAll();
+    if(d.sale)showReceipt(d.sale,true);          // offer a printable/downloadable receipt right away
     const s=$('#posScan');if(s)s.focus();   // ready for the next customer's first scan
   }catch(err){toast(err.message);}
 };
+
+/* ================= SALES HISTORY ================= */
+let SALES=[];
+function payLabel(p){return PAY_LABEL[p]||(p?p.charAt(0).toUpperCase()+p.slice(1):'Cash');}
+function fmtDateTime(s){ if(!s)return ''; try{return new Date(s.replace(' ','T')+'Z').toLocaleString([], {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return s;} }
+async function loadSalesHistory(){
+  try{const d=await api('/admin/sales');SALES=d.sales||[];}catch(e){SALES=[];}
+  // populate seller filter with the distinct sellers seen
+  const sellers=[...new Set(SALES.map(s=>s.staff).filter(Boolean))].sort();
+  const sel=$('#shSeller');const cur=sel.value;
+  sel.innerHTML='<option value="">All sellers</option>'+sellers.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.value=cur;
+  renderSalesHistory();
+}
+function renderSalesHistory(){
+  const q=($('#shSearch').value||'').trim().toLowerCase();
+  const seller=$('#shSeller').value;
+  let list=SALES.slice();
+  if(seller)list=list.filter(s=>s.staff===seller);
+  if(q)list=list.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.staff||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
+  // summary stats (today + shown range)
+  const today=new Date().toISOString().slice(0,10);
+  const todays=SALES.filter(s=>(s.created_at||'').slice(0,10)===today);
+  const sum=arr=>arr.reduce((t,s)=>t+Number(s.total||0),0);
+  const units=arr=>arr.reduce((t,s)=>t+(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),0);
+  $('#shStats').innerHTML=
+     statCard("Today's sales",todays.length,'cart')
+    +statCard("Today's revenue",money(sum(todays)),'cash','profit')
+    +statCard('Items sold today',units(todays),'box')
+    +statCard('Sales shown',list.length,'coins');
+  $('#shRows').innerHTML=list.length?list.map((s,idx)=>{
+    const items=(s.items||[]).map(i=>`${esc(i.name)} <b>×${i.qty}</b>`).join(', ');
+    const realIdx=SALES.indexOf(s);
+    return `<tr>
+      <td>${fmtDateTime(s.created_at)}</td>
+      <td><b>${esc(s.order_number)}</b></td>
+      <td style="min-width:180px;white-space:normal">${items}</td>
+      <td><b>${money(s.total)}</b></td>
+      <td><span class="tag green">${esc(s.staff||'—')}</span></td>
+      <td><button class="btn btn-outline btn-sm" data-receipt="${realIdx}">🧾 Receipt</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px">No in-shop sales yet.</td></tr>';
+  $$('[data-receipt]').forEach(b=>b.onclick=()=>{const s=SALES[+b.dataset.receipt];if(s)showReceipt(s,false);});
+}
+$('#shSearch') && ($('#shSearch').oninput=renderSalesHistory);
+$('#shSeller') && ($('#shSeller').onchange=renderSalesHistory);
+$('#shExport') && ($('#shExport').onclick=()=>{
+  const q=($('#shSearch').value||'').trim().toLowerCase();const seller=$('#shSeller').value;
+  let list=SALES.slice();
+  if(seller)list=list.filter(s=>s.staff===seller);
+  if(q)list=list.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.staff||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
+  // one row per product line: Date, Sale#, Product, Qty, Unit, Line total, Seller, Payment
+  const rows=[['Date','Sale #','Product','Qty','Unit price','Line total','Seller','Payment']];
+  list.forEach(s=>(s.items||[]).forEach(i=>rows.push([
+    fmtDateTime(s.created_at),s.order_number,i.name,i.qty,i.price,i.line,s.staff||'',payLabel(s.payment_method)])));
+  const csv=rows.map(r=>r.map(c=>{const v=String(c==null?'':c);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='sales-history.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},400);
+});
+
+/* ================= RECEIPT (print / download) ================= */
+let RECEIPT_SALE=null;
+function receiptInner(sale){
+  const store=SETTINGS.store_name||'Jeddah Trading';
+  const phone=SETTINGS.whatsapp_number||'';
+  const addr=SETTINGS.store_address||'Serrekunda, The Gambia';
+  const rows=(sale.items||[]).map(i=>`<tr><td>${esc(i.name)}<div class="q">${i.qty} × ${money(i.price)}</div></td><td class="r">${money(i.line)}</td></tr>`).join('');
+  const cust=(sale.customer_name&&sale.customer_name!=='Walk-in customer')?`<div class="rc-meta"><span>Customer</span><b>${esc(sale.customer_name)}</b></div>`:'';
+  return `<div class="rc-wrap">
+    <div class="rc-store">${esc(store)}</div>
+    <div class="rc-sub">${esc(addr)}${phone?' · '+esc(phone):''}</div>
+    <div class="rc-title">SALES RECEIPT</div>
+    <div class="rc-meta"><span>Receipt no.</span><b>${esc(sale.order_number)}</b></div>
+    <div class="rc-meta"><span>Date</span><b>${fmtDateTime(sale.created_at)}</b></div>
+    <div class="rc-meta"><span>Served by</span><b>${esc(sale.staff||'—')}</b></div>
+    <div class="rc-meta"><span>Payment</span><b>${payLabel(sale.payment_method)}</b></div>
+    ${cust}
+    <table class="rc-items">${rows}</table>
+    <div class="rc-total"><span>TOTAL</span><span>${money(sale.total)}</span></div>
+    <div class="rc-thanks">Thank you for shopping with us!</div>
+  </div>`;
+}
+function receiptDoc(sale){
+  // pull the .rc-* rules straight from the page so the downloaded/printed file matches the preview exactly
+  let rc='';
+  try{for(const sh of document.styleSheets){let rules;try{rules=sh.cssRules;}catch(e){continue;}for(const rule of rules){if(rule.selectorText&&/\.rc-/.test(rule.selectorText))rc+=rule.cssText+'\n';}}}catch(e){}
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Receipt ${esc(sale.order_number)}</title>
+<style>body{margin:0;padding:16px;background:#f3f1ea;font-family:'Courier New',monospace}${rc}
+@media print{body{background:#fff;padding:0}.rc-wrap{border:none;max-width:100%}}</style></head>
+<body onload="window.focus()">${receiptInner(sale)}</body></html>`;
+}
+function showReceipt(sale,justRecorded){
+  RECEIPT_SALE=sale;
+  $('#srTitle').textContent=justRecorded?'✓ Sale recorded — Receipt':'Receipt';
+  $('#receiptPreview').innerHTML=receiptInner(sale);
+  openModal('saleReceiptModal');
+}
+function printReceipt(sale){
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(f);
+  f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print();}catch(e){toast('Could not open the print dialog');}setTimeout(()=>f.remove(),3000);};
+  f.srcdoc=receiptDoc(sale);
+}
+function downloadReceipt(sale){
+  const blob=new Blob([receiptDoc(sale)],{type:'text/html'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='receipt-'+sale.order_number+'.html';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},400);
+  toast('Receipt downloaded');
+}
+$('#rcPrint') && ($('#rcPrint').onclick=()=>{if(RECEIPT_SALE)printReceipt(RECEIPT_SALE);});
+$('#rcDownload') && ($('#rcDownload').onclick=()=>{if(RECEIPT_SALE)downloadReceipt(RECEIPT_SALE);});
 
 /* ---------- Scan-to-add (barcode scanner + camera) ---------- */
 // Match a scanned string to a product by barcode or SKU. Handles a QR that carries "SKU BARCODE".
