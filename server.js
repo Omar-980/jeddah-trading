@@ -1193,16 +1193,30 @@ async function api(req, res, url) {
       }
       if (!items.length) return send(res, 400, { error: 'No valid products in the sale' });
       const orderNumber = nextOrderNumber();
+      const seller = me.name || me.username;                 // the person who made the sale (shown on receipts + history)
+      const payment = String(b.payment_method||'cash').slice(0,30);
+      const customerName = String(b.customer_name||'Walk-in customer').slice(0,120);
       const info = db.prepare(`INSERT INTO orders
         (order_number,customer_name,customer_phone,delivery_method,payment_method,status,payment_status,subtotal,delivery_fee,total,notes,channel,staff,items_json)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-          orderNumber, String(b.customer_name||'Walk-in customer').slice(0,120), String(b.customer_phone||'').slice(0,40),
-          'pickup', String(b.payment_method||'cash').slice(0,30), 'delivered', 'paid',
-          subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', me.username, JSON.stringify(items));
+          orderNumber, customerName, String(b.customer_phone||'').slice(0,40),
+          'pickup', payment, 'delivered', 'paid',
+          subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', seller, JSON.stringify(items));
       const dec = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
       items.forEach(it => { dec.run(it.qty, it.id); logMove(it.id, -it.qty, 'sale', orderNumber, me.username); });
       recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share
-      return send(res, 201, { ok: true, order_number: orderNumber, total: subtotal });
+      const createdAt = (db.prepare('SELECT created_at FROM orders WHERE id=?').get(info.lastInsertRowid) || {}).created_at;
+      return send(res, 201, { ok: true, order_number: orderNumber, total: subtotal,
+        sale: { order_number: orderNumber, created_at: createdAt, staff: seller, payment_method: payment,
+                customer_name: customerName, subtotal, total: subtotal, items } });
+    }
+
+    // ---- SALES HISTORY (in-shop sales) — visible to salespeople ----
+    if (r[1] === 'sales' && method === 'GET') {
+      if (!hasPerm(me, 'sales')) return send(res, 403, { error: 'No permission' });
+      const rows = db.prepare("SELECT id,order_number,customer_name,payment_method,total,staff,created_at,items_json FROM orders WHERE channel='onsite' ORDER BY id DESC LIMIT 500").all();
+      rows.forEach(o => { o.items = (() => { try { return JSON.parse(o.items_json); } catch { return []; } })(); delete o.items_json; });
+      return send(res, 200, { sales: rows });
     }
 
     // ---- EXPENSES ----
