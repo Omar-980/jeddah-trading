@@ -227,7 +227,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .pos-line{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)}
 .pos-line .pl-name{flex:1;font-size:.88rem}
 .pos-empty{color:var(--muted);text-align:center;padding:26px 0;font-size:.9rem}
-@media(max-width:820px){.pos-grid{grid-template-columns:1fr}.pos-cart{position:static}}
+@media(max-width:820px){.pos-grid{grid-template-columns:1fr}.pos-grid>*{min-width:0}.pos-cart{position:static}.pos-scanrow{flex-wrap:wrap}.pos-scanrow input{min-width:0}.pos-scanrow .btn{flex:1 0 auto}}
 
 /* Phase 2 — inventory UI */
 .section-label{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-600);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
