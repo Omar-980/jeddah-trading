@@ -87,7 +87,11 @@ a{color:inherit}
 .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:4px}
 .sidebar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.35)}
 .sidebar .navbtn,.sb-brand{flex-shrink:0}
-.sb-brand{padding:0 8px 18px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:14px}
+.sb-brand{padding:0 8px 18px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.sb-close{display:none;width:40px;height:40px;flex-shrink:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;place-items:center;cursor:pointer}
+.sb-close svg{width:22px;height:22px}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(6,20,12,.5);z-index:35;opacity:0;transition:opacity .3s}
+.sb-overlay.on{display:block;opacity:1}
 .sb-brand b{font-family:'Playfair Display',serif;font-size:1.25rem;color:#fff}
 .sb-brand small{display:block;font-size:.62rem;letter-spacing:.2em;color:var(--gold-200);text-transform:uppercase;margin-top:3px}
 .navbtn{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.82);font-weight:500;font-size:.92rem;background:none;width:100%;text-align:left;transition:background .2s}
@@ -265,6 +269,16 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
   .hamb svg{width:22px;height:22px;color:#fff}
   .main{padding:18px 16px}.grid2{grid-template-columns:1fr}.perm-grid{grid-template-columns:1fr}
   table{font-size:.82rem}td .hide-sm,th.hide-sm{display:none}
+  /* show the close (X) inside the drawer on mobile */
+  .sb-close{display:grid}
+  /* let wide tables scroll sideways instead of being cut off the screen.
+     The content column must be allowed to shrink (min-width:0) or the wide
+     table pushes the whole page sideways instead of scrolling internally. */
+  .app.on>div{min-width:0}
+  .main{min-width:0}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tbl-wrap table{min-width:560px}
+  .tbl-wrap th,.tbl-wrap td{white-space:nowrap}
 }
 </style>
 </head>
@@ -285,8 +299,9 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 
 <!-- APP -->
 <div class="app" id="app">
+  <div class="sb-overlay" id="sbOverlay"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="sb-brand"><b>Jeddah Trading</b><small id="sbRole">Admin</small></div>
+    <div class="sb-brand"><div class="sb-brand-txt"><b>Jeddah Trading</b><small id="sbRole">Admin</small></div><button class="sb-close" id="sbClose" aria-label="Close menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
     <button class="navbtn active" data-view="overview" data-perm="*"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Overview</button>
     <button class="navbtn" data-view="products" data-perm="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>Products</button>
     <button class="navbtn" data-view="categories" data-perm="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Categories</button>
@@ -1486,13 +1501,18 @@ async function loadAll(){
 $$('.navbtn[data-view]').forEach(b=>b.onclick=()=>{
   $$('.navbtn[data-view]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
   $$('.view').forEach(v=>v.classList.remove('on'));$('#view-'+b.dataset.view).classList.add('on');
-  $('#sidebar').classList.remove('open');
+  closeSidebar();
   if(b.dataset.view==='recordsale'){const s=$('#posScan');if(s)setTimeout(()=>s.focus(),60);}
   if(b.dataset.view==='chat'&&typeof loadChats==='function')loadChats();
   if(b.dataset.view==='loans'){if(typeof loadLoans==='function')loadLoans();if($('#ln_taken')&&!$('#ln_taken').value)$('#ln_taken').value=new Date().toISOString().slice(0,10);if($('#ln_kind').value==='product')fillLoanProducts();}
   if(b.dataset.view==='investors'){if(typeof loadInvestors==='function')loadInvestors();if($('#in_date')&&!$('#in_date').value)$('#in_date').value=new Date().toISOString().slice(0,10);}
 });
-$('#hamb').onclick=()=>$('#sidebar').classList.toggle('open');
+function openSidebar(){$('#sidebar').classList.add('open');$('#sbOverlay').classList.add('on');}
+function closeSidebar(){$('#sidebar').classList.remove('open');$('#sbOverlay').classList.remove('on');}
+$('#hamb').onclick=()=>$('#sidebar').classList.contains('open')?closeSidebar():openSidebar();
+$('#sbOverlay').onclick=closeSidebar;
+$('#sbClose').onclick=closeSidebar;
+addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
 
 /* ---------- Overview ---------- */
 const SICON={inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',cart:'<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>',cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',box:ICONS.box,alert:'<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',x:'<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>'};
