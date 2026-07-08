@@ -124,7 +124,7 @@ ul{list-style:none}
 .btn-gold:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(212,175,55,.45)}
 .btn-wa{background:#25D366;color:#063b1e;box-shadow:0 8px 20px rgba(37,211,102,.32)}
 .btn-chat{background:var(--green-800);color:#fff;box-shadow:0 8px 20px rgba(7,38,23,.28);border:1px solid rgba(212,175,55,.4)}
-.btn-chat svg{color:var(--gold-400)}
+.btn-chat svg{color:var(--gold-400);width:19px;height:19px;flex-shrink:0}
 .btn-chat:hover{background:var(--green-700)}
 .btn-wa:hover{background:#1ebe5a;transform:translateY(-2px)}
 .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35)}
@@ -543,6 +543,13 @@ body.viewing-track #trackPage{display:block;animation:fadeUp .4s var(--ease)}
 .pp-media.zoomable{cursor:zoom-in}
 .pp-media img{transition:transform .25s ease}
 .pp-media img.zoomed{transform:scale(2.1);cursor:zoom-out}
+/* full-screen image viewer (lightbox) */
+.img-lightbox{display:none;position:fixed;inset:0;z-index:300;background:rgba(6,20,12,.94);place-items:center;padding:20px;cursor:zoom-out;animation:fadeUp .2s ease}
+.img-lightbox.open{display:grid}
+.img-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.img-lightbox .lb-close{position:absolute;top:16px;inset-inline-end:16px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer}
+.img-lightbox .lb-close svg{width:22px;height:22px}
+.img-lightbox .lb-hint{position:absolute;bottom:22px;inset-inline:0;text-align:center;color:rgba(255,255,255,.72);font-size:.82rem;pointer-events:none}
 .pp-was{color:var(--muted);font-size:.55em;font-weight:500}
 .pp-off{display:inline-block;background:#c0392b;color:#fff;font-size:.4em;font-weight:700;border-radius:999px;padding:3px 10px;vertical-align:middle}
 .pp-est{display:flex;align-items:center;gap:7px;font-size:.86rem;color:var(--muted);margin-top:8px}
@@ -951,8 +958,9 @@ body.viewing-account #accountPage{display:block;animation:fadeUp .4s var(--ease)
 .pp-qtyrow{display:flex;align-items:center;gap:14px;margin-top:20px}
 .pp-qtyrow .lbl{font-weight:600;color:var(--ink-soft);font-size:.92rem}
 .pp-sticky{display:none;position:fixed;bottom:0;inset-inline:0;background:#fff;border-top:1px solid var(--border);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:145;box-shadow:0 -6px 20px rgba(7,38,23,.1);align-items:center;gap:12px}
-.pp-sticky .pps-price{font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--green-800);white-space:nowrap}
-.pp-sticky .btn{flex:1;min-height:48px}
+.pp-sticky .pps-price{font-family:var(--font-display);font-weight:700;font-size:1.1rem;color:var(--green-800);white-space:nowrap;flex:0 0 auto}
+.pp-sticky .btn{flex:1 1 0;min-width:0;min-height:48px;padding-inline:10px;font-size:.92rem;gap:7px}
+.pp-sticky .btn svg{flex-shrink:0}
 body.viewing-product .pp-sticky{display:none}
 
 /* Checkout polish */
@@ -964,6 +972,9 @@ body.viewing-product .pp-sticky{display:none}
 /* ---------- Responsive ---------- */
 @media(max-width:760px){
   body.viewing-product .pp-sticky{display:flex}
+  /* the sticky bar already has its own Chat button, so hide the floating
+     chat bubble here — it was overlapping and hiding that button */
+  body.viewing-product .fab-chat{display:none}
   .pp-actions{display:none}
 }
 @media(max-width:980px){
@@ -996,11 +1007,14 @@ body.viewing-product .pp-sticky{display:none}
   .menu-btn{width:40px;height:40px;margin-inline-start:0}
   .lang-toggle{padding:8px;gap:0}
   .lang-toggle #langLabel{display:none}
-  /* Products become a side-swipe strip on phones (same feel as flash deals)
-     so items scroll horizontally instead of stacking down the page. */
-  .prod-grid{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .prod-grid::-webkit-scrollbar{display:none}
-  .prod-grid>.prod-card{flex:0 0 205px;scroll-snap-align:start}
+  /* Products become a side-swipe strip on phones, styled IDENTICALLY to the
+     flash-deals strip: same 262px spacious card, same gold scroll indicator,
+     same snap + spacing. */
+  .prod-grid{display:flex;gap:18px;overflow-x:auto;padding:6px 4px 18px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .prod-grid::-webkit-scrollbar{height:8px}
+  .prod-grid::-webkit-scrollbar-thumb{background:var(--gold-500);border-radius:4px}
+  .prod-grid::-webkit-scrollbar-track{background:#eceae2;border-radius:4px}
+  .prod-grid>.prod-card{flex:0 0 262px;scroll-snap-align:start}
   /* Slimmer "Open WhatsApp" button on the order-confirmation popup — the
      full-width block felt oversized on a phone. */
   .co-wa{display:flex;width:fit-content;margin:0 auto;padding:10px 20px;min-height:42px;font-size:.9rem}
@@ -1017,7 +1031,9 @@ body.viewing-product .pp-sticky{display:none}
 }
 @media(max-width:480px){
   .footer-grid{grid-template-columns:1fr}
-  .prod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+  /* keep the flash-style gap on the smallest phones too (prod-grid is a flex
+     strip on mobile, so the old grid-template-columns no longer applies) */
+  .prod-grid{gap:18px}
   .pd-info{padding:22px}
   .brand-name{font-size:1rem}
 }
@@ -1369,6 +1385,13 @@ body.viewing-product .pp-sticky{display:none}
   <div class="drawer-foot" id="cartFoot"></div>
 </aside>
 
+<!-- ============ FULL-SCREEN IMAGE VIEWER ============ -->
+<div class="img-lightbox" id="imgLightbox" role="dialog" aria-modal="true">
+  <button class="lb-close" id="lbClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-hint" data-i18n="lb_hint">Tap anywhere to close</div>
+</div>
+
 <!-- ============ MOBILE MENU DRAWER ============ -->
 <aside class="drawer drawer-start" id="menuDrawer" aria-label="Menu">
   <div class="drawer-head"><h3 class="display">Menu</h3><button class="close-x" id="closeMenu" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
@@ -1707,7 +1730,7 @@ const I18N = {
     chat_start_btn:'Start chat', chat_need_info:'Enter your name and phone number', chat_about:'About', chat_too_big:'Image too large (max 4MB)',
     chat_ask_product:'Ask about this product', chat_ask_order:'Ask about this order', chat_make_acct:'Create my free account →', chat_signin_btn:'Sign in to my account →',
     ac_edit_profile:'Edit profile', ac_wishlist:'My wishlist', ac_wl_empty:'Nothing saved yet — tap the ♥ on any product to keep it here.', ac_wl_browse:'Browse shop',
-    ac_wl_more:'Show {n} more', ac_wl_less:'Show less', chat_btn:'Chat',
+    ac_wl_more:'Show {n} more', ac_wl_less:'Show less', chat_btn:'Chat', lb_hint:'Tap anywhere to close',
     ac_messages:'My messages', ac_messages_note:'Your conversation with us — it follows your account on any device.',
     benefits:'Benefits', how_use:'How to use', description:'Description', availability:'Availability',
     cart_empty:'Your cart is empty', cart_empty_sub:'Start adding products to see them here.', browse:'Browse products',
@@ -1794,7 +1817,7 @@ const I18N = {
     chat_start_btn:'ابدأ المحادثة', chat_need_info:'أدخل اسمك ورقم هاتفك', chat_about:'بخصوص', chat_too_big:'الصورة كبيرة جداً (الحد ٤ م.ب.)',
     chat_ask_product:'اسأل عن هذا المنتج', chat_ask_order:'اسأل عن هذا الطلب', chat_make_acct:'أنشئ حسابي المجاني ←', chat_signin_btn:'تسجيل الدخول إلى حسابي ←',
     ac_edit_profile:'تعديل الملف', ac_wishlist:'مفضلتي', ac_wl_empty:'لا شيء محفوظ بعد — اضغط ♥ على أي منتج لحفظه هنا.', ac_wl_browse:'تصفح المتجر',
-    ac_wl_more:'عرض {n} أخرى', ac_wl_less:'عرض أقل', chat_btn:'محادثة',
+    ac_wl_more:'عرض {n} أخرى', ac_wl_less:'عرض أقل', chat_btn:'محادثة', lb_hint:'انقر في أي مكان للإغلاق',
     ac_messages:'رسائلي', ac_messages_note:'محادثتك معنا — تتابعك على حسابك من أي جهاز.',
     benefits:'الفوائد', how_use:'طريقة الاستخدام', description:'الوصف', availability:'التوفر',
     cart_empty:'سلتك فارغة', cart_empty_sub:'ابدأ بإضافة المنتجات لتظهر هنا.', browse:'تصفّح المنتجات',
@@ -2496,7 +2519,7 @@ function renderProductPage(id){
   <div class="pp-sticky">
     <div class="pps-price">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <s style="font-size:.7em;color:var(--muted)">${money(p.price)}</s>`:money(p.price)}</div>
     ${out?`<button class="btn btn-outline" disabled style="opacity:.5">${t('out_stock')}</button>`
-      :`<button class="btn btn-primary" data-padd="${p.id}">${t('add_cart')}</button><button class="btn btn-chat" data-chat-product="${p.id}" style="flex:0 0 auto;padding:0 16px" aria-label="${t('chat_btn')}">${CHAT_SVG}</button>`}
+      :`<button class="btn btn-primary" data-padd="${p.id}">${t('add_cart')}</button><button class="btn btn-chat" data-chat-product="${p.id}" aria-label="${t('chat_btn')}">${CHAT_SVG}${t('chat_btn')}</button>`}
   </div>`;
   wireZoom();
   loadProductReviews(p.id);
@@ -2504,15 +2527,32 @@ function renderProductPage(id){
   if(rvBtn)rvBtn.onclick=submitProductReview;
   observeReveals();
 }
-/* image zoom: follow the cursor on desktop, tap to toggle on touch */
+/* image viewing: hover-pan preview on desktop, and tap/click to open the
+   picture full-screen (lightbox) so it can be viewed in full on any device */
 function wireZoom(){
   const wrap=document.querySelector('.pp-media'), img=$('#ppMainImg');
   if(!wrap||!img)return;
   wrap.classList.add('zoomable');
   wrap.onmousemove=e=>{const r=wrap.getBoundingClientRect();img.style.transformOrigin=`${((e.clientX-r.left)/r.width*100)}% ${((e.clientY-r.top)/r.height*100)}%`;};
   wrap.onmouseenter=()=>img.classList.add('zoomed');
-  wrap.onmouseleave=()=>img.classList.remove('zoomed');
-  wrap.onclick=e=>{if(e.target.closest('[data-ppimg]'))return;img.classList.toggle('zoomed');};
+  wrap.onmouseleave=()=>{img.classList.remove('zoomed');};
+  wrap.onclick=e=>{if(e.target.closest('[data-ppimg]'))return;img.classList.remove('zoomed');openLightbox(img.currentSrc||img.src);};
+  wireLightbox();
+}
+function wireLightbox(){
+  const lb=$('#imgLightbox'), close=$('#lbClose');
+  if(lb)lb.onclick=closeLightbox;
+  if(close)close.onclick=e=>{e.stopPropagation();closeLightbox();};
+}
+function openLightbox(src){
+  const lb=$('#imgLightbox'), im=$('#lbImg');
+  if(!lb||!im||!src)return;
+  im.src=src; lb.classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeLightbox(){
+  const lb=$('#imgLightbox');
+  if(!lb)return;
+  lb.classList.remove('open'); document.body.style.overflow='';
 }
 /* per-product reviews */
 async function loadProductReviews(pid){
@@ -3497,7 +3537,7 @@ function hideModal(sel){$(sel).classList.remove('show');if(!anyOpen())closeChrom
 function openDrawer(sel){$('#overlay').classList.add('show');$(sel).classList.add('show');document.body.classList.add('no-scroll')}
 function anyOpen(){return $('#cartDrawer').classList.contains('show')||$('#menuDrawer').classList.contains('show')||$('#prodModal').classList.contains('show')||$('#checkoutModal').classList.contains('show')||$('#receiptModal').classList.contains('show')}
 function closeChrome(){$('#overlay').classList.remove('show');document.body.classList.remove('no-scroll')}
-function closeAll(){$$('.drawer,.modal').forEach(d=>d.classList.remove('show'));closeChrome()}
+function closeAll(){$$('.drawer,.modal').forEach(d=>d.classList.remove('show'));closeLightbox();closeChrome()}
 
 /* ---------- Language ---------- */
 function applyLang(){
