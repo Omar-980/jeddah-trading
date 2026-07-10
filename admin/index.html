@@ -186,6 +186,18 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .mv-neg{color:var(--danger);font-weight:700}
 .po-card{margin-bottom:14px}
 .po-line{display:grid;grid-template-columns:1fr 90px 120px 34px;gap:8px;margin-bottom:8px;align-items:center}
+/* investment basket lines */
+.in-line{border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;background:#fbfaf5;position:relative}
+.in-line .il-prod{margin-bottom:8px}
+.in-line select,.in-line input{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;background:#fff}
+.in-line .il-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.in-line .il-fld label{display:block;font-size:.72rem;font-weight:600;color:#6a7a70;margin-bottom:3px}
+.in-line .il-foot{display:flex;justify-content:space-between;align-items:center;margin-top:9px;font-size:.82rem}
+.in-line .il-total b{color:var(--green-800)}
+.in-line .il-rm{background:none;color:var(--danger);font-weight:600;font-size:.8rem;display:flex;align-items:center;gap:4px;cursor:pointer}
+.in-line .il-rm svg{width:15px;height:15px}
+.in-basket-total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1.5px dashed var(--border);font-weight:700;color:var(--green-800);font-size:1.02rem}
+@media(max-width:640px){.in-line .il-grid{grid-template-columns:1fr 1fr}}
 .po-line select,.po-line input{padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;width:100%}
 .po-line .pl-x{width:34px;height:38px;border-radius:8px;background:#fdf0ef;color:var(--danger);font-weight:700}
 .recv-line{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -630,15 +642,14 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <h3 style="margin-bottom:12px">Create investment</h3>
             <div class="grid2">
               <div class="field"><label>Investor *</label><select id="in_investor"></select></div>
-              <div class="field"><label>Product *</label><select id="in_prod"></select></div>
-              <div class="field"><label>Quantity funded *</label><input id="in_qty" type="number" min="1" step="1" value="1"></div>
-              <div class="field"><label>Cost per unit (GMD) *</label><input id="in_cost" type="number" min="0" step="0.01"></div>
-              <div class="field"><label>Investor share of profit %</label><input id="in_pct" type="number" min="5" max="95" step="1" value="50"></div>
-              <div class="field"><label>Batch no.</label><input id="in_batch" placeholder="Optional"></div>
               <div class="field"><label>Investment date</label><input id="in_date" type="date"></div>
-              <div class="field"><label>Total (auto)</label><input id="in_total" disabled></div>
             </div>
-            <button class="btn btn-gold" id="in_add">Record investment</button>
+            <label style="display:block;font-size:.85rem;font-weight:600;color:#3a4a40;margin:4px 0 8px">Products this investor is funding</label>
+            <div id="inLines"></div>
+            <button type="button" class="btn btn-outline btn-sm" id="in_addLine" style="margin-top:2px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>Add another product</button>
+            <div class="in-basket-total" id="inBasketTotal"></div>
+            <button class="btn btn-gold btn-block" id="in_add" style="margin-top:10px">Record investment</button>
+            <div class="hint" style="margin-top:8px">💡 Fund one investor across several products here. To have <b>two investors on the same product</b>, just record a separate investment for the other investor with that same product — profit is split between them automatically as it sells.</div>
           </div>
         </div>
         <div class="panel">
@@ -1167,8 +1178,8 @@ function renderInvestorsView(){
     statCard('Owed to investors',money(owed),'inbox',owed>0?'alert':'');
   // investor select for new investments
   $('#in_investor').innerHTML=INVESTORS.filter(v=>v.status==='active').map(v=>`<option value="${v.id}">${esc(v.name)} (${esc(v.phone)})</option>`).join('')||'<option value="">— add an investor first —</option>';
-  $('#in_prod').innerHTML=PRODUCTS.map(p=>`<option value="${p.id}" data-cost="${p.cost||0}">${esc(p.en.name)} — cost D${p.cost||0}</option>`).join('');
-  inAutoTotal();
+  if(!$('#inLines').children.length)addInvLine();     // start the basket with one product line
+  refreshInvLineProducts();inBasketTotal();
   $('#ivRows').innerHTML=INVESTORS.map(v=>`<tr>
     <td><b>${esc(v.name)}</b><div style="font-size:.76rem;color:var(--muted)" dir="ltr">${esc(v.phone)}${v.email?' · '+esc(v.email):''}</div></td>
     <td class="hide-sm">${money(v.invested)} <span style="color:var(--muted);font-size:.76rem">(${v.investments})</span></td>
@@ -1207,9 +1218,48 @@ function renderInvestments(){
   $$('[data-in-settle]').forEach(b=>b.onclick=async()=>{try{await api('/admin/investments/'+b.dataset.inSettle,{method:'PATCH',body:JSON.stringify({status:'settled'})});toast('Marked settled');loadInvestors();}catch(e){toast(e.message);}});
   $$('[data-in-cancel]').forEach(b=>b.onclick=async()=>{try{await api('/admin/investments/'+b.dataset.inCancel,{method:'PATCH',body:JSON.stringify({status:'cancelled'})});toast('Cancelled');loadInvestors();}catch(e){toast(e.message);}});
 }
-function inAutoTotal(){
-  const q=+($('#in_qty')?.value||0),c=+($('#in_cost')?.value||0);
-  if($('#in_total'))$('#in_total').value=q&&c?money(q*c):'';
+/* ---- multi-product investment basket ---- */
+function invProdOptions(){return PRODUCTS.map(p=>`<option value="${p.id}" data-cost="${p.cost||0}">${esc(p.en.name)} — cost D${p.cost||0}</option>`).join('');}
+function addInvLine(){
+  const box=$('#inLines');
+  const row=document.createElement('div');
+  row.className='in-line';
+  row.innerHTML=`
+    <div class="il-prod"><select class="il-product">${invProdOptions()}</select></div>
+    <div class="il-grid">
+      <div class="il-fld"><label>Quantity</label><input class="il-qty" type="number" min="1" step="1" value="1"></div>
+      <div class="il-fld"><label>Cost / unit</label><input class="il-cost" type="number" min="0" step="0.01"></div>
+      <div class="il-fld"><label>Investor %</label><input class="il-pct" type="number" min="5" max="95" step="1" value="50"></div>
+    </div>
+    <div class="il-foot">
+      <span class="il-total">Line total: <b>D0</b></span>
+      <button type="button" class="il-rm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Remove</button>
+    </div>`;
+  box.appendChild(row);
+  const prod=row.querySelector('.il-product'), cost=row.querySelector('.il-cost'),
+        qty=row.querySelector('.il-qty'), pct=row.querySelector('.il-pct'), rm=row.querySelector('.il-rm');
+  const fillCost=()=>{const o=prod.selectedOptions[0];if(o&&!+cost.value)cost.value=o.dataset.cost||'';};
+  fillCost();
+  prod.onchange=()=>{const o=prod.selectedOptions[0];cost.value=o?.dataset.cost||'';inBasketTotal();};
+  [qty,cost,pct].forEach(el=>el.oninput=inBasketTotal);
+  rm.onclick=()=>{ if($('#inLines').children.length<=1){toast('Keep at least one product line');return;} row.remove();inBasketTotal(); };
+  inBasketTotal();
+}
+function refreshInvLineProducts(){
+  // keep each line's product dropdown in sync with the latest product list (preserve selection)
+  $$('#inLines .il-product').forEach(sel=>{const v=sel.value;sel.innerHTML=invProdOptions();if(v)sel.value=v;});
+}
+function inLineTotals(){
+  return [...$$('#inLines .in-line')].map(row=>{
+    const q=+row.querySelector('.il-qty').value||0, c=+row.querySelector('.il-cost').value||0;
+    return {row, amount:q*c};
+  });
+}
+function inBasketTotal(){
+  let grand=0;
+  inLineTotals().forEach(({row,amount})=>{grand+=amount;const b=row.querySelector('.il-total b');if(b)b.textContent=money(amount);});
+  const el=$('#inBasketTotal');
+  if(el)el.innerHTML=`<span>Total investment</span><span>${money(grand)}</span>`;
 }
 async function openInvestorModal(id){
   const v=INVESTORS.find(x=>x.id===id);if(!v)return;
@@ -1229,13 +1279,23 @@ if($('#iv_add')){
     try{await api('/admin/investors',{method:'POST',body:JSON.stringify({name:$('#iv_name').value,phone:$('#iv_phone').value,password:$('#iv_pass').value,email:$('#iv_email').value,address:$('#iv_addr').value})});
       ['iv_name','iv_phone','iv_pass','iv_email','iv_addr'].forEach(i=>$('#'+i).value='');toast('Investor created — they can now sign in at /investor');loadInvestors();}catch(e){toast(e.message);}
   };
+  $('#in_addLine').onclick=()=>addInvLine();
   $('#in_add').onclick=async()=>{
-    try{await api('/admin/investments',{method:'POST',body:JSON.stringify({investor_id:$('#in_investor').value,product_id:$('#in_prod').value,
-      qty_funded:+$('#in_qty').value,cost_per_unit:+$('#in_cost').value,investor_pct:+$('#in_pct').value||50,batch_no:$('#in_batch').value,invested_at:$('#in_date').value})});
-      toast('Investment recorded — profit will accrue as it sells');$('#in_batch').value='';loadInvestors();}catch(e){toast(e.message);}
+    const investor_id=$('#in_investor').value;
+    if(!investor_id){toast('Choose an investor first');return;}
+    const lines=[...$$('#inLines .in-line')].map(row=>({
+      product_id:row.querySelector('.il-product').value,
+      qty_funded:+row.querySelector('.il-qty').value,
+      cost_per_unit:+row.querySelector('.il-cost').value,
+      investor_pct:+row.querySelector('.il-pct').value||50
+    })).filter(l=>l.product_id&&l.qty_funded>0);
+    if(!lines.length){toast('Add at least one product with a quantity');return;}
+    if(lines.some(l=>!(l.cost_per_unit>0))){toast('Enter the cost per unit on every line');return;}
+    try{const d=await api('/admin/investments/batch',{method:'POST',body:JSON.stringify({investor_id,invested_at:$('#in_date').value,lines})});
+      toast(`Recorded ${d.count} investment${d.count>1?'s':''} · ${money(d.total)} — profit accrues as it sells`);
+      $('#inLines').innerHTML='';addInvLine();loadInvestors();
+    }catch(e){toast(e.message);}
   };
-  $('#in_prod').onchange=()=>{const o=$('#in_prod').selectedOptions[0];if(o&&!+$('#in_cost').value)$('#in_cost').value=o.dataset.cost||'';inAutoTotal();};
-  $('#in_qty').oninput=inAutoTotal;$('#in_cost').oninput=inAutoTotal;
   $('#inSearch').oninput=renderInvestments;$('#inFilter').onchange=renderInvestments;
   $('#ivRefresh').onclick=loadInvestors;
   $('#po_add').onclick=async()=>{
