@@ -960,7 +960,41 @@ async function api(req, res, url) {
       logAct(me.username, 'investment_create', `${v.name} → ${p.en.name} ×${qty} (D${qty * cost})`);
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
     }
-    if (r[1] === 'investments' && r[2] && method === 'PATCH') {
+    // Batch: one investor funding several products at once (each line has its own qty, cost and %).
+    if (r[1] === 'investments' && r[2] === 'batch' && method === 'POST') {
+      if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
+      const b = await readBody(req);
+      const v = queries.investorById(Number(b.investor_id));
+      if (!v) return send(res, 400, { error: 'Choose an investor' });
+      const lines = Array.isArray(b.lines) ? b.lines : [];
+      if (!lines.length) return send(res, 400, { error: 'Add at least one product line' });
+      const investedAt = /^\d{4}-\d{2}-\d{2}$/.test(b.invested_at || '') ? b.invested_at : new Date().toISOString().slice(0, 10);
+      const prepared = [];
+      for (const ln of lines) {
+        const p = queries.productById(Number(ln.product_id));
+        if (!p) return send(res, 400, { error: 'One of the lines has no valid product' });
+        const qty = Math.max(1, Math.trunc(Number(ln.qty_funded) || 0));
+        const cost = Number(ln.cost_per_unit) || p.cost || 0;
+        if (cost <= 0) return send(res, 400, { error: `Enter the cost price for ${p.en.name}` });
+        const pct = Math.min(95, Math.max(5, Number(ln.investor_pct) || 50));
+        prepared.push({ p, qty, cost, pct, batch: String(ln.batch_no || p.batchNo || '').slice(0, 60) });
+      }
+      const ins = db.prepare(`INSERT INTO investments(investor_id,product_id,batch_no,purchase_order_id,qty_funded,cost_per_unit,amount,sell_price_ref,investor_pct,invested_at,notes)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
+      let n = 0, total = 0;
+      db.exec('BEGIN');
+      try {
+        for (const x of prepared) {
+          ins.run(v.id, x.p.id, x.batch, null, x.qty, x.cost, Math.round(x.qty * x.cost * 100) / 100,
+                  x.p.sale || x.p.price, x.pct, investedAt, String(b.notes || '').slice(0, 300));
+          n++; total += x.qty * x.cost;
+        }
+        db.exec('COMMIT');
+      } catch (e) { try { db.exec('ROLLBACK'); } catch {} return send(res, 500, { error: 'Could not save the investments' }); }
+      logAct(me.username, 'investment_batch', `${v.name} → ${n} product(s) (D${Math.round(total)})`);
+      return send(res, 201, { ok: true, count: n, total: Math.round(total * 100) / 100 });
+    }
+    if (r[1] === 'investments' && r[2] && r[2] !== 'batch' && method === 'PATCH') {
       if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
       const inv = db.prepare('SELECT * FROM investments WHERE id=?').get(Number(r[2]));
       if (!inv) return send(res, 404, { error: 'not found' });
