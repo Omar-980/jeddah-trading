@@ -9,7 +9,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { db, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder } = require('./db');
+const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder } = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // bind all interfaces so cloud hosts can route to it
@@ -23,6 +23,10 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8',
   '.json':'application/json', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.gif':'image/gif',
   '.webp':'image/webp', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
+
+// Guard so two clicks (or two owners) can never build two database snapshots at once and
+// double the temporary disk usage on a small persistent volume.
+let BACKUP_RUNNING = false;
 
 /* ---------- helpers ---------- */
 function send(res, code, body, headers = {}) {
@@ -692,6 +696,60 @@ async function api(req, res, url) {
 
     // who am I (used by the dashboard to gate the UI)
     if (r[1] === 'me' && method === 'GET') return send(res, 200, { user: me, allPerms: ALL_PERMS });
+
+    /* ---- DATABASE BACKUP (owner only) ----
+       Streams a consistent snapshot of the live database. VACUUM INTO is used rather than a raw
+       file copy because the store keeps serving orders while the backup runs — copying the file
+       byte-for-byte under write load can produce a torn, unopenable database. This is deliberately
+       restricted to the owner role: the file contains every customer record and password hash. */
+    if (r[1] === 'backup' && method === 'GET') {
+      if (me.role !== 'owner') return send(res, 403, { error: 'Only the store owner can download a backup' });
+      if (BACKUP_RUNNING) return send(res, 429, { error: 'A backup is already being prepared — please wait a moment' });
+
+      const dbDir = path.dirname(DB_PATH);
+      // VACUUM INTO writes a second copy beside the database, so refuse if the disk cannot hold it.
+      try {
+        const dbSize = fs.statSync(DB_PATH).size;
+        const st = fs.statfsSync(dbDir);
+        if (st.bavail * st.bsize < dbSize * 1.5) {
+          return send(res, 507, { error: 'Not enough free disk space to build a backup right now' });
+        }
+      } catch { /* statfs is unavailable on some platforms — proceed rather than block the backup */ }
+
+      const tmp = path.join(dbDir, `.backup_${crypto.randomBytes(8).toString('hex')}.db`);
+      BACKUP_RUNNING = true;
+      let cleaned = false;
+      const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true; BACKUP_RUNNING = false;
+        try { fs.unlinkSync(tmp); } catch {}
+      };
+
+      try {
+        db.exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
+      } catch (e) {
+        cleanup();
+        return send(res, 500, { error: 'Backup failed: ' + e.message });
+      }
+
+      let size = 0;
+      try { size = fs.statSync(tmp).size; } catch { cleanup(); return send(res, 500, { error: 'Backup failed' }); }
+
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '');
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="jeddah-backup-${stamp}.db"`,
+        'Content-Length': size,
+        'Cache-Control': 'no-store',
+      });
+      const rs = fs.createReadStream(tmp);
+      rs.on('error', () => { cleanup(); res.destroy(); });
+      rs.on('close', cleanup);
+      res.on('close', cleanup);
+      rs.pipe(res);
+      logAct(me.username, 'backup_download', (size / 1048576).toFixed(2) + ' MB');
+      return;
+    }
 
     // overview stats
     if (r[1] === 'stats' && method === 'GET') {

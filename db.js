@@ -1029,4 +1029,4 @@ const queries = {
   zoneById:    (id) => db.prepare('SELECT * FROM delivery_zones WHERE id=?').get(id),
 };
 
-module.exports = { db, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder };
+module.exports = { db, DB_PATH, DATA_DIR, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder };
