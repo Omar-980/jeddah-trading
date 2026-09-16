@@ -955,6 +955,21 @@ body.viewing-account #accountPage{display:block;animation:fadeUp .4s var(--ease)
 .pp-trust{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 4px}
 .pp-trust .ppt{display:flex;align-items:center;gap:8px;background:var(--cream-2);border-radius:10px;padding:9px 13px;font-size:.82rem;font-weight:500;color:var(--ink-soft)}
 .pp-trust .ppt svg{width:18px;height:18px;color:var(--green-600);flex-shrink:0}
+/* Product sizes (500g / 1000g …) */
+.pp-sizerow{margin-top:20px}
+.pp-sizerow .lbl{display:block;font-weight:600;color:var(--ink-soft);font-size:.92rem;margin-bottom:9px}
+.size-opts{display:flex;flex-wrap:wrap;gap:9px}
+.size-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:92px;
+  padding:9px 14px;border:1.8px solid var(--border,#dcdcd2);border-radius:11px;background:#fff;
+  cursor:pointer;font:inherit;text-align:start;transition:border-color .15s,background .15s,box-shadow .15s}
+.size-opt b{font-size:.95rem;color:var(--green-800,#10502f)}
+.size-opt small{font-size:.8rem;color:var(--muted)}
+.size-opt:hover:not(.out){border-color:var(--green-700,#1c7d4a)}
+.size-opt.on{border-color:var(--green-700,#1c7d4a);background:rgba(28,125,74,.07);box-shadow:0 0 0 2px rgba(28,125,74,.14)}
+.size-opt.out{opacity:.45;cursor:not-allowed}
+.size-opt.out b{text-decoration:line-through}
+.prod-from{font-size:.72em;color:var(--muted);font-weight:500;margin-inline-end:3px}
+@media(max-width:420px){.size-opt{min-width:calc(50% - 5px);flex:1 1 calc(50% - 5px)}}
 .pp-qtyrow{display:flex;align-items:center;gap:14px;margin-top:20px}
 .pp-qtyrow .lbl{font-weight:600;color:var(--ink-soft);font-size:.92rem}
 .pp-sticky{display:none;position:fixed;bottom:0;inset-inline:0;background:#fff;border-top:1px solid var(--border);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:145;box-shadow:0 -6px 20px rgba(7,38,23,.1);align-items:center;gap:12px}
@@ -1719,6 +1734,7 @@ const I18N = {
     write_review:'Write a review', review_sub:'Bought from us? Share your experience — your review appears after a quick check.', review_name:'Your name', review_loc:'Your town (optional)', review_rating:'Your rating', review_text:'Your review', review_submit:'Submit review', review_thanks:'Thank you! Your review will appear once approved.', review_fillin:'Please add your name and review',
     cart_title:'Your Cart', mn_home:'Home', mn_shop:'Shop', mn_cart:'Cart', mn_order:'Order',
     add_cart:'Add to Cart', order_wa:'WhatsApp', view:'View details', in_stock:'In stock', low_stock:'Almost gone!', out_stock:'Out of stock', featured:'Featured', new_arrival:'New Arrival', units:'units', sold_n:'{n} sold',
+    size_l:'Choose a size', choose_size:'Choose size', pick_size:'Please choose a size first', from_price:'from ', only_left:'Only {n} left',
     pp_trending:'Trending — customers are buying this one', pp_deal_note:'On sale — save {p}% while the deal lasts', pp_wishers:'{n} people have this on their wishlist',
     track_updated:'Your order is now: {s}',
     chat_fab:'Chat with us', chat_online:'Online — we usually reply right away', chat_offline:'Away — leave us a message',
@@ -1806,6 +1822,7 @@ const I18N = {
     write_review:'اكتب تقييماً', review_sub:'اشتريت منا؟ شاركنا تجربتك — يظهر تقييمك بعد مراجعة سريعة.', review_name:'اسمك', review_loc:'مدينتك (اختياري)', review_rating:'تقييمك', review_text:'تقييمك', review_submit:'إرسال التقييم', review_thanks:'شكراً لك! سيظهر تقييمك بعد الموافقة.', review_fillin:'يرجى إدخال اسمك وتقييمك',
     cart_title:'سلتك', mn_home:'الرئيسية', mn_shop:'المتجر', mn_cart:'السلة', mn_order:'اطلب',
     add_cart:'أضف للسلة', order_wa:'واتساب', view:'التفاصيل', in_stock:'متوفر', low_stock:'أوشك على النفاد!', out_stock:'نفد المخزون', featured:'مميّز', new_arrival:'وصل حديثاً', units:'وحدة', sold_n:'تم بيع {n}',
+    size_l:'اختر الحجم', choose_size:'اختر الحجم', pick_size:'يرجى اختيار الحجم أولاً', from_price:'ابتداءً من ', only_left:'بقي {n} فقط',
     pp_trending:'رائج — الزبائن يشترون هذا المنتج', pp_deal_note:'عرض خاص — وفّر {p}٪ قبل انتهاء العرض', pp_wishers:'{n} أشخاص أضافوا هذا لمفضلتهم',
     track_updated:'طلبك الآن: {s}',
     chat_fab:'تحدث معنا', chat_online:'متصل — نرد عادةً فوراً', chat_offline:'غير متواجدين — اترك لنا رسالة',
@@ -1903,6 +1920,21 @@ let search='';
 let cart=[]; // {id, qty}
 // Effective unit price — the flash-deal price when one is active. The server recomputes this too.
 function unitPrice(p){return (p&&p.sale)?p.sale:(p?p.price:0)}
+/* ---------- Sizes ----------
+   A product may be sold in several sizes (500g, 1000g), each with its own price and stock.
+   A cart line is therefore identified by product AND size; a product with no sizes uses vid 0
+   and behaves exactly as it did before sizes existed. The server re-prices everything anyway. */
+function hasSizes(p){return !!(p&&p.hasSizes&&Array.isArray(p.variants)&&p.variants.some(v=>v.active))}
+function sizesOf(p){return (p&&Array.isArray(p.variants))?p.variants.filter(v=>v.active):[]}
+function sizeOf(p,vid){return vid?sizesOf(p).find(v=>v.id===+vid)||null:null}
+function sizeLabel(v){return (LANG==='ar'&&v.label_ar)?v.label_ar:v.label_en}
+function linePrice(p,vid){const v=sizeOf(p,vid);return v?(v.sale||v.price):unitPrice(p)}
+function lineWas(p,vid){const v=sizeOf(p,vid);return v?(v.sale?v.price:0):(p&&p.sale?p.price:0)}
+function lineStock(p,vid){const v=sizeOf(p,vid);return v?v.stock:(p?p.stock:0)}
+function lineName(p,vid){const v=sizeOf(p,vid);const base=p[LANG].name;return v?base+' · '+sizeLabel(v):base}
+function ckey(id,vid){return id+':'+(vid||0)}
+// Cheapest live size, used for the "from D…" on a product card.
+function fromPrice(p){const s=sizesOf(p);if(!s.length)return unitPrice(p);return Math.min(...s.map(v=>v.sale||v.price))}
 /* Wishlist + recently viewed (persisted on this device) */
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
@@ -1928,6 +1960,13 @@ function pushRecent(id){id=+id;let r=lsGet('jt_recent').filter(x=>x!==id);r.unsh
 function displayRating(p){if(p.rating&&p.rating.count>0)return{val:p.rating.avg.toFixed(1),full:Math.round(p.rating.avg),count:p.rating.count,real:true};const f=ratingFor(p.id);return{val:f.val,full:f.full,count:f.count,real:false}}
 // Price block with sale support (used on cards and strips)
 function priceHTML(p){
+  // A product sold in sizes shows the cheapest one as "from D250" — the exact price depends on
+  // which size the shopper picks on the product page.
+  if(hasSizes(p)){
+    const lo=fromPrice(p), hi=Math.max(...sizesOf(p).map(v=>v.sale||v.price));
+    if(lo!==hi)return `<span class="price"><span class="prod-from">${t('from_price')}</span>${money(lo)} <small>GMD</small></span>`;
+    return `<span class="price">${money(lo)} <small>GMD</small></span>`;
+  }
   if(p.sale)return `<span class="price sale">${money(p.sale)} <small>GMD</small></span> <span class="price-was">${money(p.price)}</span>`;
   return `<span class="price">${money(p.price)} <small>GMD</small></span>`;
 }
@@ -2193,7 +2232,7 @@ function productCard(p){
       ${badge}
       <button class="fav-btn ${FAVS.has(p.id)?'active':''}" data-fav="${p.id}" aria-label="${t('wl_add')}"><svg viewBox="0 0 24 24" fill="${FAVS.has(p.id)?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>
       ${media}
-      ${out?'':`<button class="quick-add" data-add="${p.id}" aria-label="${t('add_cart')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg></button>`}
+      ${out?'':`<button class="quick-add" data-add="${p.id}" aria-label="${hasSizes(p)?t('choose_size'):t('add_cart')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg></button>`}
     </div>
     <div class="prod-body">
       <span class="prod-cat">${(catMap[p.cat]&&catMap[p.cat][LANG])||''}${p.brand?` · <b style="color:var(--green-700)">${p.brand}</b>`:''}</span>
@@ -2205,7 +2244,7 @@ function productCard(p){
       <div class="prod-actions">
         <button class="btn ${out?'btn-outline':'btn-primary'}" data-add="${p.id}" ${out?'disabled style="opacity:.5"':''}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
-          ${t('add_cart')}
+          ${hasSizes(p)?t('choose_size'):t('add_cart')}
         </button>
         <button class="btn btn-chat" data-chat-product="${p.id}" aria-label="${t('chat_btn')}">
           ${CHAT_SVG}
@@ -2404,6 +2443,41 @@ function openProduct(id){
 
 /* ---------- Dedicated product page + related products ---------- */
 let ppQty=1;
+let ppVid=0;   // the size currently chosen on the product page (0 = product has no sizes)
+/* Switching size updates the price, the availability line and the quantity limit in place,
+   so the shopper sees exactly what they will pay before adding anything to the basket. */
+function selectSize(vid){
+  const p=prod(CURRENT_PID); if(!p)return;
+  const v=sizeOf(p,vid); if(!v||v.stock<=0)return;
+  ppVid=v.id;
+  document.querySelectorAll('[data-psize]').forEach(b=>b.classList.toggle('on',+b.dataset.psize===ppVid));
+  const price=$('#ppPrice');
+  if(price){
+    const was=lineWas(p,ppVid);
+    price.innerHTML=was
+      ? `<span style="color:#c0392b">${money(v.sale)}</span> <small>GMD</small> <s class="pp-was">${money(was)}</s> <span class="pp-off">-${Math.round((was-v.sale)/was*100)}%</span>`
+      : `${money(v.price)} <small>GMD</small>`;
+  }
+  const bar=$('#ppsPrice');
+  if(bar){
+    const was=lineWas(p,ppVid);
+    bar.innerHTML=was?`<span style="color:#c0392b">${money(v.sale)}</span> <s style="font-size:.7em;color:var(--muted)">${money(was)}</s>`:money(v.price);
+  }
+  const av=$('#ppAvail');
+  if(av)av.innerHTML=v.stock<=0?`<span class="no-stock" style="font-weight:600">${t('out_stock')}</span>`
+    :(v.stock<=5?`<span class="low-stock" style="font-weight:600">${t('low_stock')}</span>`
+               :`<span class="in-stock" style="font-weight:600">${t('in_stock')}</span>`);
+  if(ppQty>v.stock)ppQty=Math.max(1,v.stock);
+  const q=$('#ppQ');if(q)q.textContent=ppQty;
+  updatePpStockNote();
+}
+function updatePpStockNote(){
+  const n=$('#ppStockNote'); if(!n)return;
+  const p=prod(CURRENT_PID); if(!p){n.textContent='';return;}
+  const max=lineStock(p,ppVid);
+  n.textContent=(max>0&&max<=10)?t('only_left').replace('{n}',max):'';
+}
+let CURRENT_PID=0;
 function relatedFor(p){
   const others=PRODUCTS.filter(x=>x.id!==p.id&&x.active!==false);
   const sameCat=others.filter(x=>x.cat===p.cat);
@@ -2445,6 +2519,21 @@ function renderProductPage(id){
   const estDeliv=(LANG==='ar'?PAYINFO.est_delivery_ar:PAYINFO.est_delivery_en)||'';
   const videoId=(()=>{const m=/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/.exec(p.video||'');return m?m[1]:null;})();
   ppQty=1;
+  /* Sizes: pre-select the first size that is actually in stock so the page opens ready to buy. */
+  const sizes=sizesOf(p);
+  ppVid=0;
+  if(sizes.length){
+    const firstLive=sizes.find(v=>v.stock>0)||sizes[0];
+    ppVid=firstLive.id;
+  }
+  const sizeRow=sizes.length?`<div class="pp-sizerow">
+      <span class="lbl">${t('size_l')}</span>
+      <div class="size-opts">${sizes.map(v=>{
+        const so=v.stock<=0;
+        return `<button class="size-opt${v.id===ppVid?' on':''}${so?' out':''}" data-psize="${v.id}"${so?' disabled':''}>
+          <b>${esc(sizeLabel(v))}</b><small>${money(v.sale||v.price)}${so?' · '+t('out_stock'):''}</small></button>`;
+      }).join('')}</div>
+    </div>`:'';
   const waSvg='<svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>';
   $('#productPage').innerHTML=`<div class="pp-wrap">
     <div class="breadcrumb">
@@ -2461,8 +2550,8 @@ function renderProductPage(id){
         <span class="prod-cat">${catLabel}${p.brand?` · <b style="color:var(--green-700)">${p.brand}</b>`:''}</span>
         <h1 class="pp-title">${d.name}</h1>
         <div class="prod-rating" style="margin-bottom:8px"><span class="stars" style="font-size:1rem">${'★'.repeat(rt.full)}${'☆'.repeat(5-rt.full)}</span><span>${rt.val} · ${rt.count} ${LANG==='ar'?'تقييم':'reviews'}</span></div>
-        <div class="pp-price">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <small>GMD</small> <s class="pp-was">${money(p.price)}</s> <span class="pp-off">-${offPct(p)}%</span>`:`${money(p.price)} <small>GMD</small>`}</div>
-        <div>${avail}${p.sku?` <span style="color:var(--muted);font-size:.8rem">· SKU ${p.sku}</span>`:''}</div>
+        <div class="pp-price" id="ppPrice">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <small>GMD</small> <s class="pp-was">${money(p.price)}</s> <span class="pp-off">-${offPct(p)}%</span>`:`${money(p.price)} <small>GMD</small>`}</div>
+        <div><span id="ppAvail">${avail}</span>${p.sku?` <span style="color:var(--muted);font-size:.8rem">· SKU ${p.sku}</span>`:''}</div>
         ${(!out&&(p.bestseller||p.sale||p.wishers>=3))?`<div class="pp-notes">
           ${p.bestseller?`<span class="trend">🔥 ${t('pp_trending')}</span>`:''}
           ${p.sale?`<span class="deal">⚡ ${t('pp_deal_note').replace('{p}',offPct(p))}</span>`:''}
@@ -2480,7 +2569,8 @@ function renderProductPage(id){
           <span class="ppt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7zM5.5 18.5A1.5 1.5 0 1 0 5.5 21M18.5 18.5A1.5 1.5 0 1 0 18.5 21"/></svg>${t('ppt_deliv')}</span>
           <span class="ppt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>${t('ppt_cod')}</span>
         </div>
-        ${out?'':`<div class="pp-qtyrow"><span class="lbl">${LANG==='ar'?'الكمية':'Quantity'}</span><div class="qty-sel"><button data-ppq="-1" aria-label="-">−</button><span id="ppQ">1</span><button data-ppq="1" aria-label="+">+</button></div></div>`}
+        ${sizeRow}
+        ${out?'':`<div class="pp-qtyrow"><span class="lbl">${LANG==='ar'?'الكمية':'Quantity'}</span><div class="qty-sel"><button data-ppq="-1" aria-label="-">−</button><span id="ppQ">1</span><button data-ppq="1" aria-label="+">+</button></div><span class="lbl" id="ppStockNote" style="font-weight:500"></span></div>`}
         <div class="pp-actions">
           ${out?'':`<button class="btn btn-gold" data-buy="${p.id}">⚡ ${t('buy_now')}</button>`}
           <button class="btn ${out?'btn-outline':'btn-primary'}" data-padd="${p.id}" ${out?'disabled style="opacity:.5"':''}>${t('add_cart')}</button>
@@ -2513,11 +2603,13 @@ function renderProductPage(id){
     ${recentHtml}
   </div>
   <div class="pp-sticky">
-    <div class="pps-price">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <s style="font-size:.7em;color:var(--muted)">${money(p.price)}</s>`:money(p.price)}</div>
+    <div class="pps-price" id="ppsPrice">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <s style="font-size:.7em;color:var(--muted)">${money(p.price)}</s>`:money(p.price)}</div>
     ${out?`<button class="btn btn-outline" disabled style="opacity:.5">${t('out_stock')}</button>`
       :`<button class="btn btn-primary" data-padd="${p.id}">${t('add_cart')}</button><button class="btn btn-chat" data-chat-product="${p.id}" aria-label="${t('chat_btn')}">${CHAT_SVG}${t('chat_btn')}</button>`}
   </div>`;
   wireZoom();
+  CURRENT_PID=p.id;
+  updatePpStockNote();
   loadProductReviews(p.id);
   const rvBtn=$('#rvSubmit');
   if(rvBtn)rvBtn.onclick=submitProductReview;
@@ -2599,22 +2691,28 @@ function handleRoute(){
 
 /* ---------- Cart ---------- */
 function cartQty(){return cart.reduce((s,i)=>s+i.qty,0)}
-function cartSubtotal(){return cart.reduce((s,i)=>s+unitPrice(prod(i.id))*i.qty,0)}
-function addToCart(id,qty){
-  const p=prod(id); if(stockState(p)==='out')return;
+function cartSubtotal(){return cart.reduce((s,i)=>s+linePrice(prod(i.id),i.vid)*i.qty,0)}
+function addToCart(id,qty,vid){
+  const p=prod(id); if(!p)return;
+  vid=+vid||0;
+  // A product sold in sizes cannot be added without choosing one — send the shopper to the page.
+  if(!vid&&hasSizes(p)){location.hash='product='+id;toast(t('pick_size'));return;}
+  const max=lineStock(p,vid);
+  if(max<=0){toast(t('out_stock'));return;}
   qty=Math.max(1,qty||1);
-  const e=cart.find(i=>i.id===id);
-  if(e){e.qty=Math.min(p.stock,e.qty+qty);}else cart.push({id,qty:Math.min(p.stock,qty)});
+  const k=ckey(id,vid);
+  const e=cart.find(i=>ckey(i.id,i.vid)===k);
+  if(e){e.qty=Math.min(max,e.qty+qty);}else cart.push({id,vid,qty:Math.min(max,qty)});
   updateCart(); bump(); toast(t('toast_added'));
 }
-function setQty(id,delta){
-  const e=cart.find(i=>i.id===id); if(!e)return;
+function setQty(key,delta){
+  const e=cart.find(i=>ckey(i.id,i.vid)===key); if(!e)return;
   e.qty+=delta;
-  if(e.qty<=0)cart=cart.filter(i=>i.id!==id);
-  else{const p=prod(id);if(e.qty>p.stock)e.qty=p.stock;}
+  if(e.qty<=0)cart=cart.filter(i=>ckey(i.id,i.vid)!==key);
+  else{const max=lineStock(prod(e.id),e.vid);if(e.qty>max)e.qty=max;}
   updateCart();
 }
-function removeItem(id){cart=cart.filter(i=>i.id!==id);updateCart();toast(t('toast_removed'))}
+function removeItem(key){cart=cart.filter(i=>ckey(i.id,i.vid)!==key);updateCart();toast(t('toast_removed'))}
 function clearCart(){cart=[];updateCart();toast(t('toast_cleared'))}
 function bump(){const c=$('#cartCount');c.style.transform='scale(1.4)';setTimeout(()=>c.style.transform='',180)}
 function updateCart(){
@@ -2628,14 +2726,17 @@ function updateCart(){
     $('#emptyBrowse').onclick=()=>closeAll();
     return;
   }
-  $('#cartBody').innerHTML=cart.map(i=>{const p=prod(i.id),d=p[LANG];return `
+  $('#cartBody').innerHTML=cart.map(i=>{
+    const p=prod(i.id); if(!p)return '';
+    const k=ckey(i.id,i.vid), u=linePrice(p,i.vid);
+    return `
     <div class="cart-item">
       <div class="ci-img" style="background:${(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)'}">${p.image?`<img src="${p.image}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:svg(p.icon)}</div>
       <div class="ci-main">
-        <div class="ci-name">${d.name}</div>
-        <div class="ci-price">${money(unitPrice(p))} × ${i.qty} = ${money(unitPrice(p)*i.qty)}</div>
-        <div class="qty"><button data-dec="${i.id}" aria-label="Decrease">−</button><span>${i.qty}</span><button data-inc="${i.id}" aria-label="Increase">+</button></div>
-        <div><button class="ci-remove" data-rm="${i.id}">${LANG==='ar'?'إزالة':'Remove'}</button></div>
+        <div class="ci-name">${lineName(p,i.vid)}</div>
+        <div class="ci-price">${money(u)} × ${i.qty} = ${money(u*i.qty)}</div>
+        <div class="qty"><button data-dec="${k}" aria-label="Decrease">−</button><span>${i.qty}</span><button data-inc="${k}" aria-label="Increase">+</button></div>
+        <div><button class="ci-remove" data-rm="${k}">${LANG==='ar'?'إزالة':'Remove'}</button></div>
       </div>
     </div>`}).join('');
   const sub=cartSubtotal();
@@ -2764,7 +2865,7 @@ function renderCheckout(){
         ${(CUST&&coMaxRedeem()>0)?`<div class="co-points-row"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="coPtsOn" ${CO_REDEEM>0?'checked':''} style="width:17px;height:17px"> ${t('co_points_use').replace('{n}',CUST.points)}</label><input type="number" id="coPtsN" min="1" max="${coMaxRedeem()}" value="${CO_REDEEM||coMaxRedeem()}" ${CO_REDEEM>0?'':'style="display:none"'}><span style="color:var(--muted);font-size:.78rem">${t('co_points_max').replace('{n}',coMaxRedeem())}</span></div>`:''}
         <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
           <div style="font-weight:600;color:var(--green-800);margin-bottom:10px">${t('co_items')}</div>
-          ${cart.map(i=>{const p=prod(i.id);return `<div class="summary-row"><span>${p[LANG].name} ×${i.qty}</span><span>${money(unitPrice(p)*i.qty)}</span></div>`}).join('')}
+          ${cart.map(i=>{const p=prod(i.id);return `<div class="summary-row"><span>${lineName(p,i.vid)} ×${i.qty}</span><span>${money(linePrice(p,i.vid)*i.qty)}</span></div>`}).join('')}
           ${coDiscountTotal()>0?`<div class="summary-row" style="color:#c0392b"><span>${t('co_discount')}</span><span>−${money(coDiscountTotal())}</span></div>`:''}
           <div class="summary-row"><span>${t('delivery')}${(coData.deliv==='home'&&zoneName())?' · '+zoneName():''}</span><span>${fee===0?t('free'):money(fee)}</span></div>
           <div class="summary-row total"><span>${t('total')}</span><span>${money(sub-coDiscountTotal()+fee)}</span></div>
@@ -2858,7 +2959,7 @@ function buildWaMessage(ref,discOverride){
   let msg=L?`السلام عليكم ${STORE_NAME} 🌙\nأرغب في تأكيد الطلب التالي:\n\n`:`Assalamu alaikum ${STORE_NAME} 🌙\nI'd like to confirm this order:\n\n`;
   if(ref)msg+=`*${L?'رقم الطلب':'Order ref'}:* ${ref}\n\n`;
   msg+=`*${L?'المنتجات':'Items'}:*\n`;
-  cart.forEach(i=>{const p=prod(i.id);msg+=`• ${p[LANG].name} ×${i.qty} — ${money(unitPrice(p)*i.qty)}\n`});
+  cart.forEach(i=>{const p=prod(i.id);msg+=`• ${lineName(p,i.vid)} ×${i.qty} — ${money(linePrice(p,i.vid)*i.qty)}\n`});
   msg+=`\n${L?'المجموع الفرعي':'Subtotal'}: ${money(sub)}\n`;
   if(disc>0)msg+=`${L?'الخصم':'Discount'}: -${money(disc)}${CO_COUPON?' ('+CO_COUPON.code+')':''}\n`;
   msg+=`${L?'التوصيل':'Delivery'}: ${fee===0?t('free'):money(fee)}\n*${L?'الإجمالي':'Total'}: ${money(sub-disc+fee)}*\n\n`;
@@ -2878,7 +2979,7 @@ async function placeOrder(){
   const btn=$('#coPlace'); if(btn){btn.disabled=true;btn.style.opacity=.6;btn.textContent=LANG==='ar'?'جارٍ الإرسال…':'Placing…';}
   // snapshot for the receipt (cart is cleared after)
   let sub=cartSubtotal(), fee=deliveryFee(), disc=coDiscountTotal();
-  const snapItems=cart.map(i=>{const p=prod(i.id);return {name:p[LANG].name, qty:i.qty, line:unitPrice(p)*i.qty};});
+  const snapItems=cart.map(i=>{const p=prod(i.id);return {name:lineName(p,i.vid), qty:i.qty, line:linePrice(p,i.vid)*i.qty};});
   let ref='';
   try{
     const hdrs={'Content-Type':'application/json'};
@@ -2888,7 +2989,7 @@ async function placeOrder(){
       delivery_address:coData.addr||'', delivery_area:coData.area||'', delivery_zone_id:coData.zoneId||null,
       payment_method:coData.pay, payment_proof_data:coData.proof||null,
       coupon:CO_COUPON?CO_COUPON.code:null, redeem_points:CO_REDEEM||0,
-      notes:coData.notes||'', language:LANG, items:cart.map(i=>({id:i.id, qty:i.qty}))
+      notes:coData.notes||'', language:LANG, items:cart.map(i=>({id:i.id, variant_id:i.vid||0, qty:i.qty}))
     })}).then(r=>r.json());
     if(d&&d.order_number){ref=d.order_number;sub=d.subtotal;fee=d.delivery_fee;disc=d.discount||0;}
     if(CUST&&CO_REDEEM>0)loadCustomer();   // refresh the visible points balance
@@ -3560,17 +3661,19 @@ document.addEventListener('click',e=>{
   // wishlist heart FIRST — it sits inside the card's clickable [data-view] media area
   const fv=e.target.closest('[data-fav]');if(fv){const on=toggleFav(fv.dataset.fav);fv.classList.toggle('active',on);fv.classList.toggle('on',on);const sv=fv.querySelector('svg');if(sv)sv.setAttribute('fill',on?'currentColor':'none');if(FILTERS.savedOnly)renderProducts();return}
   const a=e.target.closest('[data-add]');if(a){addToCart(+a.dataset.add);const qa=a.closest('.quick-add');if(qa){qa.classList.add('added');setTimeout(()=>qa.classList.remove('added'),700)}return}
-  const pad=e.target.closest('[data-padd]');if(pad){addToCart(+pad.dataset.padd,ppQty);return}
+  const pad=e.target.closest('[data-padd]');if(pad){addToCart(+pad.dataset.padd,ppQty,ppVid);return}
+  // Choosing a size on the product page: price, stock and the quantity limit all follow it.
+  const psz=e.target.closest('[data-psize]');if(psz){selectSize(+psz.dataset.psize);return}
   const ppq=e.target.closest('[data-ppq]');if(ppq){ppQty=Math.max(1,ppQty+(+ppq.dataset.ppq));const el=$('#ppQ');if(el)el.textContent=ppQty;return}
   const ppimg=e.target.closest('[data-ppimg]');if(ppimg){const main=$('#ppMainImg');if(main)main.src=ppimg.dataset.ppimg;document.querySelectorAll('.pp-thumb').forEach(b=>b.classList.toggle('active',b===ppimg));return}
   const w=e.target.closest('[data-wa]');if(w){waProduct(prod(+w.dataset.wa));return}
   const v=e.target.closest('[data-view]');if(v){location.hash='product='+v.dataset.view;return}
   const ppb=e.target.closest('[data-pp-back]');if(ppb){e.preventDefault();location.hash='';setTimeout(()=>{const s=document.getElementById('shop');if(s)s.scrollIntoView();},30);return}
-  const bn=e.target.closest('[data-buy]');if(bn){addToCart(+bn.dataset.buy,ppQty||1);openCheckout();return}
+  const bn=e.target.closest('[data-buy]');if(bn){const before=cartQty();addToCart(+bn.dataset.buy,ppQty||1,ppVid);if(cartQty()>before)openCheckout();return}
   const sh=e.target.closest('[data-share]');if(sh){shareProduct(sh.dataset.share,+sh.dataset.id);return}
-  const inc=e.target.closest('[data-inc]');if(inc){setQty(+inc.dataset.inc,1);return}
-  const dec=e.target.closest('[data-dec]');if(dec){setQty(+dec.dataset.dec,-1);return}
-  const rm=e.target.closest('[data-rm]');if(rm){removeItem(+rm.dataset.rm);return}
+  const inc=e.target.closest('[data-inc]');if(inc){setQty(inc.dataset.inc,1);return}
+  const dec=e.target.closest('[data-dec]');if(dec){setQty(dec.dataset.dec,-1);return}
+  const rm=e.target.closest('[data-rm]');if(rm){removeItem(rm.dataset.rm);return}
   const hd=e.target.closest('[data-hsdot]');if(hd){showHs(+hd.dataset.hsdot);startHs();return}
   const cat=e.target.closest('[data-cat]');if(cat){if(cat.tagName==='A')e.preventDefault();activeCat=cat.dataset.cat;renderChips();renderProducts();const inMenu=cat.closest('#catsMenu');const fromProduct=cat.closest('#productPage');const jump=cat.classList.contains('cat-card')||cat.classList.contains('foot-cat')||inMenu||fromProduct||cat.classList.contains('cb-clear');if($('#navCats'))$('#navCats').classList.remove('open');if(/product=/.test(location.hash)){location.hash='';}if(jump){setTimeout(()=>document.getElementById('shop').scrollIntoView({behavior:'smooth'}),(inMenu||fromProduct)?60:0)}return}
   const fq=e.target.closest('[data-faq]');if(fq){const item=fq.closest('.faq-item');const open=item.classList.contains('open');$$('.faq-item').forEach(x=>{x.classList.remove('open');x.querySelector('.faq-a').style.maxHeight=null});if(!open){item.classList.add('open');const a=item.querySelector('.faq-a');a.style.maxHeight=a.scrollHeight+'px'}return}
