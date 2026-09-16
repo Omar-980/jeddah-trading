@@ -455,6 +455,43 @@ if (!columnExists('products', 'dimensions'))      db.exec("ALTER TABLE products 
 if (!columnExists('products', 'video_url'))       db.exec("ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''");
 if (!columnExists('reviews', 'product_id'))       db.exec('ALTER TABLE reviews ADD COLUMN product_id INTEGER');
 
+/* ---------- Product sizes / variants phase (additive) ----------
+   One product (e.g. Ajwa dates) can be sold in several sizes (500g, 1000g), each with its own
+   price, cost, stock and barcode. A product with NO rows here behaves exactly as it always has:
+   every existing product keeps working untouched, and sizes are opt-in per product. */
+db.exec(`
+CREATE TABLE IF NOT EXISTS product_variants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  label_en TEXT NOT NULL DEFAULT '',        -- e.g. "500g"
+  label_ar TEXT NOT NULL DEFAULT '',        -- e.g. "٥٠٠ جرام"
+  price REAL NOT NULL DEFAULT 0,
+  discount_price REAL NOT NULL DEFAULT 0,   -- flash-deal price for THIS size (0 = none)
+  cost REAL NOT NULL DEFAULT 0,             -- what this size costs you (drives profit + investor share)
+  stock INTEGER NOT NULL DEFAULT 0,
+  sku TEXT DEFAULT '',
+  barcode TEXT DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
+CREATE INDEX IF NOT EXISTS idx_variants_barcode ON product_variants(barcode);
+`);
+// Which size a stock movement / investment / profit row refers to. NULL = the product itself,
+// which is what every row written before this feature existed means.
+if (!columnExists('stock_moves', 'variant_id'))     db.exec('ALTER TABLE stock_moves ADD COLUMN variant_id INTEGER');
+if (!columnExists('stock_moves', 'variant_label'))  db.exec("ALTER TABLE stock_moves ADD COLUMN variant_label TEXT DEFAULT ''");
+if (!columnExists('investments', 'variant_id'))     db.exec('ALTER TABLE investments ADD COLUMN variant_id INTEGER');
+if (!columnExists('investor_sales', 'variant_id'))  db.exec('ALTER TABLE investor_sales ADD COLUMN variant_id INTEGER');
+
+/* ---------- Counter (POS) final discount phase (additive) ----------
+   Kept in its own column rather than reusing orders.discount, because that one holds customer
+   coupon discounts from the website. Separating them keeps reports honest about which is which. */
+if (!columnExists('orders', 'staff_discount'))   db.exec('ALTER TABLE orders ADD COLUMN staff_discount REAL NOT NULL DEFAULT 0');
+if (!columnExists('orders', 'discount_reason'))  db.exec("ALTER TABLE orders ADD COLUMN discount_reason TEXT DEFAULT ''");
+if (!columnExists('orders', 'discounted_by'))    db.exec("ALTER TABLE orders ADD COLUMN discounted_by TEXT DEFAULT ''");
+
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -471,6 +508,9 @@ const DEFAULT_SETTINGS = {
   free_delivery_over: '2500',
   delivery_fee: '150',
   low_stock_threshold: '5',
+  // Largest final discount a salesperson may give at the counter, as a percent of the sale.
+  // The owner is never capped. Enforced on the server, not in the browser.
+  max_staff_discount_pct: '10',
   contact_address_en: 'Bundungka Kunda, Near Jammeh Foundation Hospital, The Gambia',
   contact_address_ar: 'بوندونغكا كوندا، بالقرب من مستشفى مؤسسة جامع، غامبيا',
   contact_hours_en: 'Mon – Sat: 9am – 10pm · Sun: 9am – 8pm',
@@ -664,6 +704,25 @@ function rowToProduct(r, includeCost) {
     en: { name: r.name_en, desc: r.desc_en, use: r.use_en, benefits: safeArr(r.benefits_en), ingredients: r.ingredients_en || '', warnings: r.warnings_en || '' },
     ar: { name: r.name_ar, desc: r.desc_ar, use: r.use_ar, benefits: safeArr(r.benefits_ar), ingredients: r.ingredients_ar || '', warnings: r.warnings_ar || '' },
   };
+  /* Sizes. A product with no variant rows is left exactly as it was — same price, same stock,
+     same behaviour — so nothing that already exists in the shop changes. When a product DOES
+     have sizes, the product-level price and stock become a summary of its sizes, because that
+     is what the card, the search and the "sold out" check all need to read. */
+  const vrows = variantRows(r.id, includeCost);
+  if (vrows.length) {
+    p.variants = vrows;
+    const live = vrows.filter(v => v.active);
+    if (live.length) {
+      p.hasSizes = true;
+      const eff = live.map(v => v.sale || v.price);
+      p.priceFrom = Math.min(...eff);
+      p.priceTo = Math.max(...eff);
+      const cheapest = live[eff.indexOf(p.priceFrom)];
+      p.price = cheapest.price;                 // list price of the cheapest size
+      p.sale = cheapest.sale;                   // its flash-deal price, if it has one
+      p.stock = live.reduce((s, v) => s + v.stock, 0);
+    }
+  }
   if (includeCost) {   // admin-only inventory + costing fields
     p.cost = r.cost || 0;
     p.sku = r.sku || '';
@@ -678,6 +737,45 @@ function rowToProduct(r, includeCost) {
   return p;
 }
 function safeArr(s){ try { const a = JSON.parse(s||'[]'); return Array.isArray(a)?a:[]; } catch { return []; } }
+
+/* ---------- Product sizes (variants) ---------- */
+// Shapes one size row for the API. `includeAll` (admin) also returns switched-off sizes and cost.
+function variantRows(productId, includeAll) {
+  const rows = db.prepare(
+    'SELECT * FROM product_variants WHERE product_id=?' + (includeAll ? '' : ' AND is_active=1') +
+    ' ORDER BY sort_order ASC, id ASC').all(productId);
+  return rows.map(v => {
+    const dp = Number(v.discount_price) || 0;
+    const out = {
+      id: v.id, productId: v.product_id,
+      label_en: v.label_en || '', label_ar: v.label_ar || '',
+      price: Number(v.price) || 0,
+      sale: (dp > 0 && dp < v.price) ? dp : null,
+      stock: Number(v.stock) || 0,
+      active: !!v.is_active,
+      sort: v.sort_order || 0,
+    };
+    if (includeAll) { out.cost = Number(v.cost) || 0; out.sku = v.sku || ''; out.barcode = v.barcode || ''; out.discount_price = dp; }
+    return out;
+  });
+}
+// The authoritative lookup used whenever money or stock is involved: always read from the
+// database, never trust a price or a label sent by a browser.
+function variantById(id) {
+  const v = db.prepare('SELECT * FROM product_variants WHERE id=?').get(Number(id));
+  if (!v) return null;
+  const dp = Number(v.discount_price) || 0;
+  return { id: v.id, productId: v.product_id, label_en: v.label_en || '', label_ar: v.label_ar || '',
+           price: Number(v.price) || 0, sale: (dp > 0 && dp < v.price) ? dp : null,
+           cost: Number(v.cost) || 0, stock: Number(v.stock) || 0, sku: v.sku || '',
+           barcode: v.barcode || '', active: !!v.is_active };
+}
+function variantByCode(code) {
+  const c = String(code || '').trim();
+  if (!c) return null;
+  const v = db.prepare('SELECT id FROM product_variants WHERE is_active=1 AND (barcode=? OR sku=?) LIMIT 1').get(c, c);
+  return v ? variantById(v.id) : null;
+}
 
 // Units sold per product across all non-cancelled orders (online + on-site shop sales).
 function soldCounts() {
@@ -727,8 +825,21 @@ function recordInvestorSalesForOrder(orderId, orderNumber, items, byRef = '') {
   for (const it of items) {
     let left = Number(it.qty) || 0;
     if (left <= 0) continue;
-    const open = db.prepare(`SELECT i.*, COALESCE((SELECT SUM(qty) FROM investor_sales s WHERE s.investment_id=i.id),0) sold
-      FROM investments i WHERE i.product_id=? AND i.status IN ('active','completed') ORDER BY i.id`).all(it.id);
+    /* Which investments may absorb this line.
+       - A line with a size can be funded by an investment in THAT size, or by an older
+         product-level investment (variant_id IS NULL) so existing stakes keep earning.
+         Size-specific stakes are consumed first, then FIFO by id within each group.
+       - A line with no size can only be funded by a product-level investment; a stake in
+         "Ajwa 1000g" must not quietly absorb the sale of something else. */
+    const vid = Number(it.variantId) || 0;
+    const open = vid
+      ? db.prepare(`SELECT i.*, COALESCE((SELECT SUM(qty) FROM investor_sales s WHERE s.investment_id=i.id),0) sold
+          FROM investments i WHERE i.product_id=? AND i.status IN ('active','completed')
+          AND (i.variant_id = ? OR i.variant_id IS NULL)
+          ORDER BY CASE WHEN i.variant_id = ? THEN 0 ELSE 1 END, i.id`).all(it.id, vid, vid)
+      : db.prepare(`SELECT i.*, COALESCE((SELECT SUM(qty) FROM investor_sales s WHERE s.investment_id=i.id),0) sold
+          FROM investments i WHERE i.product_id=? AND i.status IN ('active','completed')
+          AND i.variant_id IS NULL ORDER BY i.id`).all(it.id);
     for (const inv of open) {
       if (left <= 0) break;
       const capacity = inv.qty_funded - inv.sold;
@@ -739,9 +850,9 @@ function recordInvestorSalesForOrder(orderId, orderNumber, items, byRef = '') {
       const cost = r2(inv.cost_per_unit * q);
       const gross = r2(revenue - cost);
       const ip = r2(gross * inv.investor_pct / 100);
-      db.prepare(`INSERT INTO investor_sales(investment_id,investor_id,order_id,order_number,product_id,qty,unit_price,revenue,cost,gross_profit,investor_profit,business_profit)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(inv.id, inv.investor_id, orderId, orderNumber || '', it.id, q, unit, revenue, cost, gross, ip, r2(gross - ip));
+      db.prepare(`INSERT INTO investor_sales(investment_id,investor_id,order_id,order_number,product_id,variant_id,qty,unit_price,revenue,cost,gross_profit,investor_profit,business_profit)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(inv.id, inv.investor_id, orderId, orderNumber || '', it.id, vid || null, q, unit, revenue, cost, gross, ip, r2(gross - ip));
       if (inv.sold + q >= inv.qty_funded && inv.status === 'active')
         db.prepare("UPDATE investments SET status='completed' WHERE id=?").run(inv.id);
     }
@@ -753,19 +864,27 @@ function reverseInvestorSalesForOrder(orderId) {
   if (already) return;
   const rows = db.prepare('SELECT * FROM investor_sales WHERE order_id=? AND qty>0').all(orderId);
   for (const s of rows) {
-    db.prepare(`INSERT INTO investor_sales(investment_id,investor_id,order_id,order_number,product_id,qty,unit_price,revenue,cost,gross_profit,investor_profit,business_profit)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(s.investment_id, s.investor_id, s.order_id, s.order_number, s.product_id, -s.qty, s.unit_price,
+    db.prepare(`INSERT INTO investor_sales(investment_id,investor_id,order_id,order_number,product_id,variant_id,qty,unit_price,revenue,cost,gross_profit,investor_profit,business_profit)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(s.investment_id, s.investor_id, s.order_id, s.order_number, s.product_id, s.variant_id || null, -s.qty, s.unit_price,
            -s.revenue, -s.cost, -s.gross_profit, -s.investor_profit, -s.business_profit);
     db.prepare("UPDATE investments SET status='active' WHERE id=? AND status='completed'").run(s.investment_id);
   }
 }
 
-function logMove(productId, qtyChange, reason, ref, byUser) {
+// `variantId` is optional and defaults to the old behaviour (a movement of the product itself).
+// When given, the ledger records that size's remaining stock rather than the product's.
+function logMove(productId, qtyChange, reason, ref, byUser, variantId) {
   const p = db.prepare('SELECT stock, name_en FROM products WHERE id=?').get(productId);
   if (!p) return;
-  db.prepare('INSERT INTO stock_moves(product_id,product_name,qty_change,stock_after,reason,ref,by_user) VALUES(?,?,?,?,?,?,?)')
-    .run(productId, p.name_en, qtyChange, p.stock, String(reason), String(ref || ''), String(byUser || ''));
+  let after = p.stock, label = '';
+  if (variantId) {
+    const v = db.prepare('SELECT stock, label_en FROM product_variants WHERE id=?').get(Number(variantId));
+    if (v) { after = v.stock; label = v.label_en || ''; }
+  }
+  db.prepare('INSERT INTO stock_moves(product_id,product_name,qty_change,stock_after,reason,ref,by_user,variant_id,variant_label) VALUES(?,?,?,?,?,?,?,?,?)')
+    .run(productId, p.name_en, qtyChange, after, String(reason), String(ref || ''), String(byUser || ''),
+         variantId ? Number(variantId) : null, label);
 }
 function newReferralCode() {
   for (let i = 0; i < 20; i++) {
@@ -794,6 +913,46 @@ const queries = {
   supplierById:    (id) => db.prepare('SELECT * FROM suppliers WHERE id=?').get(id),
   // Inventory alerts — low stock uses the per-product minimum, falling back to the global threshold.
   lowStockProducts: () => { const gt = Number(getSetting('low_stock_threshold', '5')) || 5; return db.prepare('SELECT * FROM products WHERE is_active=1').all().map(r => rowToProduct(r, true)).filter(p => p.stock <= (p.minStock > 0 ? p.minStock : gt)); },
+
+  /* ---- Product sizes (variants) ---- */
+  variantsOf:    (productId) => variantRows(Number(productId), true),
+  variantById:   (id) => variantById(id),
+  variantByCode: (code) => variantByCode(code),
+  addVariant: (productId, b) => {
+    const info = db.prepare(`INSERT INTO product_variants
+      (product_id,label_en,label_ar,price,discount_price,cost,stock,sku,barcode,sort_order,is_active)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(
+        Number(productId), String(b.label_en || '').slice(0, 60), String(b.label_ar || '').slice(0, 60),
+        Number(b.price) || 0, Number(b.discount_price) || 0, Number(b.cost) || 0,
+        Math.max(0, Math.trunc(Number(b.stock) || 0)), String(b.sku || '').slice(0, 60),
+        String(b.barcode || '').slice(0, 60), Number(b.sort_order) || 0, b.is_active === false ? 0 : 1);
+    return info.lastInsertRowid;
+  },
+  updateVariant: (id, b) => {
+    const cur = db.prepare('SELECT * FROM product_variants WHERE id=?').get(Number(id));
+    if (!cur) return false;
+    const pick = (k, fallback) => (b[k] === undefined ? fallback : b[k]);
+    db.prepare(`UPDATE product_variants SET label_en=?,label_ar=?,price=?,discount_price=?,cost=?,stock=?,
+      sku=?,barcode=?,sort_order=?,is_active=? WHERE id=?`).run(
+        String(pick('label_en', cur.label_en) || '').slice(0, 60),
+        String(pick('label_ar', cur.label_ar) || '').slice(0, 60),
+        Number(pick('price', cur.price)) || 0,
+        Number(pick('discount_price', cur.discount_price)) || 0,
+        Number(pick('cost', cur.cost)) || 0,
+        Math.max(0, Math.trunc(Number(pick('stock', cur.stock)) || 0)),
+        String(pick('sku', cur.sku) || '').slice(0, 60),
+        String(pick('barcode', cur.barcode) || '').slice(0, 60),
+        Number(pick('sort_order', cur.sort_order)) || 0,
+        (b.is_active === undefined ? cur.is_active : (b.is_active ? 1 : 0)),
+        Number(id));
+    return true;
+  },
+  // Sizes are switched off rather than deleted once they have been sold, so past sales,
+  // stock movements and investor profit rows never lose what they point at.
+  variantWasSold: (id) => db.prepare('SELECT COUNT(*) c FROM investor_sales WHERE variant_id=?').get(Number(id)).c > 0
+                       || db.prepare('SELECT COUNT(*) c FROM stock_moves WHERE variant_id=?').get(Number(id)).c > 0,
+  deleteVariant: (id) => db.prepare('DELETE FROM product_variants WHERE id=?').run(Number(id)),
+  deactivateVariant: (id) => db.prepare('UPDATE product_variants SET is_active=0 WHERE id=?').run(Number(id)),
   expiringProducts: (days = 60) => db.prepare("SELECT * FROM products WHERE is_active=1 AND expiry_date IS NOT NULL AND expiry_date!='' AND date(expiry_date) <= date('now', ?)").all(String('+' + (Number(days) || 60) + ' days')).map(r => rowToProduct(r, true)),
   activeCategories: () => db.prepare('SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order ASC').all().map(c => ({ id:c.slug, slug:c.slug, en:c.name_en, ar:c.name_ar, icon:c.icon, grad:c.grad, image:c.image||null, parent_id:c.parent_id||null })),
   allCategories:  () => db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all(),
@@ -1029,4 +1188,4 @@ const queries = {
   zoneById:    (id) => db.prepare('SELECT * FROM delivery_zones WHERE id=?').get(id),
 };
 
-module.exports = { db, DB_PATH, DATA_DIR, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder };
+module.exports = { db, DB_PATH, DATA_DIR, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 };

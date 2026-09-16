@@ -9,7 +9,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder } = require('./db');
+const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 } = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // bind all interfaces so cloud hosts can route to it
@@ -209,6 +209,83 @@ function customerPublic(c) {
            max_redeem_pct: Number(getSetting('loyalty_max_redeem_pct')) || 30 };
 }
 const money0 = n => 'D' + Number(n || 0).toLocaleString('en-US');
+
+/* ---------- sale lines: one pricing path for the website and the shop counter ----------
+   Whatever the browser sends is treated as a hint. Every price, cost and size label below is
+   read back out of the database, so a tampered request cannot change what is charged. */
+function resolveSaleItems(raw) {
+  let subtotal = 0; const items = [];
+  for (const it of Array.isArray(raw) ? raw : []) {
+    const p = queries.productById(Number(it.id));
+    if (!p) continue;
+    const qty = Math.max(1, Math.trunc(Number(it.qty) || 1));
+    const vid = Number(it.variant_id || it.variantId) || 0;
+    let unit, cost, variantId = null, label = '', labelAr = '';
+    if (vid) {
+      const v = variantById(vid);
+      // A size must belong to this product and still be switched on, or the line is dropped.
+      if (!v || v.productId !== p.id || !v.active) continue;
+      unit = v.sale || v.price; cost = v.cost; variantId = v.id;
+      label = v.label_en; labelAr = v.label_ar;
+    } else {
+      // A product sold by size cannot be bought without choosing one.
+      if (p.hasSizes) continue;
+      unit = p.sale || p.price; cost = p.cost || 0;
+    }
+    const line = r2(unit * qty);
+    subtotal = r2(subtotal + line);
+    items.push({ id: p.id, name: p.en.name, name_ar: p.ar.name, variantId,
+                 variant_label: label, variant_label_ar: labelAr, price: unit, cost, qty, line });
+  }
+  return { items, subtotal };
+}
+// Takes stock from the chosen size when there is one, from the product itself otherwise.
+function decrementStockForItems(items, reason, ref, byUser) {
+  const decP = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
+  const decV = db.prepare('UPDATE product_variants SET stock = MAX(0, stock - ?) WHERE id=?');
+  for (const it of items) {
+    if (it.variantId) decV.run(it.qty, it.variantId); else decP.run(it.qty, it.id);
+    logMove(it.id, -it.qty, reason, ref, byUser || '', it.variantId || null);
+  }
+}
+/* Final discount at the counter.
+   The discount is pushed DOWN into the line prices rather than just subtracted from the total,
+   because profit reporting and the investor profit split both read the per-line price. If the
+   discount only lived on the total, an investor would be paid a share of money nobody received.
+   Lines are apportioned by largest remainder so they add up to the discounted total exactly. */
+function applyFinalDiscount(items, subtotal, b, me) {
+  const kind = b.discount_kind === 'percent' ? 'percent' : 'amount';
+  const raw = Number(b.discount_value) || 0;
+  if (raw <= 0 || subtotal <= 0) return { discount: 0 };
+
+  let discount = kind === 'percent' ? r2(subtotal * Math.min(raw, 100) / 100) : r2(raw);
+  discount = Math.min(discount, subtotal);
+
+  // The cap is enforced here, on the server. The owner is never capped.
+  if (me.role !== 'owner') {
+    const maxPct = Number(getSetting('max_staff_discount_pct', '10')) || 0;
+    const maxAmount = r2(subtotal * maxPct / 100);
+    if (discount > maxAmount) {
+      return { error: maxPct <= 0
+        ? 'Discounts are switched off for your account — ask the owner'
+        : `You can give at most ${maxPct}% (D${maxAmount.toLocaleString('en-US')}) on this sale` };
+    }
+  }
+
+  const target = r2(subtotal - discount);
+  const exact = items.map(it => it.line / subtotal * target);
+  const floored = exact.map(v => Math.floor(v * 100) / 100);
+  let bututs = Math.round((target - floored.reduce((a, v) => a + v, 0)) * 100);
+  const order = exact.map((v, i) => ({ i, frac: v * 100 - Math.floor(v * 100) }))
+                     .sort((a, z) => z.frac - a.frac);
+  for (let k = 0; k < order.length && bututs > 0; k++, bututs--) floored[order[k].i] = r2(floored[order[k].i] + 0.01);
+
+  items.forEach((it, i) => {
+    it.line = floored[i];
+    it.price = it.qty ? floored[i] / it.qty : 0;   // left unrounded so price × qty === line exactly
+  });
+  return { discount: r2(subtotal - floored.reduce((a, v) => r2(a + v), 0)) };
+}
 
 /* ---------- order number ---------- */
 function nextOrderNumber() {
@@ -571,18 +648,11 @@ async function api(req, res, url) {
     const b = await readBody(req);
     if (!b.customer_name || !b.customer_phone || !Array.isArray(b.items) || !b.items.length)
       return send(res, 400, { error: 'Missing name, phone, or items' });
-    // recompute totals server-side from live prices
-    let subtotal = 0; const items = [];
-    for (const it of b.items) {
-      const p = queries.productById(Number(it.id));
-      if (!p) continue;
-      const qty = Math.max(1, Number(it.qty) || 1);
-      const unit = p.sale || p.price;            // active flash-deal price is charged, server-side
-      const line = unit * qty;
-      subtotal += line;
-      // snapshot cost so profit stays accurate even if cost changes later
-      items.push({ id: p.id, name: p.en.name, name_ar: p.ar.name, price: unit, cost: p.cost || 0, qty, line });
-    }
+    // recompute totals server-side from live prices (sizes included); cost is snapshotted so
+    // profit stays accurate even if the cost price changes later
+    const resolved = resolveSaleItems(b.items);
+    const items = resolved.items;
+    let subtotal = resolved.subtotal;
     if (!items.length) return send(res, 400, { error: 'No valid items' });
     const isPickup = b.delivery_method === 'pickup';
     // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
@@ -629,8 +699,7 @@ async function api(req, res, url) {
         String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
         proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items));
     // decrement stock for confirmed inventory + record in the stock ledger
-    const dec = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
-    items.forEach(it => { dec.run(it.qty, it.id); logMove(it.id, -it.qty, 'order', orderNumber, ''); });
+    decrementStockForItems(items, 'order', orderNumber, '');
     recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share, at actual prices
     return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total });
   }
@@ -695,7 +764,10 @@ async function api(req, res, url) {
     const me = requireAuth(req, res); if (!me) return;
 
     // who am I (used by the dashboard to gate the UI)
-    if (r[1] === 'me' && method === 'GET') return send(res, 200, { user: me, allPerms: ALL_PERMS });
+    if (r[1] === 'me' && method === 'GET') return send(res, 200, { user: me, allPerms: ALL_PERMS,
+      // How much this person may take off a sale. The browser uses it to warn early; the server
+      // enforces it again on every sale, so editing this value in the page changes nothing.
+      maxDiscountPct: me.role === 'owner' ? 100 : (Number(getSetting('max_staff_discount_pct', '10')) || 0) });
 
     /* ---- DATABASE BACKUP (owner only) ----
        Streams a consistent snapshot of the live database. VACUUM INTO is used rather than a raw
@@ -821,6 +893,74 @@ async function api(req, res, url) {
       if ((Number(b.stock)||0) > 0) logMove(info.lastInsertRowid, Number(b.stock), 'manual', 'initial stock', me.username);
       logAct(me.username, 'product_add', b.name_en || '');
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
+    }
+
+    /* ---- PRODUCT SIZES (variants) ----
+       Placed before the generic /products/:id handlers so the extra path segment is matched first. */
+    if (r[1] === 'products' && r[2] && r[3] === 'variants' && method === 'GET') {
+      if (!hasPerm(me, 'products')) return send(res, 403, { error: 'No permission' });
+      return send(res, 200, { variants: queries.variantsOf(Number(r[2])) });
+    }
+    // Saves the whole size list for one product in a single call — that is how the product form works.
+    if (r[1] === 'products' && r[2] && r[3] === 'variants' && method === 'PUT') {
+      if (!requirePerm(req, res, 'products')) return;
+      const pid = Number(r[2]);
+      const prod = db.prepare('SELECT id,name_en FROM products WHERE id=?').get(pid);
+      if (!prod) return send(res, 404, { error: 'Product not found' });
+      const body = await readBody(req);
+      const incoming = Array.isArray(body.sizes) ? body.sizes : [];
+
+      // Reject sizes that are obviously unusable rather than silently saving a broken price list.
+      for (const s of incoming) {
+        if (!String(s.label_en || '').trim()) return send(res, 400, { error: 'Every size needs a name, e.g. 500g' });
+        if (!(Number(s.price) > 0)) return send(res, 400, { error: `Size "${s.label_en}" needs a price above zero` });
+        if (Number(s.discount_price) > 0 && Number(s.discount_price) >= Number(s.price))
+          return send(res, 400, { error: `The sale price for "${s.label_en}" must be lower than its normal price` });
+      }
+
+      const existing = db.prepare('SELECT * FROM product_variants WHERE product_id=?').all(pid);
+      const keptIds = new Set(incoming.map(s => Number(s.id)).filter(Boolean));
+
+      for (const old of existing) {
+        if (keptIds.has(old.id)) continue;
+        // A size that has already been sold is switched off, never deleted: past sales, stock
+        // movements and investor profit rows must keep pointing at something real.
+        if (queries.variantWasSold(old.id)) queries.deactivateVariant(old.id);
+        else queries.deleteVariant(old.id);
+      }
+
+      let order = 0;
+      for (const s of incoming) {
+        const payload = { ...s, sort_order: order++ };
+        const id = Number(s.id) || 0;
+        if (id && existing.some(e => e.id === id)) {
+          const before = existing.find(e => e.id === id);
+          queries.updateVariant(id, payload);
+          const newStock = Math.max(0, Math.trunc(Number(payload.stock) || 0));
+          if (newStock !== before.stock)
+            logMove(pid, newStock - before.stock, 'manual', 'size edited in product form', me.username, id);
+        } else {
+          const newId = queries.addVariant(pid, payload);
+          const startStock = Math.max(0, Math.trunc(Number(payload.stock) || 0));
+          if (startStock) logMove(pid, startStock, 'manual', 'size added in product form', me.username, newId);
+        }
+      }
+      logAct(me.username, 'product_sizes', `${prod.name_en}: ${incoming.length} size(s)`);
+      return send(res, 200, { ok: true, variants: queries.variantsOf(pid) });
+    }
+    // Adjust one size's stock from the Inventory screen.
+    if (r[1] === 'variants' && r[2] && r[3] === 'adjust' && method === 'POST') {
+      if (!requirePerm(req, res, 'products')) return;
+      const v = variantById(Number(r[2]));
+      if (!v) return send(res, 404, { error: 'Size not found' });
+      const bb = await readBody(req);
+      const next = bb.mode === 'set'
+        ? Math.max(0, Math.trunc(Number(bb.qty) || 0))
+        : Math.max(0, v.stock + Math.trunc(Number(bb.qty) || 0));
+      db.prepare('UPDATE product_variants SET stock=? WHERE id=?').run(next, v.id);
+      if (next !== v.stock)
+        logMove(v.productId, next - v.stock, String(bb.reason || 'adjustment').slice(0, 30), String(bb.note || '').slice(0, 120), me.username, v.id);
+      return send(res, 200, { ok: true, stock: next });
     }
 
     const pmatch = r[1] === 'products' && r[2];
@@ -1005,17 +1145,26 @@ async function api(req, res, url) {
       const p = queries.productById(Number(b.product_id));
       if (!v) return send(res, 400, { error: 'Choose an investor' });
       if (!p) return send(res, 400, { error: 'Choose a product' });
+      // An investment may target one size of a product ("100 × Ajwa 1000g"). Left empty, it funds
+      // the product as a whole, which is how every investment made before sizes existed behaves.
+      const vid = Number(b.variant_id) || 0;
+      let variant = null;
+      if (vid) {
+        variant = variantById(vid);
+        if (!variant || variant.productId !== p.id) return send(res, 400, { error: 'That size does not belong to this product' });
+      }
       const qty = Math.max(1, Math.trunc(Number(b.qty_funded) || 0));
-      const cost = Number(b.cost_per_unit) || p.cost || 0;
+      const cost = Number(b.cost_per_unit) || (variant ? variant.cost : p.cost) || 0;
       if (cost <= 0) return send(res, 400, { error: 'Enter the cost price per unit' });
       const pct = Math.min(95, Math.max(5, Number(b.investor_pct) || 50));
-      const info = db.prepare(`INSERT INTO investments(investor_id,product_id,batch_no,purchase_order_id,qty_funded,cost_per_unit,amount,sell_price_ref,investor_pct,invested_at,notes)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(v.id, p.id, String(b.batch_no || p.batchNo || '').slice(0, 60), Number(b.purchase_order_id) || null,
-             qty, cost, Math.round(qty * cost * 100) / 100, p.sale || p.price, pct,
+      const sellRef = variant ? (variant.sale || variant.price) : (p.sale || p.price);
+      const info = db.prepare(`INSERT INTO investments(investor_id,product_id,variant_id,batch_no,purchase_order_id,qty_funded,cost_per_unit,amount,sell_price_ref,investor_pct,invested_at,notes)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(v.id, p.id, variant ? variant.id : null, String(b.batch_no || p.batchNo || '').slice(0, 60), Number(b.purchase_order_id) || null,
+             qty, cost, Math.round(qty * cost * 100) / 100, sellRef, pct,
              /^\d{4}-\d{2}-\d{2}$/.test(b.invested_at || '') ? b.invested_at : new Date().toISOString().slice(0, 10),
              String(b.notes || '').slice(0, 300));
-      logAct(me.username, 'investment_create', `${v.name} → ${p.en.name} ×${qty} (D${qty * cost})`);
+      logAct(me.username, 'investment_create', `${v.name} → ${p.en.name}${variant ? ' ' + variant.label_en : ''} ×${qty} (D${qty * cost})`);
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
     }
     // Batch: one investor funding several products at once (each line has its own qty, cost and %).
@@ -1273,40 +1422,44 @@ async function api(req, res, url) {
       if (!requirePerm(req, res, 'sales')) return;
       const b = await readBody(req);
       if (!Array.isArray(b.items) || !b.items.length) return send(res, 400, { error: 'Add at least one product to the sale' });
-      let subtotal = 0; const items = [];
-      for (const it of b.items) {
-        const p = queries.productById(Number(it.id));
-        if (!p) continue;
-        const qty = Math.max(1, Number(it.qty) || 1);
-        const unit = p.sale || p.price;          // POS also honours an active flash-deal price
-        const line = unit * qty;
-        subtotal += line;
-        items.push({ id: p.id, name: p.en.name, name_ar: p.ar.name, price: unit, cost: p.cost || 0, qty, line });
-      }
+      // Same pricing path as the website: sizes honoured, flash deals honoured, all read from the DB.
+      const resolved = resolveSaleItems(b.items);
+      const items = resolved.items;
+      const grossSubtotal = resolved.subtotal;
       if (!items.length) return send(res, 400, { error: 'No valid products in the sale' });
+
+      // Final discount at the counter — capped for staff, unlimited for the owner.
+      const disc = applyFinalDiscount(items, grossSubtotal, b, me);
+      if (disc.error) return send(res, 400, { error: disc.error });
+      const staffDiscount = disc.discount || 0;
+      const subtotal = r2(grossSubtotal - staffDiscount);
+      const discountReason = String(b.discount_reason || '').slice(0, 160);
+
       const orderNumber = nextOrderNumber();
       const seller = me.name || me.username;                 // the person who made the sale (shown on receipts + history)
       const payment = String(b.payment_method||'cash').slice(0,30);
       const customerName = String(b.customer_name||'Walk-in customer').slice(0,120);
       const info = db.prepare(`INSERT INTO orders
-        (order_number,customer_name,customer_phone,delivery_method,payment_method,status,payment_status,subtotal,delivery_fee,total,notes,channel,staff,items_json)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        (order_number,customer_name,customer_phone,delivery_method,payment_method,status,payment_status,subtotal,delivery_fee,total,notes,channel,staff,items_json,staff_discount,discount_reason,discounted_by)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
           orderNumber, customerName, String(b.customer_phone||'').slice(0,40),
           'pickup', payment, 'delivered', 'paid',
-          subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', seller, JSON.stringify(items));
-      const dec = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
-      items.forEach(it => { dec.run(it.qty, it.id); logMove(it.id, -it.qty, 'sale', orderNumber, me.username); });
-      recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share
+          subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', seller, JSON.stringify(items),
+          staffDiscount, discountReason, staffDiscount > 0 ? seller : '');
+      decrementStockForItems(items, 'sale', orderNumber, me.username);
+      recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share, at the discounted price actually charged
+      if (staffDiscount > 0) logAct(me.username, 'sale_discount', `${orderNumber} −D${staffDiscount} ${discountReason}`.trim());
       const createdAt = (db.prepare('SELECT created_at FROM orders WHERE id=?').get(info.lastInsertRowid) || {}).created_at;
       return send(res, 201, { ok: true, order_number: orderNumber, total: subtotal,
         sale: { order_number: orderNumber, created_at: createdAt, staff: seller, payment_method: payment,
-                customer_name: customerName, subtotal, total: subtotal, items } });
+                customer_name: customerName, gross_subtotal: grossSubtotal, staff_discount: staffDiscount,
+                discount_reason: discountReason, subtotal, total: subtotal, items } });
     }
 
     // ---- SALES HISTORY (in-shop sales) — visible to salespeople ----
     if (r[1] === 'sales' && method === 'GET') {
       if (!hasPerm(me, 'sales')) return send(res, 403, { error: 'No permission' });
-      const rows = db.prepare("SELECT id,order_number,customer_name,payment_method,total,staff,created_at,items_json FROM orders WHERE channel='onsite' ORDER BY id DESC LIMIT 500").all();
+      const rows = db.prepare("SELECT id,order_number,customer_name,payment_method,total,staff,created_at,items_json,staff_discount,discount_reason,discounted_by FROM orders WHERE channel='onsite' ORDER BY id DESC LIMIT 500").all();
       rows.forEach(o => { o.items = (() => { try { return JSON.parse(o.items_json); } catch { return []; } })(); delete o.items_json; });
       return send(res, 200, { sales: rows });
     }
@@ -1768,7 +1921,7 @@ async function api(req, res, url) {
     }
 
     // ---- SETTINGS ----
-    const SETTING_KEYS = ['whatsapp_number','store_name','free_delivery_over','delivery_fee','low_stock_threshold',
+    const SETTING_KEYS = ['whatsapp_number','store_name','free_delivery_over','delivery_fee','low_stock_threshold','max_staff_discount_pct',
       'announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar',
       'pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar',
       'est_delivery_en','est_delivery_ar','loyalty_earn_per','loyalty_point_value','loyalty_max_redeem_pct','referral_bonus_points',
