@@ -797,6 +797,13 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <tbody id="newsRows"></tbody>
           </table></div>
         </div>
+
+        <div class="panel" id="backupPanel" style="max-width:680px;display:none">
+          <h3>Database backup</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Downloads one file containing your entire store — every product, order, customer, payment and investor record. Save it somewhere off this server, and always take one before a major change. Because it holds customer details and passwords, only the store owner can download it.</p>
+          <button class="btn btn-gold btn-sm" id="dlBackup" type="button">Download backup</button>
+          <span id="backupNote" style="margin-inline-start:10px;color:var(--muted);font-size:.84rem"></span>
+        </div>
       </section>
 
     </main>
@@ -1580,6 +1587,7 @@ async function loadAll(){
     if(can('users'))await loadActivity();
     if(can('settings'))await loadZones();
     if(can('settings'))await loadNewsletter();
+    showBackupPanel();
     if(can('delivery'))await loadDeliveries();
   }catch(e){console.error(e);}
 }
@@ -2675,6 +2683,28 @@ $('#settingsForm').onsubmit=async e=>{
   const body={};SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)body[k]=el.value;});body.whatsapp_number=(body.whatsapp_number||'').replace(/[^0-9]/g,'');
   if($('#s_admin_password').value)body.admin_password=$('#s_admin_password').value;
   try{await api('/admin/settings',{method:'POST',body:JSON.stringify(body)});$('#s_admin_password').value='';toast('Settings saved');await loadAll();}catch(err){toast(err.message);}
+};
+
+/* ---------- Database backup (Settings, owner only) ---------- */
+function showBackupPanel(){const p=$('#backupPanel');if(p)p.style.display=(ME&&ME.role==='owner')?'':'none';}
+$('#dlBackup').onclick=async()=>{
+  const btn=$('#dlBackup'),note=$('#backupNote'),was=btn.textContent;
+  btn.disabled=true;btn.textContent='Preparing…';note.textContent='';
+  try{
+    // Not the api() wrapper: this response is a binary file, not JSON.
+    const r=await fetch('/api/admin/backup',{headers:{Authorization:'Bearer '+TOKEN}});
+    if(r.status===401){logout();return;}
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Backup failed');}
+    const blob=await r.blob();
+    const m=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/);
+    const name=m?m[1]:'jeddah-backup.db';
+    const u=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+    note.textContent='Saved '+name+' — '+(blob.size/1048576).toFixed(2)+' MB';
+    toast('Backup downloaded');
+  }catch(err){toast(err.message);note.textContent='';}
+  finally{btn.disabled=false;btn.textContent=was;}
 };
 
 /* ---------- Newsletter subscribers (Settings) ---------- */
