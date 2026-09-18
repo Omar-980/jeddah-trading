@@ -863,21 +863,26 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       </select></div>
     </div>
 
-    <div class="section-label">Pricing</div>
-    <div class="grid2">
+    <div class="section-label" id="p_priceLabel">Pricing</div>
+    <div id="p_sizedNote" class="panel" style="display:none;padding:12px 14px;margin-bottom:18px;border-inline-start:3px solid var(--gold-500,#d4af37)">
+      This product is sold in sizes, so price, cost and stock are set on each size below — there is no single price for the product itself.
+    </div>
+    <div class="grid2" id="p_priceGrid">
       <div class="field"><label>Selling price (GMD) *</label><input id="p_price" type="number" min="0" step="1" required></div>
       <div class="field"><label>Sale / discount price (GMD)</label><input id="p_discount" type="number" min="0" step="1" placeholder="Leave empty for no deal"><div class="hint">Set below the selling price to show a Flash Deal badge in the store.</div></div>
       <div class="field"><label>Cost / purchase price (GMD)</label><input id="p_cost" type="number" min="0" step="1" placeholder="What you paid"></div>
       <div class="field"><label>Wholesale price (GMD)</label><input id="p_wholesale" type="number" min="0" step="1" placeholder="For bulk buyers"></div>
+    </div>
+    <div class="grid2" id="p_supplierGrid">
       <div class="field"><label>Supplier</label><select id="p_supplier"><option value="">— None —</option></select></div>
     </div>
 
     <div class="section-label">Sizes <span style="font-weight:400;color:var(--muted);font-size:.84rem">— optional</span></div>
     <div class="panel" style="padding:14px;margin-bottom:18px;background:var(--bg,#fafafa)">
       <p style="color:var(--muted);font-size:.86rem;margin:0 0 12px">
-        Sell one product in several sizes — 500g, 1000g — each with its own price, cost, stock and barcode.
-        Add a size below and customers choose it in the shop; leave this empty and the product is sold exactly as it is today,
-        using the price and stock above.
+        Sell one product in several sizes — 500g, 1000g — each with its own price, cost, stock, low-stock alert and barcode.
+        Add a size and customers choose it in the shop; leave this empty and the product is sold exactly as it is today,
+        using the price and stock fields above. <b>Low-stock alert at</b> is left empty to use the shop-wide threshold.
       </p>
       <div id="p_sizeRows"></div>
       <button type="button" class="btn btn-outline btn-sm" id="p_addSize">+ Add a size</button>
@@ -888,8 +893,8 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
     <div class="grid2">
       <div class="field"><label>SKU</label><div class="input-with-btn"><input id="p_sku" placeholder="e.g. JT-PER-001"><button type="button" class="btn btn-outline btn-sm" id="p_skuGen">Auto</button></div></div>
       <div class="field"><label>Barcode (Code128)</label><div class="input-with-btn"><input id="p_barcode" placeholder="Scan or type a number"><button type="button" class="btn btn-outline btn-sm" id="p_barGen">Generate</button></div></div>
-      <div class="field"><label>Stock quantity *</label><input id="p_stock" type="number" min="0" step="1" required></div>
-      <div class="field"><label>Minimum stock (low-stock alert)</label><input id="p_minstock" type="number" min="0" step="1" placeholder="e.g. 5"></div>
+      <div class="field" id="p_stockField"><label>Stock quantity *</label><input id="p_stock" type="number" min="0" step="1" required></div>
+      <div class="field" id="p_minstockField"><label>Minimum stock (low-stock alert)</label><input id="p_minstock" type="number" min="0" step="1" placeholder="e.g. 5"></div>
       <div class="field"><label>Batch number</label><input id="p_batch" placeholder="Optional"></div>
       <div class="field"><label>Expiry date</label><input id="p_expiry" type="date"></div>
       <div class="field"><label>Product status</label><select id="p_status"><option value="active">Active (sold normally)</option><option value="draft">Draft (hidden, work in progress)</option><option value="archived">Archived (retired)</option></select></div>
@@ -1933,7 +1938,8 @@ function openProdModal(p){
   $('#p_weight').value=p?(p.weight||''):'';$('#p_dims').value=p?(p.dims||''):'';$('#p_video').value=p?(p.video||''):'';
   $('#p_feat').checked=p?p.feat:false;$('#p_new').checked=p?!!p.isNew:false;$('#p_best').checked=p?!!p.bestsellerManual:false;$('#p_active').checked=p?p.active:true;
   PSIZES=p&&Array.isArray(p.variants)?p.variants.map(v=>({id:v.id,label_en:v.label_en,label_ar:v.label_ar,
-    price:v.price,discount_price:v.discount_price||0,cost:v.cost||0,stock:v.stock,sku:v.sku||'',barcode:v.barcode||'',is_active:v.active!==false})):[];
+    price:v.price,discount_price:v.discount_price||0,cost:v.cost||0,stock:v.stock,min_stock:v.minStock||0,
+    sku:v.sku||'',barcode:v.barcode||'',is_active:v.active!==false})):[];
   renderSizes();
   renderGallery();renderCodes();
   openModal('prodModal');
@@ -1956,6 +1962,7 @@ function renderSizes(){
         <div class="field" style="margin:0"><label>Sale price (GMD)</label><input type="number" min="0" step="1" data-sz="discount_price" data-i="${i}" value="${s.discount_price||''}" placeholder="Optional"></div>
         <div class="field" style="margin:0"><label>Cost price (GMD)</label><input type="number" min="0" step="1" data-sz="cost" data-i="${i}" value="${s.cost||''}" placeholder="What you paid"></div>
         <div class="field" style="margin:0"><label>Stock *</label><input type="number" min="0" step="1" data-sz="stock" data-i="${i}" value="${s.stock||0}"></div>
+        <div class="field" style="margin:0"><label>Low-stock alert at</label><input type="number" min="0" step="1" data-sz="min_stock" data-i="${i}" value="${s.min_stock||''}" placeholder="Shop default" title="Warn when this size drops to this many. Leave empty to use the shop-wide threshold."></div>
         <div class="field" style="margin:0"><label>SKU</label><input data-sz="sku" data-i="${i}" value="${esc(s.sku||'')}" placeholder="Optional"></div>
         <div class="field" style="margin:0"><label>Barcode</label><div class="input-with-btn"><input data-sz="barcode" data-i="${i}" value="${esc(s.barcode||'')}" placeholder="Own barcode"><button type="button" class="btn btn-outline btn-sm" data-sz-bar="${i}">Generate</button></div></div>
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;justify-content:space-between;padding-top:4px">
@@ -1967,12 +1974,24 @@ function renderSizes(){
       </div>`).join('');
   }
   const live=PSIZES.filter(s=>s.is_active);
-  $('#p_sizeNote').textContent=live.length
-    ? `${live.length} size(s) on sale. The price and stock fields above are ignored while a product has sizes — each size carries its own.`
-    : '';
+  $('#p_sizeNote').textContent=live.length?`${live.length} size(s) on sale.`:'';
+  applySizedMode(PSIZES.length>0);
+}
+/* Once a product has sizes, the product-level price, cost and stock are meaningless — every one
+   of them lives on the size. Hiding them (and dropping `required`, which would otherwise block
+   the form) is clearer than leaving fields on screen that are quietly ignored. */
+function applySizedMode(sized){
+  $('#p_sizedNote').style.display=sized?'':'none';
+  $('#p_priceGrid').style.display=sized?'none':'';
+  $('#p_priceLabel').style.display=sized?'none':'';
+  $('#p_stockField').style.display=sized?'none':'';
+  $('#p_minstockField').style.display=sized?'none':'';
+  $('#p_price').required=!sized;
+  $('#p_stock').required=!sized;
+  if(sized){ if(!$('#p_price').value)$('#p_price').value='0'; if(!$('#p_stock').value)$('#p_stock').value='0'; }
 }
 $('#p_addSize').onclick=()=>{
-  PSIZES.push({label_en:'',label_ar:'',price:'',discount_price:'',cost:'',stock:0,sku:'',barcode:'',is_active:true});
+  PSIZES.push({label_en:'',label_ar:'',price:'',discount_price:'',cost:'',stock:0,min_stock:'',sku:'',barcode:'',is_active:true});
   renderSizes();
   const rows=$('#p_sizeRows').querySelectorAll('[data-sz="label_en"]');
   if(rows.length)rows[rows.length-1].focus();
@@ -2063,7 +2082,8 @@ $('#prodForm').onsubmit=async e=>{
   // Sizes are validated here first so a typo is caught before the product itself is written.
   const sizes=PSIZES.map(s=>({id:s.id||0,label_en:String(s.label_en||'').trim(),label_ar:String(s.label_ar||'').trim(),
     price:+s.price||0,discount_price:+s.discount_price||0,cost:+s.cost||0,
-    stock:Math.max(0,Math.trunc(+s.stock||0)),sku:String(s.sku||'').trim(),barcode:String(s.barcode||'').trim(),
+    stock:Math.max(0,Math.trunc(+s.stock||0)),min_stock:Math.max(0,Math.trunc(+s.min_stock||0)),
+    sku:String(s.sku||'').trim(),barcode:String(s.barcode||'').trim(),
     is_active:s.is_active!==false}));
   for(const s of sizes){
     if(!s.label_en){toast('Every size needs a name, e.g. 500g');return;}
@@ -2200,21 +2220,27 @@ if($('#invCsv'))$('#invCsv').onclick=()=>{
   aEl.download='inventory-report.csv';aEl.click();
   toast('Inventory report downloaded');
 };
-/* adjust-stock product picker (typing or scanner gun) */
-function adjChoose(p){ADJ_SEL=p;$('#adjSearch').value='';$('#adjPick').innerHTML='';const el=$('#adjSelected');el.classList.add('has');el.textContent=p.en.name+' — '+p.stock+' in stock';}
+/* adjust-stock picker (typing or scanner gun).
+   A product sold in sizes is adjusted size by size — its product-level stock is no longer the
+   real figure, so adjusting the product itself would change a number nothing reads. */
+function adjChoose(u){
+  ADJ_SEL=u;$('#adjSearch').value='';$('#adjPick').innerHTML='';
+  const el=$('#adjSelected');el.classList.add('has');
+  el.textContent=u.name+' — '+u.stock+' in stock';
+}
 if($('#adjSearch')){
   $('#adjSearch').oninput=()=>{
     const q=$('#adjSearch').value.trim().toLowerCase();
     const box=$('#adjPick');
     if(!q){box.innerHTML='';return;}
-    const list=PRODUCTS.filter(p=>(p.en.name+' '+(p.sku||'')+' '+(p.barcode||'')).toLowerCase().includes(q)).slice(0,8);
-    box.innerHTML=list.length?`<div class="ap-list">${list.map(p=>`<div class="ap-item" data-adj-pick="${p.id}"><span>${esc(p.en.name)}</span><small>${p.stock} in stock</small></div>`).join('')}</div>`:'';
+    const list=posUnits(true).filter(u=>(u.name+' '+u.sku+' '+u.barcode).toLowerCase().includes(q)).slice(0,8);
+    box.innerHTML=list.length?`<div class="ap-list">${list.map(u=>`<div class="ap-item" data-adj-pick="${u.key}"><span>${esc(u.name)}</span><small>${u.stock} in stock</small></div>`).join('')}</div>`:'';
   };
   $('#adjSearch').addEventListener('keydown',e=>{
     if(e.key!=='Enter')return;e.preventDefault();
     const code=$('#adjSearch').value.trim();if(!code)return;
-    const p=findProductByCode(code)||PRODUCTS.find(x=>x.en.name.toLowerCase().includes(code.toLowerCase()));
-    if(p){adjChoose(p);beep();}else toast('No product matches: '+code);
+    const u=findProductByCode(code,true)||posUnits(true).find(x=>x.name.toLowerCase().includes(code.toLowerCase()));
+    if(u){adjChoose(u);beep();}else toast('No product matches: '+code);
   });
 }
 if($('#adjApply'))$('#adjApply').onclick=async()=>{
@@ -2225,8 +2251,10 @@ if($('#adjApply'))$('#adjApply').onclick=async()=>{
   const body={product_id:ADJ_SEL.id,reason:$('#adjReason').value,note:$('#adjNote').value};
   if(mode==='set'){body.mode='set';body.qty=+$('#adjQty').value||0;}
   else body.qty=mode==='delta+'?qty:-qty;
+  // A chosen size is adjusted on its own endpoint; a plain product keeps the original one.
+  const path=ADJ_SEL.variantId?('/admin/variants/'+ADJ_SEL.variantId+'/adjust'):'/admin/adjust';
   try{
-    const d=await api('/admin/adjust',{method:'POST',body:JSON.stringify(body)});
+    const d=await api(path,{method:'POST',body:JSON.stringify(body)});
     toast('Stock updated → '+d.stock+' in stock');
     $('#adjQty').value='';$('#adjNote').value='';ADJ_SEL=null;
     const el=$('#adjSelected');el.classList.remove('has');el.textContent='— none —';
@@ -2594,10 +2622,12 @@ if($('#supForm'))$('#supForm').onsubmit=async e=>{
 /* A product sold in sizes appears at the counter as one row per size — "Ajwa · 1000g" — so the
    salesperson taps exactly what the customer is buying instead of picking a product and then a
    size. A product with no sizes behaves exactly as it always has. */
-function posUnits(){
+// `all` includes hidden, draft and archived products plus switched-off sizes — the Inventory
+// screen still has to be able to count and correct those; the counter must not sell them.
+function posUnits(all){
   const out=[];
-  PRODUCTS.filter(p=>p.active&&p.status!=='draft'&&p.status!=='archived').forEach(p=>{
-    const sizes=(p.variants||[]).filter(v=>v.active);
+  PRODUCTS.filter(p=>all||(p.active&&p.status!=='draft'&&p.status!=='archived')).forEach(p=>{
+    const sizes=(p.variants||[]).filter(v=>all||v.active);
     if(sizes.length){
       sizes.forEach(v=>out.push({key:p.id+':'+v.id,p,v,id:p.id,variantId:v.id,
         name:p.en.name+' · '+v.label_en,price:(v.sale||v.price),stock:v.stock,
@@ -2610,7 +2640,7 @@ function posUnits(){
   });
   return out;
 }
-function posUnit(key){return posUnits().find(u=>u.key===key);}
+function posUnit(key,all){return posUnits(all).find(u=>u.key===key);}
 function renderPos(){
   const q=($('#posSearch').value||'').toLowerCase();
   const list=posUnits().filter(u=>!q||(u.name+u.p.ar.name+u.sku+u.barcode).toLowerCase().includes(q));
@@ -2855,10 +2885,10 @@ $('#rcDownload') && ($('#rcDownload').onclick=()=>{if(RECEIPT_SALE)downloadRecei
 // Match a scanned string to a product by barcode or SKU. Handles a QR that carries "SKU BARCODE".
 // Matches a scanned code against every sellable unit — each size has its own barcode, so
 // scanning the 1kg bag adds the 1kg line and not the 500g one.
-function findProductByCode(code){
+function findProductByCode(code,all){
   const norm=s=>String(s||'').trim().toLowerCase();
   const c=norm(code); if(!c)return null;
-  const units=posUnits();
+  const units=posUnits(all);
   let u=units.find(x=>norm(x.barcode)===c||norm(x.sku)===c);
   if(u)return u;
   const toks=String(code).trim().split(/\s+/);
@@ -3010,7 +3040,7 @@ document.addEventListener('click',async e=>{
   if(el=x('data-del-done')){let mark=false;if(el.dataset.cod==='1'){mark=confirm('Did you collect '+money(el.dataset.total)+' cash from the customer?\n\nOK = yes, mark as paid.  Cancel = not collected.');}deliveryAction(el.dataset.delDone,'delivered',{mark_paid:mark});return;}
   if(el=x('data-del-fail')){if(confirm('Mark this delivery as unsuccessful? The shop will be notified.'))deliveryAction(el.dataset.delFail,'failed');return;}
   if(el=x('data-goto')){const nb=$('.navbtn[data-view="'+el.dataset.goto+'"]');if(nb)nb.click();return;}
-  if(el=x('data-adj-pick')){const p=PRODUCTS.find(pp=>pp.id==el.dataset.adjPick);if(p)adjChoose(p);return;}
+  if(el=x('data-adj-pick')){const u=posUnit(el.dataset.adjPick,true);if(u)adjChoose(u);return;}
   if(el=x('data-po-recv')){const po=PURCHASES.find(pp=>pp.id==el.dataset.poRecv);if(po)openRecv(po);return;}
   if(el=x('data-po-cancel')){if(confirm('Cancel this purchase order?')){try{await api('/admin/purchases/'+el.dataset.poCancel,{method:'PATCH',body:JSON.stringify({action:'cancel'})});toast('Cancelled');await loadPurchases();}catch(err){toast(err.message);}}return;}
   if(el=x('data-po-del')){if(confirm('Delete this purchase order?')){try{await api('/admin/purchases/'+el.dataset.poDel,{method:'DELETE'});toast('Deleted');await loadPurchases();}catch(err){toast(err.message);}}return;}
