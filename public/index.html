@@ -241,6 +241,15 @@ html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
 .prod-media{position:relative;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}
 .prod-media .pm-icon{width:64px;height:64px;color:rgba(255,255,255,.92);transition:transform .4s var(--ease)}
 .prod-card:hover .pm-icon{transform:scale(1.12) rotate(-3deg)}
+/* Photos are shown whole rather than cropped to fill the frame: these are real products in
+   hand-labelled bags, and cropping cut the labels off. A soft neutral backdrop sits behind
+   any letterboxing, and the coloured gradient is kept for products with no photo yet. */
+.prod-media.has-photo{background:var(--cream-2)}
+/* Pinned to the frame with inset:0. A plain height:100% does not resolve inside this centred
+   grid, so the image used to grow past the frame and the overflow:hidden above did the cropping. */
+.prod-media .pm-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:8px;transition:transform .4s var(--ease)}
+.prod-card:hover .pm-photo{transform:scale(1.05)}
+.fav-btn{box-shadow:0 1px 5px rgba(0,0,0,.14)}   /* keeps the heart visible on a pale backdrop */
 .prod-badge{position:absolute;top:11px;inset-inline-start:11px;background:var(--gold-500);color:#3a2e07;font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.03em;z-index:2}
 .prod-badge.out{background:#9aa39c;color:#fff}
 .prod-badge.low{background:#e08a1e;color:#fff}
@@ -587,7 +596,10 @@ body.viewing-track #trackPage{display:block;animation:fadeUp .4s var(--ease)}
 .pp-benefits li{display:flex;gap:9px;margin-bottom:7px;align-items:flex-start;font-size:.95rem;color:var(--ink-soft)}
 .pp-benefits svg{width:18px;height:18px;color:var(--success);flex-shrink:0;margin-top:2px}
 .pp-actions{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
-.pp-actions .btn{flex:1;min-width:160px}
+/* The two buying actions share the first row; "Ask about this product" is a longer label and a
+   secondary action, so it takes its own full-width row rather than overflowing the column. */
+.pp-actions .btn{flex:1 1 auto;min-width:150px;max-width:100%}
+.pp-actions .btn-chat{flex:1 1 100%}
 .pp-related{margin-top:54px}
 .pp-related h3{font-family:var(--font-display);font-size:1.5rem;color:var(--green-800);text-align:center;margin-bottom:8px}
 .pp-related .eyebrow{display:flex;justify-content:center;margin-bottom:6px}
@@ -2223,12 +2235,13 @@ function productCard(p){
   else if(ss==='low') stockLine=`<div class="stock-line low-stock"><span class="stock-dot"></span>${t('low_stock')}${p.sold?' · '+soldTxt(p):''}</div>`;
   else stockLine=`<div class="stock-line in-stock"><span class="stock-dot"></span>${t('in_stock')}${p.sold?' · '+soldTxt(p):''}</div>`;
   const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
-  const media=p.image
-    ? `<img src="${p.image}" alt="${d.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+  const hasPhoto=!!p.image;
+  const media=hasPhoto
+    ? `<img src="${p.image}" alt="${d.name}" loading="lazy" class="pm-photo">`
     : svg(p.icon,'pm-icon');
   const rt=displayRating(p);
   return `<article class="prod-card reveal">
-    <div class="prod-media" style="background:${grad}" data-view="${p.id}">
+    <div class="prod-media${hasPhoto?' has-photo':''}"${hasPhoto?'':` style="background:${grad}"`} data-view="${p.id}">
       ${badge}
       <button class="fav-btn ${FAVS.has(p.id)?'active':''}" data-fav="${p.id}" aria-label="${t('wl_add')}"><svg viewBox="0 0 24 24" fill="${FAVS.has(p.id)?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>
       ${media}
