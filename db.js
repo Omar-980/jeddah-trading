@@ -471,6 +471,7 @@ CREATE TABLE IF NOT EXISTS product_variants (
   stock INTEGER NOT NULL DEFAULT 0,
   sku TEXT DEFAULT '',
   barcode TEXT DEFAULT '',
+  min_stock INTEGER NOT NULL DEFAULT 0,   -- low-stock alert level for THIS size (0 = shop default)
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now'))
@@ -480,6 +481,9 @@ CREATE INDEX IF NOT EXISTS idx_variants_barcode ON product_variants(barcode);
 `);
 // Which size a stock movement / investment / profit row refers to. NULL = the product itself,
 // which is what every row written before this feature existed means.
+// Each size carries its own low-stock minimum: 6 × 1kg bags left is not the same worry as
+// 6 × 500g sachets. 0 means "use the shop-wide threshold", exactly like products.min_stock.
+if (!columnExists('product_variants', 'min_stock')) db.exec('ALTER TABLE product_variants ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0');
 if (!columnExists('stock_moves', 'variant_id'))     db.exec('ALTER TABLE stock_moves ADD COLUMN variant_id INTEGER');
 if (!columnExists('stock_moves', 'variant_label'))  db.exec("ALTER TABLE stock_moves ADD COLUMN variant_label TEXT DEFAULT ''");
 if (!columnExists('investments', 'variant_id'))     db.exec('ALTER TABLE investments ADD COLUMN variant_id INTEGER');
@@ -755,7 +759,8 @@ function variantRows(productId, includeAll) {
       active: !!v.is_active,
       sort: v.sort_order || 0,
     };
-    if (includeAll) { out.cost = Number(v.cost) || 0; out.sku = v.sku || ''; out.barcode = v.barcode || ''; out.discount_price = dp; }
+    if (includeAll) { out.cost = Number(v.cost) || 0; out.sku = v.sku || ''; out.barcode = v.barcode || '';
+                      out.discount_price = dp; out.minStock = Number(v.min_stock) || 0; }
     return out;
   });
 }
@@ -767,8 +772,8 @@ function variantById(id) {
   const dp = Number(v.discount_price) || 0;
   return { id: v.id, productId: v.product_id, label_en: v.label_en || '', label_ar: v.label_ar || '',
            price: Number(v.price) || 0, sale: (dp > 0 && dp < v.price) ? dp : null,
-           cost: Number(v.cost) || 0, stock: Number(v.stock) || 0, sku: v.sku || '',
-           barcode: v.barcode || '', active: !!v.is_active };
+           cost: Number(v.cost) || 0, stock: Number(v.stock) || 0, minStock: Number(v.min_stock) || 0,
+           sku: v.sku || '', barcode: v.barcode || '', active: !!v.is_active };
 }
 function variantByCode(code) {
   const c = String(code || '').trim();
@@ -912,7 +917,16 @@ const queries = {
   activeSuppliers: () => db.prepare('SELECT id,name,phone FROM suppliers WHERE is_active=1 ORDER BY name ASC').all(),
   supplierById:    (id) => db.prepare('SELECT * FROM suppliers WHERE id=?').get(id),
   // Inventory alerts — low stock uses the per-product minimum, falling back to the global threshold.
-  lowStockProducts: () => { const gt = Number(getSetting('low_stock_threshold', '5')) || 5; return db.prepare('SELECT * FROM products WHERE is_active=1').all().map(r => rowToProduct(r, true)).filter(p => p.stock <= (p.minStock > 0 ? p.minStock : gt)); },
+  // Products sold in sizes are skipped here: each of their sizes has its own alert level and is
+  // reported separately, so comparing the summed stock to a product-level minimum would mislead.
+  lowStockProducts: () => { const gt = Number(getSetting('low_stock_threshold', '5')) || 5; return db.prepare('SELECT * FROM products WHERE is_active=1').all().map(r => rowToProduct(r, true)).filter(p => !p.hasSizes && p.stock <= (p.minStock > 0 ? p.minStock : gt)); },
+  // Every size that has fallen to or below its own alert level (or the shop-wide threshold).
+  lowStockVariants: () => { const gt = Number(getSetting('low_stock_threshold', '5')) || 5;
+    return db.prepare(`SELECT p.name_en, p.id product_id, v.* FROM product_variants v
+      JOIN products p ON p.id=v.product_id WHERE p.is_active=1 AND v.is_active=1`).all()
+      .filter(v => v.stock <= (v.min_stock > 0 ? v.min_stock : gt))
+      .map(v => ({ id: v.id, productId: v.product_id, product: v.name_en, label: v.label_en,
+                   stock: v.stock, min: v.min_stock > 0 ? v.min_stock : gt })); },
 
   /* ---- Product sizes (variants) ---- */
   variantsOf:    (productId) => variantRows(Number(productId), true),
@@ -920,11 +934,12 @@ const queries = {
   variantByCode: (code) => variantByCode(code),
   addVariant: (productId, b) => {
     const info = db.prepare(`INSERT INTO product_variants
-      (product_id,label_en,label_ar,price,discount_price,cost,stock,sku,barcode,sort_order,is_active)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(
+      (product_id,label_en,label_ar,price,discount_price,cost,stock,min_stock,sku,barcode,sort_order,is_active)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         Number(productId), String(b.label_en || '').slice(0, 60), String(b.label_ar || '').slice(0, 60),
         Number(b.price) || 0, Number(b.discount_price) || 0, Number(b.cost) || 0,
-        Math.max(0, Math.trunc(Number(b.stock) || 0)), String(b.sku || '').slice(0, 60),
+        Math.max(0, Math.trunc(Number(b.stock) || 0)), Math.max(0, Math.trunc(Number(b.min_stock) || 0)),
+        String(b.sku || '').slice(0, 60),
         String(b.barcode || '').slice(0, 60), Number(b.sort_order) || 0, b.is_active === false ? 0 : 1);
     return info.lastInsertRowid;
   },
@@ -932,7 +947,7 @@ const queries = {
     const cur = db.prepare('SELECT * FROM product_variants WHERE id=?').get(Number(id));
     if (!cur) return false;
     const pick = (k, fallback) => (b[k] === undefined ? fallback : b[k]);
-    db.prepare(`UPDATE product_variants SET label_en=?,label_ar=?,price=?,discount_price=?,cost=?,stock=?,
+    db.prepare(`UPDATE product_variants SET label_en=?,label_ar=?,price=?,discount_price=?,cost=?,stock=?,min_stock=?,
       sku=?,barcode=?,sort_order=?,is_active=? WHERE id=?`).run(
         String(pick('label_en', cur.label_en) || '').slice(0, 60),
         String(pick('label_ar', cur.label_ar) || '').slice(0, 60),
@@ -940,6 +955,7 @@ const queries = {
         Number(pick('discount_price', cur.discount_price)) || 0,
         Number(pick('cost', cur.cost)) || 0,
         Math.max(0, Math.trunc(Number(pick('stock', cur.stock)) || 0)),
+        Math.max(0, Math.trunc(Number(pick('min_stock', cur.min_stock)) || 0)),
         String(pick('sku', cur.sku) || '').slice(0, 60),
         String(pick('barcode', cur.barcode) || '').slice(0, 60),
         Number(pick('sort_order', cur.sort_order)) || 0,

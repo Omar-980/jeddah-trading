@@ -830,10 +830,29 @@ async function api(req, res, url) {
       const revenue = db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE status NOT IN ('cancelled','returned','refunded')").get().s;
       const products = db.prepare('SELECT COUNT(*) c FROM products').get().c;
       const threshold = Number(getSetting('low_stock_threshold')) || 5;
-      // Low-stock uses each product's own minimum where set, otherwise the global threshold.
-      const lowStockItems = db.prepare("SELECT name_en, stock, min_stock FROM products WHERE is_active=1 AND stock>0 AND stock <= (CASE WHEN min_stock>0 THEN min_stock ELSE ? END) ORDER BY stock ASC").all(threshold)
+      /* Low stock uses each item's own minimum where set, otherwise the shop-wide threshold.
+         A product sold in sizes is reported size by size — its product-level stock column is no
+         longer the real figure, so counting it would raise alerts for stock that doesn't exist. */
+      const HAS_SIZES = "EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = products.id AND v.is_active=1)";
+      const lowStockItems = db.prepare(
+        `SELECT name_en, stock, min_stock FROM products
+         WHERE is_active=1 AND NOT ${HAS_SIZES} AND stock>0 AND stock <= (CASE WHEN min_stock>0 THEN min_stock ELSE ? END)
+         ORDER BY stock ASC`).all(threshold)
         .map(p => ({ name_en: p.name_en, stock: p.stock, min: p.min_stock>0?p.min_stock:threshold }));
-      const outItems = db.prepare('SELECT name_en, stock FROM products WHERE is_active=1 AND stock<=0').all();
+      const lowSizes = db.prepare(
+        `SELECT p.name_en, v.label_en, v.stock, v.min_stock FROM product_variants v
+         JOIN products p ON p.id = v.product_id
+         WHERE p.is_active=1 AND v.is_active=1 AND v.stock>0 AND v.stock <= (CASE WHEN v.min_stock>0 THEN v.min_stock ELSE ? END)
+         ORDER BY v.stock ASC`).all(threshold)
+        .map(v => ({ name_en: v.name_en + ' · ' + v.label_en, stock: v.stock, min: v.min_stock>0?v.min_stock:threshold }));
+      lowStockItems.push(...lowSizes);
+      lowStockItems.sort((a, b) => a.stock - b.stock);
+
+      const outItems = db.prepare(`SELECT name_en, stock FROM products WHERE is_active=1 AND NOT ${HAS_SIZES} AND stock<=0`).all();
+      outItems.push(...db.prepare(
+        `SELECT p.name_en || ' · ' || v.label_en AS name_en, v.stock FROM product_variants v
+         JOIN products p ON p.id = v.product_id
+         WHERE p.is_active=1 AND v.is_active=1 AND v.stock<=0`).all());
       // Items expiring within 60 days (only those that carry an expiry date).
       const expiringItems = db.prepare("SELECT name_en, expiry_date FROM products WHERE is_active=1 AND expiry_date IS NOT NULL AND expiry_date!='' AND date(expiry_date) <= date('now','+60 days') ORDER BY expiry_date ASC").all()
         .map(p => ({ name_en: p.name_en, expiry: p.expiry_date }));
