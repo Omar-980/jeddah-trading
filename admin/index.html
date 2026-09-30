@@ -666,7 +666,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           <p class="hint" style="margin-bottom:14px">Pick the investor and one product, then <b>Save</b>. It's added to the table below and the form stays ready for the next product — so building up an investor across several products is just save, save, save.</p>
           <div class="inv-form-grid">
             <div class="field"><label>Investor *</label><select id="in_investor"></select></div>
-            <div class="field"><label>Product *</label><select id="in_prod"></select></div>
+            <div class="field"><label>Product / size *</label><select id="in_prod"></select><div class="hint">Products sold in sizes are listed one line per size — fund the exact size the money bought.</div></div>
             <div class="field"><label>Quantity funded *</label><input id="in_qty" type="number" min="1" step="1" value="1"></div>
             <div class="field"><label>Cost per unit (GMD) *</label><input id="in_cost" type="number" min="0" step="0.01"></div>
             <div class="field"><label>Investor profit share %</label><input id="in_pct" type="number" min="5" max="95" step="1" value="50"></div>
@@ -1251,7 +1251,8 @@ function renderInvestorsView(){
   $('#in_investor').innerHTML=INVESTORS.filter(v=>v.status==='active').map(v=>`<option value="${v.id}">${esc(v.name)} (${esc(v.phone)})</option>`).join('')||'<option value="">— add an investor first —</option>';
   if(keepInv)$('#in_investor').value=keepInv;
   const keepProd=$('#in_prod')?$('#in_prod').value:'';
-  $('#in_prod').innerHTML=PRODUCTS.map(p=>`<option value="${p.id}" data-cost="${p.cost||0}">${esc(p.en.name)} — cost D${p.cost||0}</option>`).join('');
+  $('#in_prod').innerHTML=investUnits().map(u=>
+    `<option value="${u.key}" data-cost="${u.cost}">${esc(u.name)} — cost D${u.cost}</option>`).join('');
   if(keepProd)$('#in_prod').value=keepProd;
   inAutoTotal();
   $('#ivRows').innerHTML=INVESTORS.map(v=>`<tr>
@@ -1321,12 +1322,13 @@ if($('#iv_add')){
   $('#in_add').onclick=async()=>{
     const investor_id=$('#in_investor').value;
     if(!investor_id){toast('Choose an investor first — use “Add investor” if none exists');return;}
-    const product_id=$('#in_prod').value;
+    // The dropdown value is "productId:sizeId" — 0 for a product with no sizes.
+    const [product_id,variant_id]=String($('#in_prod').value||'').split(':');
     const qty=+$('#in_qty').value, cost=+$('#in_cost').value, pct=+$('#in_pct').value||50;
     if(!product_id){toast('Choose a product');return;}
     if(!(qty>0)){toast('Enter the quantity funded');return;}
     if(!(cost>0)){toast('Enter the cost per unit');return;}
-    try{await api('/admin/investments',{method:'POST',body:JSON.stringify({investor_id,product_id,qty_funded:qty,cost_per_unit:cost,investor_pct:pct,batch_no:$('#in_batch').value,invested_at:$('#in_date').value})});
+    try{await api('/admin/investments',{method:'POST',body:JSON.stringify({investor_id,product_id,variant_id:+variant_id||0,qty_funded:qty,cost_per_unit:cost,investor_pct:pct,batch_no:$('#in_batch').value,invested_at:$('#in_date').value})});
       toast('Saved — see it in the table below. Pick the next product to add another.');
       // keep the same investor + date selected; clear the product line for a fast next add
       $('#in_prod').selectedIndex=0;$('#in_qty').value=1;$('#in_cost').value='';$('#in_batch').value='';inAutoTotal();
@@ -2654,6 +2656,24 @@ function posUnits(all){
   return out;
 }
 function posUnit(key,all){return posUnits(all).find(u=>u.key===key);}
+/* What an investor can put money into. A product sold in sizes is funded size by size —
+   "100 × Ajwa 250g" — because each size has its own cost and its own selling price, so they
+   are different stakes. Every product and every size is listed, including ones currently
+   hidden from the shop, since an investment can be recorded before a product goes on sale. */
+function investUnits(){
+  const out=[];
+  PRODUCTS.forEach(p=>{
+    const sizes=(p.variants||[]);
+    if(sizes.length){
+      sizes.forEach(v=>out.push({key:p.id+':'+v.id, id:p.id, variantId:v.id,
+        name:p.en.name+' · '+v.label_en+(v.active===false?' (hidden)':''),
+        cost:Number(v.cost)||0}));
+    }else{
+      out.push({key:p.id+':0', id:p.id, variantId:0, name:p.en.name, cost:Number(p.cost)||0});
+    }
+  });
+  return out;
+}
 function renderPos(){
   const q=($('#posSearch').value||'').toLowerCase();
   const list=posUnits().filter(u=>!q||(u.name+u.p.ar.name+u.sku+u.barcode).toLowerCase().includes(q));
