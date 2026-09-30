@@ -3121,12 +3121,20 @@ async function receiptFontsReady(){
     await document.fonts.ready;
   }catch(e){}
 }
-function receiptJpeg(r, scale){
+/* Draws the confirmation panel exactly as the customer sees it: the green tick, "Order ready!",
+   the thank-you line, the order number, and the receipt card underneath. `opts.title` and
+   `opts.subtitle` let the tracking page reuse the same picture with its own wording; pass
+   `opts.header:false` for the card on its own. */
+function receiptJpeg(r, opts){
+  const o=(typeof opts==='number')?{scale:opts}:(opts||{});
   const L=LANG==='ar';
-  const S=scale||3;                 // 3x so it stays sharp when zoomed on a phone
-  const OUT=18;                     // cream margin around the card, as on the page
+  const S=o.scale||3;               // 3x so it stays sharp when zoomed on a phone
+  const OUT=26;                     // the panel's side padding, as on the page
   const CARD=400, P=16;             // card width and its 16px padding
   const CW=CARD-P*2;                // content width
+  const showHead=o.header!==false;
+  const headTitle=o.title||t('co_placed');
+  const headSub=o.subtitle||t('co_thanks');
   const BODY=L?RC.bodyAr:RC.body;
   const c=document.createElement('canvas');
   const x=c.getContext('2d');
@@ -3166,24 +3174,64 @@ function receiptJpeg(r, scale){
   const H_tot  = secTop()+ROW*(2+(r.disc>0?1:0)) + 4+1+6 + 16.8*1.25 + 8;
   const H_info = secTop()+wrapped.reduce((s,w)=>s+w.lines.length*INFO_LH,0)+8;
   const cardH  = P + 18 + H_head + H_meta + H_items + H_tot + H_info + P - 8;
-  const W=CARD+OUT*2, H=Math.ceil(cardH)+OUT*2;
+
+  // .order-success: padding 20/10, an 84px tick circle with 18 beneath, then the three lines
+  const headH = showHead ? (20 + 84+18 + 24*1.1+4 + 14.4*1.2+8 + (r.ref?16.8*1.2+12:0) + 20) : 0;
+  const TOPPAD=30, BOTPAD=30;               // the panel's own padding, as on the page
+  const W=CARD+OUT*2;
+  const H=Math.ceil(TOPPAD+headH+8+cardH+8+BOTPAD);
 
   c.width=Math.round(W*S); c.height=Math.round(H*S);
   x.scale(S,S);
   x.textBaseline='alphabetic';
 
-  // ---- the page behind, then the white card with its rounded border ----
+  // ---- the cream panel ----
   x.fillStyle=RC.cream; x.fillRect(0,0,W,H);
+
+  // ---- the green tick, the heading, the thank-you and the order number ----
+  let hy=TOPPAD;
+  if(showHead){
+    hy+=20;
+    const cx=W/2, cy=hy+42;
+    x.beginPath(); x.arc(cx,cy,42,0,Math.PI*2);
+    x.fillStyle='rgba(37,211,102,.15)'; x.fill();
+    // the same tick path as the page icon (24-unit viewBox), scaled to 46px
+    const k=46/24, ox=cx-23, oy=cy-23;
+    x.strokeStyle='#1ebe5a'; x.lineWidth=2.5*k; x.lineCap='round'; x.lineJoin='round';
+    x.beginPath(); x.moveTo(ox+20*k,oy+6*k); x.lineTo(ox+9*k,oy+17*k); x.lineTo(ox+4*k,oy+12*k); x.stroke();
+    x.lineCap='butt'; x.lineJoin='miter';
+    hy+=84+18;
+
+    x.textAlign='center';
+    hy+=24*0.82;
+    x.fillStyle=RC.green800; x.font=`700 24px ${RC.display}`;
+    x.fillText(headTitle,W/2,hy);
+    hy+=24*0.28+4;
+
+    hy+=14.4*0.82;
+    x.fillStyle=RC.muted; x.font=`400 14.4px ${L?RC.bodyAr:RC.body}`;
+    x.fillText(headSub,W/2,hy);
+    hy+=14.4*0.38+8;
+
+    if(r.ref){
+      hy+=16.8*0.82;
+      x.fillStyle=RC.green700; x.font=`700 16.8px ${L?RC.bodyAr:RC.body}`;
+      x.fillText((L?'رقم الطلب':'Order')+': '+r.ref,W/2,hy);
+      hy+=16.8*0.38+12;
+    }
+    hy+=20;
+  }
   const rr=(px,py,w,h,rad)=>{x.beginPath();x.moveTo(px+rad,py);x.arcTo(px+w,py,px+w,py+h,rad);
     x.arcTo(px+w,py+h,px,py+h,rad);x.arcTo(px,py+h,px,py,rad);x.arcTo(px,py,px+w,py,rad);x.closePath();};
-  rr(OUT,OUT,CARD,cardH,14);
+  const CTOP=TOPPAD+headH+8;                // where the white card starts
+  rr(OUT,CTOP,CARD,cardH,14);
   x.fillStyle=RC.card; x.fill();
   x.strokeStyle=RC.border; x.lineWidth=1; x.stroke();
 
   const CL=OUT+P, CR=OUT+CARD-P;            // content left / right edges
   const start=L?CR:CL, end=L?CL:CR;
   const aStart=L?'right':'left', aEnd=L?'left':'right';
-  let y=OUT+P;
+  let y=CTOP+P;
 
   const ruleAt=(yy,col,dash)=>{x.strokeStyle=col;x.lineWidth=dash?1:1;x.setLineDash(dash||[]);
     x.beginPath();x.moveTo(CL,yy+0.5);x.lineTo(CR,yy+0.5);x.stroke();x.setLineDash([]);};
@@ -3252,13 +3300,13 @@ function receiptJpeg(r, scale){
 }
 // Hands the customer a real file: the share sheet where the phone offers one (WhatsApp appears
 // there), a plain download otherwise. Both give a .jpg — neither needs a screenshot.
-async function shareReceiptImage(r){
+async function shareReceiptImage(r,opts){
   const L=LANG==='ar';
   const name='receipt-'+((r.ref||'jeddah').replace(/[^\w-]/g,''))+'.jpg';
   let blob;
   try{
     await receiptFontsReady();          // canvas silently falls back if the webfonts aren't decoded yet
-    const canvas=receiptJpeg(r);
+    const canvas=receiptJpeg(r,opts||{});
     blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.94));
   }catch(e){ blob=null; }
   if(!blob){toast(L?'تعذر إنشاء صورة الإيصال':'Could not create the receipt image');return;}
@@ -3607,7 +3655,7 @@ async function doTrack(silent){
       </div>`;
     $('#tkReceipt').onclick=()=>openReceiptModal(rc);
     $('#tkPrint').onclick=()=>printReceipt(rc);
-    $('#tkShareImg').onclick=()=>shareReceiptImage(rc);
+    $('#tkShareImg').onclick=()=>shareReceiptImage(rc,{title:statusLabel(rc.status),subtitle:t('co_thanks')});
     // live updates: alert when the status moves on, keep polling until delivered/closed
     if(TK_LAST_REF!==o.order_number){TK_LAST_STATUS=null;TK_LAST_REF=o.order_number;}
     if(TK_LAST_STATUS&&TK_LAST_STATUS!==o.status){
