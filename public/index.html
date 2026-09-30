@@ -1770,7 +1770,7 @@ const I18N = {
     co_location:'Delivery location', co_select_location:'Select your area…', co_location_note:'Delivery fee depends on your area.',
     co_pay_details:'Payment details', co_pay_to:'Send payment to', co_pay_acc:'Account name', co_bank_l:'Bank',
     co_upload_proof:'Upload payment screenshot', co_proof_opt:'Optional, but it speeds up confirmation', co_change_img:'Change image', co_proof_added:'Screenshot added',
-    co_receipt:'Receipt', co_print:'Print / Save receipt', co_order_date:'Date', co_status_l:'Status', co_thanks:'Thank you for your order!',
+    co_receipt:'Receipt', co_print:'Print / Save receipt', co_share_img:'Share receipt as a picture', co_order_date:'Date', co_status_l:'Status', co_thanks:'Thank you for your order!',
     track_order:'Track order', track_title:'Track your order', track_ref:'Order number', track_ref_ph:'e.g. JT-2026-0001', track_phone:'Phone used to order', track_btn:'Find my order', track_none:'No order found — check the number and phone.', track_found:'Order found',
     track_progress:'Order progress', track_view_receipt:'View receipt', track_placeholder:'Your order progress will appear here once you look it up.', st_preparing:'Preparing', st_ontheway:'On the way', st_ready:'Ready for pickup', st_collected:'Collected', st_paid_badge:'Payment received', st_cancelled_note:'This order was cancelled. Please contact us on WhatsApp if you have any questions.', st_failed:'Delivery unsuccessful', st_failed_note:'We couldn\'t complete the delivery. We\'ll contact you on WhatsApp to arrange it.',
     st_new:'Received', st_confirmed:'Confirmed', st_paid:'Paid', st_packed:'Packed', st_out_for_delivery:'Out for delivery', st_delivered:'Delivered', st_cancelled:'Cancelled', st_returned:'Returned', st_refunded:'Refunded', st_returned_note:'This order was returned. Contact us on WhatsApp if you have any questions.', st_refunded_note:'This order was refunded. Contact us on WhatsApp if you have any questions.',
@@ -1858,7 +1858,7 @@ const I18N = {
     co_location:'منطقة التوصيل', co_select_location:'اختر منطقتك…', co_location_note:'تعتمد رسوم التوصيل على منطقتك.',
     co_pay_details:'تفاصيل الدفع', co_pay_to:'أرسل الدفع إلى', co_pay_acc:'اسم الحساب', co_bank_l:'البنك',
     co_upload_proof:'ارفع صورة إثبات الدفع', co_proof_opt:'اختياري، لكنه يسرّع التأكيد', co_change_img:'تغيير الصورة', co_proof_added:'تم إضافة الصورة',
-    co_receipt:'الإيصال', co_print:'طباعة / حفظ الإيصال', co_order_date:'التاريخ', co_status_l:'الحالة', co_thanks:'شكراً لطلبك!',
+    co_receipt:'الإيصال', co_print:'طباعة / حفظ الإيصال', co_share_img:'مشاركة الإيصال كصورة', co_order_date:'التاريخ', co_status_l:'الحالة', co_thanks:'شكراً لطلبك!',
     track_order:'تتبّع الطلب', track_title:'تتبّع طلبك', track_ref:'رقم الطلب', track_ref_ph:'مثال JT-2026-0001', track_phone:'الهاتف المستخدم للطلب', track_btn:'ابحث عن طلبي', track_none:'لم يُعثر على الطلب — تحقق من الرقم والهاتف.', track_found:'تم العثور على الطلب',
     track_progress:'مراحل الطلب', track_view_receipt:'عرض الإيصال', track_placeholder:'ستظهر مراحل طلبك هنا بعد البحث عنه.', st_preparing:'قيد التجهيز', st_ontheway:'في الطريق', st_ready:'جاهز للاستلام', st_collected:'تم الاستلام', st_paid_badge:'تم استلام الدفع', st_cancelled_note:'تم إلغاء هذا الطلب. يرجى التواصل معنا عبر واتساب لأي استفسار.', st_failed:'تعذّر التوصيل', st_failed_note:'لم نتمكن من إتمام التوصيل. سنتواصل معك عبر واتساب لترتيب ذلك.',
     st_new:'تم الاستلام', st_confirmed:'مؤكد', st_paid:'مدفوع', st_packed:'مُجهّز', st_out_for_delivery:'قيد التوصيل', st_delivered:'تم التوصيل', st_cancelled:'ملغى', st_returned:'مُرجع', st_refunded:'مسترد', st_returned_note:'تم إرجاع هذا الطلب. تواصل معنا عبر واتساب لأي استفسار.', st_refunded_note:'تم استرداد مبلغ هذا الطلب. تواصل معنا عبر واتساب لأي استفسار.',
@@ -3022,6 +3022,7 @@ async function placeOrder(){
     <p style="color:var(--muted);font-size:.85rem;text-align:center;margin:14px 0 16px">${t('co_placed_sub')}</p>
     <a href="${waLink(msg)}" target="_blank" class="btn btn-wa btn-block co-wa"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_open_wa')}</a>
     ${ref?`<button class="btn btn-primary btn-block" id="coTrack" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${t('track_order')}</button>`:''}
+    <button class="btn btn-gold btn-block" id="coShareImg" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> ${t('co_share_img')}</button>
     <button class="btn btn-outline btn-block" id="coPrint" style="margin-top:10px">🧾 ${t('co_print')}</button>
     <button class="btn btn-outline btn-block" id="coDone" style="margin-top:10px">${t('co_done')}</button>
   </div>`;
@@ -3029,6 +3030,7 @@ async function placeOrder(){
   toast(t('toast_msg_sent'));
   cart=[];updateCart();
   $('#coPrint').onclick=()=>printReceipt(receipt);
+  $('#coShareImg').onclick=()=>shareReceiptImage(receipt);
   if($('#coTrack'))$('#coTrack').onclick=()=>{hideModal('#checkoutModal');openTrack(receipt.ref, receipt.phone);};
   $('#coDone').onclick=()=>{hideModal('#checkoutModal');coData={deliv:'home',pay:'wave',zoneId:null,proof:null};CO_COUPON=null;CO_REDEEM=0;};
 }
@@ -3092,6 +3094,186 @@ function orderTimeline(status, deliv){
   }).join('')}</div>`;
 }
 // Open a clean printable receipt in a new window (print → Save as PDF works on any device)
+/* ---------- Receipt as a picture ----------
+   This draws the SAME receipt card the customer sees on screen, pixel for pixel: identical
+   fonts, colours, rules and spacing, read from the .receipt-card styles above. It is drawn onto
+   a canvas rather than converted from the HTML because this project carries no libraries and
+   html-to-image needs one — and drawing it also keeps page furniture out of the picture and
+   renders at 3x so it stays sharp when a customer zooms in.
+   The result is a real .jpg to send on WhatsApp, with no screenshotting. */
+const RC = {          // straight from the CSS variables, so the picture can never drift from the page
+  cream:'#faf6ec', card:'#fff', border:'#e6dcc4',
+  green700:'#10502f', green800:'#0c3b22', muted:'#6b7a70', inkSoft:'#3a4a40', danger:'#c0392b',
+  display:'"Playfair Display", Georgia, serif',
+  body:'Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif',
+  bodyAr:'"Noto Sans Arabic", "Amiri", system-ui, Arial, sans-serif',
+};
+// The webfonts must be decoded before the canvas can draw with them, or it silently falls back.
+async function receiptFontsReady(){
+  if(!document.fonts||!document.fonts.load)return;
+  try{
+    await Promise.all([
+      document.fonts.load('700 18px "Playfair Display"'),
+      document.fonts.load('400 15px Inter'), document.fonts.load('600 15px Inter'),
+      document.fonts.load('700 17px Inter'),
+      document.fonts.load('400 15px "Noto Sans Arabic"'), document.fonts.load('700 15px "Noto Sans Arabic"'),
+    ]);
+    await document.fonts.ready;
+  }catch(e){}
+}
+function receiptJpeg(r, scale){
+  const L=LANG==='ar';
+  const S=scale||3;                 // 3x so it stays sharp when zoomed on a phone
+  const OUT=18;                     // cream margin around the card, as on the page
+  const CARD=400, P=16;             // card width and its 16px padding
+  const CW=CARD-P*2;                // content width
+  const BODY=L?RC.bodyAr:RC.body;
+  const c=document.createElement('canvas');
+  const x=c.getContext('2d');
+  const f=(w,s,fam)=>`${w} ${s}px ${fam||BODY}`;
+
+  // ---- wrap the info values first, so the canvas is exactly as tall as the content ----
+  c.width=c.height=10;
+  const info=[
+    [t('co_name_l'), r.name||'—'],
+    [t('co_phone_l'), r.phone||'—'],
+    [t('co_deliv_l'), r.deliv==='home'
+      ? `${L?'توصيل للمنزل':'Home delivery'}${r.zone?' · '+r.zone:''}${r.addr?' · '+r.addr:''}${r.area?', '+r.area:''}`
+      : (L?'استلام من المتجر':'Shop pickup')],
+    [t('co_pay_l'), r.pay||'—'],
+  ];
+  if(r.status)info.push([t('co_status_l'), statusLabel(r.status)]);
+  const wrapped=info.map(([k,v])=>{
+    const label=k+': ';
+    x.font=f(400,13.44); const lw=x.measureText(label).width;
+    x.font=f(700,13.44);
+    const out=[]; let line='';
+    for(const wd of String(v).split(/\s+/)){
+      const test=line?line+' '+wd:wd;
+      if(x.measureText(test).width>(out.length?CW:CW-lw)&&line){out.push(line);line=wd;}
+      else line=test;
+    }
+    if(line)out.push(line);
+    return {label, lw, lines:out};
+  });
+
+  const items=r.items||[];
+  const ROW=22, INFO_LH=22.8;               // .rc-row padding 2+2 · .rc-info line-height 1.7
+  const secTop=()=>4+1+8;                   // .rc-sec margin-top + 1px dashed rule + padding-top
+  const H_head = 8+2+8;                     // padding-bottom + 2px rule + margin-bottom
+  const H_meta = 12.16*1.2+8;
+  const H_items= secTop()+items.length*ROW+8;
+  const H_tot  = secTop()+ROW*(2+(r.disc>0?1:0)) + 4+1+6 + 16.8*1.25 + 8;
+  const H_info = secTop()+wrapped.reduce((s,w)=>s+w.lines.length*INFO_LH,0)+8;
+  const cardH  = P + 18 + H_head + H_meta + H_items + H_tot + H_info + P - 8;
+  const W=CARD+OUT*2, H=Math.ceil(cardH)+OUT*2;
+
+  c.width=Math.round(W*S); c.height=Math.round(H*S);
+  x.scale(S,S);
+  x.textBaseline='alphabetic';
+
+  // ---- the page behind, then the white card with its rounded border ----
+  x.fillStyle=RC.cream; x.fillRect(0,0,W,H);
+  const rr=(px,py,w,h,rad)=>{x.beginPath();x.moveTo(px+rad,py);x.arcTo(px+w,py,px+w,py+h,rad);
+    x.arcTo(px+w,py+h,px,py+h,rad);x.arcTo(px,py+h,px,py,rad);x.arcTo(px,py,px+w,py,rad);x.closePath();};
+  rr(OUT,OUT,CARD,cardH,14);
+  x.fillStyle=RC.card; x.fill();
+  x.strokeStyle=RC.border; x.lineWidth=1; x.stroke();
+
+  const CL=OUT+P, CR=OUT+CARD-P;            // content left / right edges
+  const start=L?CR:CL, end=L?CL:CR;
+  const aStart=L?'right':'left', aEnd=L?'left':'right';
+  let y=OUT+P;
+
+  const ruleAt=(yy,col,dash)=>{x.strokeStyle=col;x.lineWidth=dash?1:1;x.setLineDash(dash||[]);
+    x.beginPath();x.moveTo(CL,yy+0.5);x.lineTo(CR,yy+0.5);x.stroke();x.setLineDash([]);};
+
+  // ---- .rc-head — store name and order number on one baseline, green rule under ----
+  y+=18;
+  x.textAlign=aStart; x.fillStyle=RC.green800; x.font=f(700,17.6,RC.display);
+  x.fillText(STORE_NAME,start,y);
+  if(r.ref){ x.textAlign=aEnd; x.fillStyle=RC.green700; x.font=f(600,12.8); x.fillText(r.ref,end,y); }
+  y+=8; x.strokeStyle=RC.green700; x.lineWidth=2;
+  x.beginPath(); x.moveTo(CL,y+1); x.lineTo(CR,y+1); x.stroke();
+  y+=2+8;
+
+  // ---- .rc-meta — the date ----
+  if(r.date){
+    y+=12.16;
+    x.textAlign=aStart; x.fillStyle=RC.muted; x.font=f(400,12.16);
+    x.fillText(t('co_order_date')+': '+r.date,start,y);
+    y+=12.16*0.2;
+  }
+  y+=8;
+
+  // ---- .rc-sec — the items ----
+  y+=4; ruleAt(y,RC.border,[3,3]); y+=1+8;
+  const row=(k,v,col,bold,size)=>{
+    y+=2+(size||14.4);
+    x.textAlign=aStart; x.fillStyle=col||RC.inkSoft; x.font=f(bold?700:400,size||14.4);
+    // trim an over-long product name rather than let it collide with the price
+    let s=k; x.font=f(bold?700:400,size||14.4);
+    const cap=CW-x.measureText('  ').width-72;
+    if(x.measureText(s).width>cap){ while(s.length>4&&x.measureText(s+'…').width>cap)s=s.slice(0,-1); s+='…'; }
+    x.fillText(s,start,y);
+    x.textAlign=aEnd; x.font=f(bold?700:600,size||14.4); x.fillStyle=col||(bold?RC.green800:RC.inkSoft);
+    x.fillText(v,end,y);
+    y+=2;
+  };
+  for(const i of items) row((i.name||'')+(i.variant_label?' · '+i.variant_label:'')+' ×'+i.qty, money(i.line));
+  y+=8;
+
+  // ---- .rc-sec — subtotal / delivery / total ----
+  y+=4; ruleAt(y,RC.border,[3,3]); y+=1+8;
+  row(t('subtotal'),money(r.sub));
+  if(r.disc>0)row(t('co_discount'),'−'+money(r.disc),RC.danger);
+  row(t('delivery'),r.fee===0?t('free'):money(r.fee));
+  y+=4; ruleAt(y,RC.border); y+=1+6;
+  row(t('total'),money(r.total),RC.green800,true,16.8);
+  y+=8;
+
+  // ---- .rc-sec .rc-info — customer and delivery details ----
+  y+=4; ruleAt(y,RC.border,[3,3]); y+=1+8;
+  for(const w of wrapped){
+    w.lines.forEach((ln,idx)=>{
+      y+=INFO_LH; x.textAlign=aStart;
+      if(idx===0){
+        x.fillStyle=RC.inkSoft; x.font=f(400,13.44);
+        x.fillText(w.label,start,y);
+        x.fillStyle=RC.green800; x.font=f(700,13.44);
+        x.fillText(ln,L?start-w.lw:start+w.lw,y);
+      }else{
+        x.fillStyle=RC.green800; x.font=f(700,13.44);
+        x.fillText(ln,start,y);
+      }
+    });
+  }
+  return c;
+}
+// Hands the customer a real file: the share sheet where the phone offers one (WhatsApp appears
+// there), a plain download otherwise. Both give a .jpg — neither needs a screenshot.
+async function shareReceiptImage(r){
+  const L=LANG==='ar';
+  const name='receipt-'+((r.ref||'jeddah').replace(/[^\w-]/g,''))+'.jpg';
+  let blob;
+  try{
+    await receiptFontsReady();          // canvas silently falls back if the webfonts aren't decoded yet
+    const canvas=receiptJpeg(r);
+    blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.94));
+  }catch(e){ blob=null; }
+  if(!blob){toast(L?'تعذر إنشاء صورة الإيصال':'Could not create the receipt image');return;}
+  const file=new File([blob],name,{type:'image/jpeg'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file],title:STORE_NAME+' '+(r.ref||''),text:(L?'إيصال طلبك من ':'Your receipt from ')+STORE_NAME});
+      return;
+    }catch(err){ if(err&&err.name==='AbortError')return; }   // customer closed the sheet
+  }
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},800);
+  toast(L?'تم حفظ الإيصال كصورة':'Receipt saved as a picture');
+}
 function printReceipt(r){
   const L=LANG==='ar';
   const items=r.items.map(i=>`<tr><td>${i.name} ×${i.qty}</td><td style="text-align:${L?'left':'right'}">${money(i.line)}</td></tr>`).join('');
@@ -3419,11 +3601,13 @@ async function doTrack(silent){
       </div>
       <div class="track-actions">
         <button class="btn btn-outline" id="tkReceipt">🧾 ${t('track_view_receipt')}</button>
+        <button class="btn btn-gold" id="tkShareImg">${t('co_share_img')}</button>
         <button class="btn btn-outline" id="tkPrint">${t('co_print')}</button>
         <button class="btn btn-outline" data-chat-order="${rc.ref}">💬 ${t('chat_ask_order')}</button>
       </div>`;
     $('#tkReceipt').onclick=()=>openReceiptModal(rc);
     $('#tkPrint').onclick=()=>printReceipt(rc);
+    $('#tkShareImg').onclick=()=>shareReceiptImage(rc);
     // live updates: alert when the status moves on, keep polling until delivered/closed
     if(TK_LAST_REF!==o.order_number){TK_LAST_STATUS=null;TK_LAST_REF=o.order_number;}
     if(TK_LAST_STATUS&&TK_LAST_STATUS!==o.status){
