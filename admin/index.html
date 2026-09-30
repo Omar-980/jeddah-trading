@@ -630,16 +630,29 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 
       <!-- SALES HISTORY -->
       <section class="view" id="view-saleshistory">
-        <div class="page-head"><div><h2>Sales History</h2><p>Every in-shop sale — product sold, quantity, date and who made the sale</p></div><button class="btn btn-outline" id="shExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export CSV</button></div>
+        <div class="page-head"><div><h2>Sales History</h2><p>Everything you sold — at the counter and online — with the day's totals across both</p></div><button class="btn btn-outline" id="shExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export CSV</button></div>
         <div class="stat-grid" id="shStats"></div>
         <div class="toolbar">
           <input class="grow" id="shSearch" placeholder="Search product, sale # or seller…">
           <select id="shSeller"><option value="">All sellers</option></select>
         </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Date &amp; time</th><th>Sale #</th><th>Items sold (product × qty)</th><th>Total</th><th>Seller</th><th></th></tr></thead>
-          <tbody id="shRows"></tbody>
-        </table></div>
+        <div class="panel">
+          <h3 style="margin-bottom:4px">In-shop sales <span class="tag green" id="shCountShop">0</span></h3>
+          <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Sold at the counter. Counted on the day they were rung up.</p>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Date &amp; time</th><th>Sale #</th><th>Items sold (product × qty)</th><th>Total</th><th>Seller</th><th></th></tr></thead>
+            <tbody id="shRows"></tbody>
+          </table></div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-bottom:4px">Online sales <span class="tag green" id="shCountOnline">0</span></h3>
+          <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Orders from the website, counted on the day they were <b>delivered</b> — an order placed Monday and handed over Wednesday belongs to Wednesday's takings. Orders not yet delivered are in Orders, not here.</p>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Delivered</th><th>Order #</th><th>Items sold (product × qty)</th><th>Total</th><th>Customer</th><th class="hide-sm">Placed</th></tr></thead>
+            <tbody id="shOnlineRows"></tbody>
+          </table></div>
+        </div>
       </section>
 
       <!-- EXPENSES -->
@@ -2756,11 +2769,11 @@ $('#posSubmit').onclick=async()=>{
 };
 
 /* ================= SALES HISTORY ================= */
-let SALES=[];
+let SALES=[], ONLINE_SALES=[];
 function payLabel(p){return PAY_LABEL[p]||(p?p.charAt(0).toUpperCase()+p.slice(1):'Cash');}
 function fmtDateTime(s){ if(!s)return ''; try{return new Date(s.replace(' ','T')+'Z').toLocaleString([], {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return s;} }
 async function loadSalesHistory(){
-  try{const d=await api('/admin/sales');SALES=d.sales||[];}catch(e){SALES=[];}
+  try{const d=await api('/admin/sales');SALES=d.sales||[];ONLINE_SALES=d.online||[];}catch(e){SALES=[];ONLINE_SALES=[];}
   // populate seller filter with the distinct sellers seen
   const sellers=[...new Set(SALES.map(s=>s.staff).filter(Boolean))].sort();
   const sel=$('#shSeller');const cur=sel.value;
@@ -2774,16 +2787,28 @@ function renderSalesHistory(){
   let list=SALES.slice();
   if(seller)list=list.filter(s=>s.staff===seller);
   if(q)list=list.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.staff||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
-  // summary stats (today + shown range)
+  // The online list is filtered by the same search box; the seller filter is counter-only,
+  // so choosing a seller hides online sales rather than showing them unfiltered.
+  let olist=seller?[]:ONLINE_SALES.slice();
+  if(q)olist=olist.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.customer_name||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
+
+  /* The day's takings cover BOTH counters. A counter sale is dated when it was rung up; an
+     online order when it was delivered — that is the day the money actually arrived. */
   const today=new Date().toISOString().slice(0,10);
-  const todays=SALES.filter(s=>(s.created_at||'').slice(0,10)===today);
+  const onDay=(s,d)=>String(s.sold_at||s.created_at||'').slice(0,10)===d;
+  const todayShop=SALES.filter(s=>onDay(s,today));
+  const todayOnline=ONLINE_SALES.filter(s=>onDay(s,today));
   const sum=arr=>arr.reduce((t,s)=>t+Number(s.total||0),0);
   const units=arr=>arr.reduce((t,s)=>t+(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),0);
+  const shopRev=sum(todayShop), onlineRev=sum(todayOnline);
   $('#shStats').innerHTML=
-     statCard("Today's sales",todays.length,'cart')
-    +statCard("Today's revenue",money(sum(todays)),'cash','profit')
-    +statCard('Items sold today',units(todays),'box')
-    +statCard('Sales shown',list.length,'coins');
+     statCard("Today's revenue — all sales",money(shopRev+onlineRev),'cash','profit')
+    +statCard("Today's sales",todayShop.length+todayOnline.length,'cart')
+    +statCard('In shop today',money(shopRev)+` <small style="font-size:.5em;color:var(--muted)">${todayShop.length} sale${todayShop.length===1?'':'s'}</small>`,'coins')
+    +statCard('Online today',money(onlineRev)+` <small style="font-size:.5em;color:var(--muted)">${todayOnline.length} delivered</small>`,'inbox')
+    +statCard('Items sold today',units(todayShop)+units(todayOnline),'box');
+  $('#shCountShop').textContent=list.length;
+  $('#shCountOnline').textContent=olist.length;
   $('#shRows').innerHTML=list.length?list.map((s,idx)=>{
     const items=(s.items||[]).map(i=>`${esc(i.name)}${i.variant_label?' <span style="color:var(--muted)">'+esc(i.variant_label)+'</span>':''} <b>×${i.qty}</b>`).join(', ');
     const realIdx=SALES.indexOf(s);
@@ -2799,6 +2824,19 @@ function renderSalesHistory(){
       <td><button class="btn btn-outline btn-sm" data-receipt="${realIdx}">🧾 Receipt</button></td>
     </tr>`;
   }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px">No in-shop sales yet.</td></tr>';
+
+  $('#shOnlineRows').innerHTML=olist.length?olist.map(s=>{
+    const items=(s.items||[]).map(i=>`${esc(i.name)}${i.variant_label?' <span style="color:var(--muted)">'+esc(i.variant_label)+'</span>':''} <b>×${i.qty}</b>`).join(', ');
+    return `<tr>
+      <td>${fmtDateTime(s.sold_at||s.created_at)}</td>
+      <td><b>${esc(s.order_number)}</b></td>
+      <td style="min-width:180px;white-space:normal">${items}</td>
+      <td><b>${money(s.total)}</b></td>
+      <td>${esc(s.customer_name||'—')}${s.courier_name?`<div style="font-size:.78rem;color:var(--muted)">by ${esc(s.courier_name)}</div>`:''}</td>
+      <td class="hide-sm" style="color:var(--muted);font-size:.82rem">${fmtDateTime(s.created_at)}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px">${seller?'Online sales have no seller — clear the seller filter to see them.':'No delivered online orders yet. An online order appears here once you mark it delivered.'}</td></tr>`;
+
   $$('[data-receipt]').forEach(b=>b.onclick=()=>{const s=SALES[+b.dataset.receipt];if(s)showReceipt(s,false);});
 }
 $('#shSearch') && ($('#shSearch').oninput=renderSalesHistory);
@@ -2808,11 +2846,17 @@ $('#shExport') && ($('#shExport').onclick=()=>{
   let list=SALES.slice();
   if(seller)list=list.filter(s=>s.staff===seller);
   if(q)list=list.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.staff||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
-  // one row per product line: Date, Sale#, Product, Qty, Unit, Line total, Seller, Payment
-  const rows=[['Date','Sale #','Product','Size','Qty','Unit price','Line total','Sale discount','Discount reason','Seller','Payment']];
+  let olist=seller?[]:ONLINE_SALES.slice();
+  if(q)olist=olist.filter(s=>(s.order_number||'').toLowerCase().includes(q)||(s.customer_name||'').toLowerCase().includes(q)||(s.items||[]).some(i=>(i.name||'').toLowerCase().includes(q)));
+  // One row per product line, both channels in one sheet. "Date" is the day the sale counted:
+  // when it was rung up in shop, when it was delivered online.
+  const rows=[['Date','Where','Sale #','Customer','Product','Size','Qty','Unit price','Line total','Sale discount','Discount reason','Seller','Payment']];
   list.forEach(s=>(s.items||[]).forEach(i=>rows.push([
-    fmtDateTime(s.created_at),s.order_number,i.name,i.variant_label||'',i.qty,i.price,i.line,
+    fmtDateTime(s.created_at),'In shop',s.order_number,s.customer_name||'',i.name,i.variant_label||'',i.qty,i.price,i.line,
     Number(s.staff_discount)||0,s.discount_reason||'',s.staff||'',payLabel(s.payment_method)])));
+  olist.forEach(s=>(s.items||[]).forEach(i=>rows.push([
+    fmtDateTime(s.sold_at||s.created_at),'Online',s.order_number,s.customer_name||'',i.name,i.variant_label||'',i.qty,i.price,i.line,
+    0,'',s.courier_name||'',payLabel(s.payment_method)])));
   const csv=rows.map(r=>r.map(c=>{const v=String(c==null?'':c);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download='sales-history.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},400);
