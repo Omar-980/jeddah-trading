@@ -1209,20 +1209,29 @@ async function api(req, res, url) {
       for (const ln of lines) {
         const p = queries.productById(Number(ln.product_id));
         if (!p) return send(res, 400, { error: 'One of the lines has no valid product' });
+        // A line may name one size of the product; empty means the product as a whole.
+        const lv = Number(ln.variant_id) || 0;
+        let variant = null;
+        if (lv) {
+          variant = variantById(lv);
+          if (!variant || variant.productId !== p.id) return send(res, 400, { error: `That size does not belong to ${p.en.name}` });
+        }
         const qty = Math.max(1, Math.trunc(Number(ln.qty_funded) || 0));
-        const cost = Number(ln.cost_per_unit) || p.cost || 0;
-        if (cost <= 0) return send(res, 400, { error: `Enter the cost price for ${p.en.name}` });
+        const cost = Number(ln.cost_per_unit) || (variant ? variant.cost : p.cost) || 0;
+        if (cost <= 0) return send(res, 400, { error: `Enter the cost price for ${p.en.name}${variant ? ' ' + variant.label_en : ''}` });
         const pct = Math.min(95, Math.max(5, Number(ln.investor_pct) || 50));
-        prepared.push({ p, qty, cost, pct, batch: String(ln.batch_no || p.batchNo || '').slice(0, 60) });
+        prepared.push({ p, variant, qty, cost, pct, batch: String(ln.batch_no || p.batchNo || '').slice(0, 60) });
       }
-      const ins = db.prepare(`INSERT INTO investments(investor_id,product_id,batch_no,purchase_order_id,qty_funded,cost_per_unit,amount,sell_price_ref,investor_pct,invested_at,notes)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
+      const ins = db.prepare(`INSERT INTO investments(investor_id,product_id,variant_id,batch_no,purchase_order_id,qty_funded,cost_per_unit,amount,sell_price_ref,investor_pct,invested_at,notes)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
       let n = 0, total = 0;
       db.exec('BEGIN');
       try {
         for (const x of prepared) {
-          ins.run(v.id, x.p.id, x.batch, null, x.qty, x.cost, Math.round(x.qty * x.cost * 100) / 100,
-                  x.p.sale || x.p.price, x.pct, investedAt, String(b.notes || '').slice(0, 300));
+          ins.run(v.id, x.p.id, x.variant ? x.variant.id : null, x.batch, null, x.qty, x.cost,
+                  Math.round(x.qty * x.cost * 100) / 100,
+                  x.variant ? (x.variant.sale || x.variant.price) : (x.p.sale || x.p.price),
+                  x.pct, investedAt, String(b.notes || '').slice(0, 300));
           n++; total += x.qty * x.cost;
         }
         db.exec('COMMIT');

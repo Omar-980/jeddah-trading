@@ -1095,17 +1095,27 @@ const queries = {
       expected_revenue: r2(expRevenue), expected_gross: r2(expGross),
       expected_investor: r2(expGross * i.investor_pct / 100), expected_business: r2(expGross * (100 - i.investor_pct) / 100) };
   },
-  allInvestments: () => db.prepare(`SELECT i.*, v.name investor_name, p.name_en product_name
+  // The size is part of what was funded: "Ajwa Dates 250g" is a different stake from
+  // "Ajwa Dates 1kg", so the name carries it everywhere an investment is shown.
+  allInvestments: () => db.prepare(`SELECT i.*, v.name investor_name,
+        p.name_en || COALESCE(' ' || pv.label_en, '') product_name,
+        pv.label_en variant_label
       FROM investments i JOIN investors v ON v.id=i.investor_id JOIN products p ON p.id=i.product_id
+      LEFT JOIN product_variants pv ON pv.id = i.variant_id
       ORDER BY i.id DESC`).all().map(i => queries.investmentMetrics(i)),
   investorLedger: (investorId, limit = 60) => db.prepare(`
     SELECT * FROM (
-      SELECT 'investment' type, i.created_at at, -0.0 amount, 'Invested D'||i.amount||' — '||p.name_en||' ×'||i.qty_funded descr, i.id ref
-        FROM investments i JOIN products p ON p.id=i.product_id WHERE i.investor_id=? AND i.status!='cancelled'
+      SELECT 'investment' type, i.created_at at, -0.0 amount,
+        'Invested D'||i.amount||' — '||p.name_en||COALESCE(' '||pv.label_en,'')||' ×'||i.qty_funded descr, i.id ref
+        FROM investments i JOIN products p ON p.id=i.product_id
+        LEFT JOIN product_variants pv ON pv.id=i.variant_id
+        WHERE i.investor_id=? AND i.status!='cancelled'
       UNION ALL
       SELECT CASE WHEN s.qty>=0 THEN 'sale_profit' ELSE 'reversal' END, s.created_at, s.investor_profit,
-        CASE WHEN s.qty>=0 THEN 'Profit share' ELSE 'Reversal' END||' — '||p.name_en||' ×'||abs(s.qty)||' @ D'||s.unit_price||CASE WHEN s.order_number!='' THEN ' ('||s.order_number||')' ELSE '' END, s.id
-        FROM investor_sales s JOIN products p ON p.id=s.product_id WHERE s.investor_id=?
+        CASE WHEN s.qty>=0 THEN 'Profit share' ELSE 'Reversal' END||' — '||p.name_en||COALESCE(' '||sv.label_en,'')||' ×'||abs(s.qty)||' @ D'||s.unit_price||CASE WHEN s.order_number!='' THEN ' ('||s.order_number||')' ELSE '' END, s.id
+        FROM investor_sales s JOIN products p ON p.id=s.product_id
+        LEFT JOIN product_variants sv ON sv.id=s.variant_id
+        WHERE s.investor_id=?
       UNION ALL
       SELECT 'payout', po.paid_at, -po.amount, 'Payout — '||po.method||CASE WHEN po.reference!='' THEN ' ('||po.reference||')' ELSE '' END, po.id
         FROM investor_payouts po WHERE po.investor_id=?
