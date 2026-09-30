@@ -1062,8 +1062,12 @@ async function api(req, res, url) {
       if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status)) {
         try {
           JSON.parse(cur.items_json || '[]').forEach(it => {
-            db.prepare('UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
-            logMove(it.id, it.qty || 0, nextStatus === 'returned' ? 'return' : nextStatus, cur.order_number, me.username);
+            // Goods go back exactly where they came from: to the size if the line had one,
+            // to the product otherwise. Restocking the product for a sized line would put the
+            // units somewhere nothing reads and quietly lose them.
+            if (it.variantId) db.prepare('UPDATE product_variants SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.variantId);
+            else db.prepare('UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
+            logMove(it.id, it.qty || 0, nextStatus === 'returned' ? 'return' : nextStatus, cur.order_number, me.username, it.variantId || null);
           });
         } catch {}
       }
@@ -1086,6 +1090,12 @@ async function api(req, res, url) {
         reverseInvestorSalesForOrder(id);
       db.prepare('UPDATE orders SET status=?, payment_status=?, courier_id=?, courier_name=? WHERE id=?').run(
         nextStatus, payStatus, courierId, courierName, id);
+      // Stamp the moment it became a sale, so the day's takings follow the delivery date.
+      // Cleared again if the order is later taken back out of delivered.
+      if (nextStatus === 'delivered' && cur.status !== 'delivered')
+        db.prepare("UPDATE orders SET delivered_at = datetime('now') WHERE id=? AND (delivered_at IS NULL OR delivered_at='')").run(id);
+      if (nextStatus !== 'delivered' && cur.status === 'delivered')
+        db.prepare('UPDATE orders SET delivered_at = NULL WHERE id=?').run(id);
       if (b.status && b.status !== cur.status) logAct(me.username, 'order_status', cur.order_number + ' → ' + nextStatus);
       return send(res, 200, { ok: true });
     }
@@ -1478,9 +1488,16 @@ async function api(req, res, url) {
     // ---- SALES HISTORY (in-shop sales) — visible to salespeople ----
     if (r[1] === 'sales' && method === 'GET') {
       if (!hasPerm(me, 'sales')) return send(res, 403, { error: 'No permission' });
-      const rows = db.prepare("SELECT id,order_number,customer_name,payment_method,total,staff,created_at,items_json,staff_discount,discount_reason,discounted_by FROM orders WHERE channel='onsite' ORDER BY id DESC LIMIT 500").all();
-      rows.forEach(o => { o.items = (() => { try { return JSON.parse(o.items_json); } catch { return []; } })(); delete o.items_json; });
-      return send(res, 200, { sales: rows });
+      const unpack = rows => { rows.forEach(o => { o.items = (() => { try { return JSON.parse(o.items_json); } catch { return []; } })(); delete o.items_json; }); return rows; };
+      // Counter sales: money taken at the till, so the sale date is when it was rung up.
+      const rows = unpack(db.prepare("SELECT id,order_number,customer_name,payment_method,total,staff,created_at,created_at AS sold_at,items_json,staff_discount,discount_reason,discounted_by FROM orders WHERE channel='onsite' ORDER BY id DESC LIMIT 500").all());
+      // Online sales: an order becomes a sale on the day it is DELIVERED, not the day it was
+      // placed — until then the goods are out but the money is not in. delivered_at is used as
+      // the sale date so a Monday order handed over on Wednesday lands in Wednesday's takings.
+      const online = unpack(db.prepare(`SELECT id,order_number,customer_name,customer_phone,payment_method,total,created_at,
+          COALESCE(NULLIF(delivered_at,''), created_at) AS sold_at, items_json, courier_name, delivery_zone
+        FROM orders WHERE channel!='onsite' AND status='delivered' ORDER BY COALESCE(NULLIF(delivered_at,''), created_at) DESC LIMIT 500`).all());
+      return send(res, 200, { sales: rows, online });
     }
 
     // ---- EXPENSES ----

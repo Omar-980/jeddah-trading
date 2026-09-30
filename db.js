@@ -492,6 +492,14 @@ if (!columnExists('investor_sales', 'variant_id'))  db.exec('ALTER TABLE investo
 /* ---------- Counter (POS) final discount phase (additive) ----------
    Kept in its own column rather than reusing orders.discount, because that one holds customer
    coupon discounts from the website. Separating them keeps reports honest about which is which. */
+/* When an online order actually became a sale. A counter sale is paid on the spot, but an
+   online order is placed one day and delivered another, and the day's takings should follow the
+   delivery, not the order. Orders already delivered before this column existed are backfilled
+   from created_at — the best date on record for them. */
+if (!columnExists('orders', 'delivered_at')) {
+  db.exec("ALTER TABLE orders ADD COLUMN delivered_at TEXT");
+  db.exec("UPDATE orders SET delivered_at = created_at WHERE status='delivered' AND (delivered_at IS NULL OR delivered_at='')");
+}
 if (!columnExists('orders', 'staff_discount'))   db.exec('ALTER TABLE orders ADD COLUMN staff_discount REAL NOT NULL DEFAULT 0');
 if (!columnExists('orders', 'discount_reason'))  db.exec("ALTER TABLE orders ADD COLUMN discount_reason TEXT DEFAULT ''");
 if (!columnExists('orders', 'discounted_by'))    db.exec("ALTER TABLE orders ADD COLUMN discounted_by TEXT DEFAULT ''");
