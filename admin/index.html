@@ -156,6 +156,8 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .modal-head h3{font-family:'Playfair Display',serif;color:var(--green-800);font-size:1.25rem}
 .modal-body{padding:22px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+/* Four-up row that collapses on narrow screens — used by the quick payout form */
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
 .close-x{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;background:none}
 .close-x:hover{background:rgba(0,0,0,.06)}.close-x svg{width:22px;height:22px}
 /* sales receipt (preview + print/download share these styles) */
@@ -680,12 +682,28 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           </div>
         </div>
         <div class="panel">
-          <h3 style="margin-bottom:12px">Investors & balances</h3>
+          <h3 style="margin-bottom:12px">Investors &amp; balances</h3>
+          <div class="toolbar"><input class="grow" id="ivSearch" placeholder="Search investor by name or phone…">
+            <select id="ivOwedFilter"><option value="">All investors</option><option value="owed">Owed money only</option><option value="clear">Nothing owed</option></select></div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Investor</th><th class="hide-sm">Invested</th><th>Profit earned</th><th class="hide-sm">Paid out</th><th>Balance owed</th><th></th></tr></thead>
+            <thead><tr><th>Investor</th><th class="hide-sm">Capital at work</th><th class="hide-sm">Invested all time</th><th>Profit earned</th><th class="hide-sm">Paid out</th><th>Balance owed</th><th></th></tr></thead>
             <tbody id="ivRows"></tbody>
           </table></div>
         </div>
+        <div class="panel">
+          <h3 style="margin-bottom:4px">Record a payout / withdrawal</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Paying an investor part of their profit — mid-month or at settlement. Pick them and the amount owed fills in; change it for a part payment.</p>
+          <div class="grid4">
+            <div class="field"><label>Investor *</label><select id="qp_investor"></select><div class="hint" id="qp_owed"></div></div>
+            <div class="field"><label>Amount (GMD) *</label><input id="qp_amount" type="number" min="0" step="0.01"></div>
+            <div class="field"><label>Method</label><select id="qp_method"><option value="cash">Cash</option><option value="wave">Wave</option><option value="afrimoney">AfriMoney</option><option value="qmoney">QMoney</option><option value="bank">Bank transfer</option></select></div>
+            <div class="field"><label>Date</label><input id="qp_date" type="date"></div>
+            <div class="field"><label>Reference no.</label><input id="qp_ref" placeholder="Optional"></div>
+            <div class="field"><label>Note</label><input id="qp_notes" placeholder="e.g. mid-month request"></div>
+          </div>
+          <button class="btn btn-gold" id="qp_add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Record payout</button>
+        </div>
+
         <div class="panel">
           <h3 style="margin-bottom:12px">Investments</h3>
           <div class="toolbar"><input class="grow" id="inSearch" placeholder="Search investor or product…">
@@ -1091,7 +1109,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       <div class="field"><label>Date</label><input id="po_date" type="date"></div>
       <div class="field"><label>Reference no.</label><input id="po_ref" placeholder="Optional"></div>
     </div>
-    <div class="field"><label>Notes</label><input id="po_notes" placeholder="Optional"></div>
+    <div class="field"><label>Notes</label><input id="pay_notes" placeholder="Optional"></div>
     <button class="btn btn-primary btn-block" id="po_add">Record payout</button>
     <h4 style="margin:16px 0 8px;font-size:.92rem;color:var(--green-800)">🧾 Payout history</h4>
     <div id="poHistory" style="max-height:170px;overflow-y:auto;font-size:.84rem"></div>
@@ -1239,38 +1257,69 @@ async function loadInvestors(){
 }
 function renderInvestorsView(){
   const invested=INVESTORS.reduce((s,v)=>s+v.invested,0);
+  // Money still in unsold stock. Differs from the lifetime total whenever an investor's
+  // capital has been put back to work after a batch sold out.
+  const atWork=INVESTORS.reduce((s,v)=>s+(v.capital_at_work||0),0);
   const profit=INVESTORS.reduce((s,v)=>s+v.profit_earned,0);
   const owed=INVESTORS.reduce((s,v)=>s+Math.max(0,v.balance),0);
   $('#ivStats').innerHTML=
     statCard('Investors',INVESTORS.length,'cart','')+
-    statCard('Total invested',money(invested),'coins','')+
+    statCard('Capital at work',money(atWork)+' <small style="font-size:.5em;color:var(--muted)">in unsold stock</small>','coins','')+
+    statCard('Total invested (all time)',money(invested),'coins','')+
     statCard('Investor profit earned',money(profit),'coins','')+
     statCard('Owed to investors',money(owed),'inbox',owed>0?'alert':'');
   // investor + product selects for the quick-add form (preserve current picks across reloads)
   const keepInv=$('#in_investor')?$('#in_investor').value:'';
   $('#in_investor').innerHTML=INVESTORS.filter(v=>v.status==='active').map(v=>`<option value="${v.id}">${esc(v.name)} (${esc(v.phone)})</option>`).join('')||'<option value="">— add an investor first —</option>';
   if(keepInv)$('#in_investor').value=keepInv;
+  // quick payout picker — the amount owed is shown so a part payment is an informed choice
+  if($('#qp_investor')){
+    const keepQp=$('#qp_investor').value;
+    $('#qp_investor').innerHTML=INVESTORS.map(v=>
+      `<option value="${v.id}" data-owed="${v.balance}">${esc(v.name)}${v.balance>0?' — owed '+money(v.balance):' — nothing owed'}</option>`).join('');
+    if(keepQp)$('#qp_investor').value=keepQp;
+    qpSync();
+    if(!$('#qp_date').value)$('#qp_date').value=new Date().toISOString().slice(0,10);
+  }
   const keepProd=$('#in_prod')?$('#in_prod').value:'';
   $('#in_prod').innerHTML=investUnits().map(u=>
     `<option value="${u.key}" data-cost="${u.cost}">${esc(u.name)} — cost D${u.cost}</option>`).join('');
   if(keepProd)$('#in_prod').value=keepProd;
   inAutoTotal();
-  $('#ivRows').innerHTML=INVESTORS.map(v=>`<tr>
+  const ivq=($('#ivSearch')?$('#ivSearch').value:'').trim().toLowerCase();
+  const ivf=$('#ivOwedFilter')?$('#ivOwedFilter').value:'';
+  const ivList=INVESTORS.filter(v=>{
+    if(ivq&&!((v.name+' '+(v.phone||'')+' '+(v.email||'')).toLowerCase().includes(ivq)))return false;
+    if(ivf==='owed'&&!(v.balance>0))return false;
+    if(ivf==='clear'&&v.balance>0)return false;
+    return true;
+  });
+  $('#ivRows').innerHTML=ivList.map(v=>`<tr>
     <td><b>${esc(v.name)}</b><div style="font-size:.76rem;color:var(--muted)" dir="ltr">${esc(v.phone)}${v.email?' · '+esc(v.email):''}</div></td>
-    <td class="hide-sm">${money(v.invested)} <span style="color:var(--muted);font-size:.76rem">(${v.investments})</span></td>
+    <td class="hide-sm" title="Money still sitting in unsold stock">${money(v.capital_at_work||0)}</td>
+    <td class="hide-sm" title="Everything this investor has ever put in, including capital put back to work after a batch sold out">${money(v.invested)} <span style="color:var(--muted);font-size:.76rem">(${v.investments})</span></td>
     <td style="color:#9a7b1f;font-weight:700">${money(v.profit_earned)}</td>
     <td class="hide-sm">${money(v.paid_out)}</td>
     <td><b style="${v.balance>0?'color:var(--danger)':''}">${money(v.balance)}</b></td>
     <td><div class="row-actions">${v.status==='inactive'?'<span class="tag grey">Inactive</span> ':''}<button class="btn btn-outline btn-sm" data-iv-open="${v.id}">Manage</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No investors yet.</td></tr>';
+  </tr>`).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">${INVESTORS.length?'No investor matches that search.':'No investors yet.'}</td></tr>`;
   renderInvestments();
   $$('#ivRows [data-iv-open]').forEach(b=>b.onclick=()=>openInvestorModal(+b.dataset.ivOpen));
+}
+// Fills the payout amount with what is actually owed, so the common case is one click.
+function qpSync(){
+  const sel=$('#qp_investor'); if(!sel||!sel.selectedOptions[0])return;
+  const owed=+sel.selectedOptions[0].dataset.owed||0;
+  $('#qp_owed').textContent=owed>0?('Balance owed: '+money(owed)):'Nothing owed to this investor right now';
+  $('#qp_amount').value=owed>0?owed:'';
+  $('#qp_add').disabled=!(owed>0);
+  $('#qp_add').style.opacity=owed>0?1:.5;
 }
 function renderInvestments(){
   const q=($('#inSearch').value||'').toLowerCase();const f=$('#inFilter').value;
   let list=INVESTMENTS.filter(i=>{
     if(f&&i.status!==f)return false;
-    if(q&&!((i.investor_name+' '+i.product_name).toLowerCase().includes(q)))return false;
+    if(q&&!((i.investor_name+' '+i.product_name+' round '+(i.round_no||'')).toLowerCase().includes(q)))return false;
     return true;
   });
   $('#inRows').innerHTML=list.map(i=>{
@@ -1280,7 +1329,7 @@ function renderInvestments(){
     if(i.status==='completed')act=`<button class="btn btn-outline btn-sm" data-in-settle="${i.id}" title="All stock sold and investor fully paid">Mark settled</button>`;
     else if(i.status==='active'&&i.qty_sold===0)act=`<button class="btn btn-danger btn-sm" data-in-cancel="${i.id}">Cancel</button>`;
     return `<tr>
-      <td><b>${esc(i.investor_name)}</b><div style="font-size:.78rem;color:var(--muted)">${esc(i.product_name)}${i.batch_no?' · batch '+esc(i.batch_no):''} · ${i.invested_at}</div></td>
+      <td><b>${esc(i.investor_name)}</b>${i.rounds_total>1?` <span class="tag gold" title="This investor has funded this product ${i.rounds_total} times">Round ${i.round_no}</span>`:''}<div style="font-size:.78rem;color:var(--muted)">${esc(i.product_name)}${i.batch_no?' · batch '+esc(i.batch_no):''} · ${i.invested_at}</div></td>
       <td>${i.qty_funded} × ${money(i.cost_per_unit)}<div style="font-size:.76rem;color:var(--muted)">= ${money(i.amount)}</div></td>
       <td><b>${i.qty_sold}</b> <span style="color:var(--muted);font-size:.76rem">(${pct}%)</span><div style="font-size:.74rem;color:var(--muted)">${i.qty_remaining} left</div></td>
       <td class="hide-sm">${money(i.revenue)}<div style="font-size:.72rem;color:var(--muted)">exp ${money(i.expected_revenue)}</div></td>
@@ -1301,8 +1350,8 @@ function inAutoTotal(){
 async function openInvestorModal(id){
   const v=INVESTORS.find(x=>x.id===id);if(!v)return;
   $('#ivm_id').value=v.id;$('#ivmTitle').textContent=v.name;
-  $('#ivmInfo').innerHTML=`Invested <b>${money(v.invested)}</b> · Profit earned <b style="color:#9a7b1f">${money(v.profit_earned)}</b> · Paid <b>${money(v.paid_out)}</b> · Balance owed <b style="color:${v.balance>0?'var(--danger)':'inherit'}">${money(v.balance)}</b>`;
-  $('#po_amount').value=v.balance>0?v.balance:'';$('#po_ref').value='';$('#po_notes').value='';$('#ivm_pass').value='';
+  $('#ivmInfo').innerHTML=`Capital at work <b>${money(v.capital_at_work||0)}</b> · Invested all time <b>${money(v.invested)}</b> · Profit earned <b style="color:#9a7b1f">${money(v.profit_earned)}</b> · Paid <b>${money(v.paid_out)}</b> · Balance owed <b style="color:${v.balance>0?'var(--danger)':'inherit'}">${money(v.balance)}</b>`;
+  $('#po_amount').value=v.balance>0?v.balance:'';$('#po_ref').value='';$('#pay_notes').value='';$('#ivm_pass').value='';
   $('#po_date').value=new Date().toISOString().slice(0,10);
   $('#ivm_status').value=v.status;
   try{
@@ -1337,10 +1386,30 @@ if($('#iv_add')){
     }catch(e){toast(e.message);}
   };
   $('#inSearch').oninput=renderInvestments;$('#inFilter').onchange=renderInvestments;
+  if($('#ivSearch'))$('#ivSearch').oninput=renderInvestorsView;
+  if($('#ivOwedFilter'))$('#ivOwedFilter').onchange=renderInvestorsView;
+  if($('#qp_investor'))$('#qp_investor').onchange=qpSync;
+  if($('#qp_add'))$('#qp_add').onclick=async()=>{
+    const id=$('#qp_investor').value;
+    if(!id){toast('Choose an investor');return;}
+    const amt=+$('#qp_amount').value||0;
+    if(!(amt>0)){toast('Enter the amount');return;}
+    // The server re-checks this against the live balance; the browser check is only to
+    // save a round trip and give a clearer message.
+    const owed=+($('#qp_investor').selectedOptions[0]||{}).dataset?.owed||0;
+    if(amt>owed+0.001){toast('That is more than the balance owed ('+money(owed)+')');return;}
+    try{
+      await api('/admin/investor-payouts',{method:'POST',body:JSON.stringify({investor_id:id,amount:amt,
+        method:$('#qp_method').value,reference:$('#qp_ref').value,notes:$('#qp_notes').value,paid_at:$('#qp_date').value})});
+      toast('Payout recorded — '+money(amt));
+      $('#qp_amount').value='';$('#qp_ref').value='';$('#qp_notes').value='';
+      await loadInvestors();await loadDashboard();
+    }catch(e){toast(e.message);}
+  };
   $('#ivRefresh').onclick=loadInvestors;
   $('#po_add').onclick=async()=>{
     try{const d=await api('/admin/investor-payouts',{method:'POST',body:JSON.stringify({investor_id:$('#ivm_id').value,amount:+$('#po_amount').value,
-      method:$('#po_method').value,reference:$('#po_ref').value,notes:$('#po_notes').value,paid_at:$('#po_date').value})});
+      method:$('#po_method').value,reference:$('#po_ref').value,notes:$('#pay_notes').value,paid_at:$('#po_date').value})});
       toast('Payout recorded — new balance '+money(d.new_balance));closeModal('investorModal');loadInvestors();}catch(e){toast(e.message);}
   };
   $('#ivm_save').onclick=async()=>{
@@ -1349,9 +1418,9 @@ if($('#iv_add')){
       toast('Saved');closeModal('investorModal');loadInvestors();}catch(e){toast(e.message);}
   };
   $('#ivCsv').onclick=()=>{
-    const head='Investor,Product,Batch,Funded qty,Cost/unit,Invested,Sold,Remaining,Revenue,Gross profit,Investor %,Investor profit,Business profit,Status,Date\n';
-    const rows=INVESTMENTS.map(i=>[i.investor_name,i.product_name,i.batch_no,i.qty_funded,i.cost_per_unit,i.amount,i.qty_sold,i.qty_remaining,i.revenue,i.gross_profit,i.investor_pct,i.investor_profit,i.business_profit,i.status,i.invested_at].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');
-    const bal='\n\nInvestor,Invested,Profit earned,Paid out,Balance owed\n'+INVESTORS.map(v=>[v.name,v.invested,v.profit_earned,v.paid_out,v.balance].join(',')).join('\n');
+    const head='Investor,Product / size,Round,Batch,Funded qty,Cost/unit,Invested,Sold,Remaining,Revenue,Gross profit,Investor %,Investor profit,Business profit,Status,Date\n';
+    const rows=INVESTMENTS.map(i=>[i.investor_name,i.product_name,i.rounds_total>1?('Round '+i.round_no):'',i.batch_no,i.qty_funded,i.cost_per_unit,i.amount,i.qty_sold,i.qty_remaining,i.revenue,i.gross_profit,i.investor_pct,i.investor_profit,i.business_profit,i.status,i.invested_at].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+    const bal='\n\nInvestor,Capital at work,Total invested (all time),Profit earned,Paid out,Balance owed\n'+INVESTORS.map(v=>[v.name,v.capital_at_work||0,v.invested,v.profit_earned,v.paid_out,v.balance].join(',')).join('\n');
     const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(head+rows+bal);a.download='investor-report.csv';a.click();
   };
 }
@@ -1750,6 +1819,13 @@ async function loadDashboard(){
     if(s2.expiring>0)notifs.push({ic:'⏳',cls:'warn',txt:`<b>${s2.expiring}</b> product${s2.expiring>1?'s':''} expiring within 60 days`,view:'inventory'});
     const owed=(SUPPLIERS||[]).reduce((t,x)=>t+(x.balance>0?x.balance:0),0);
     if(owed>0)notifs.push({ic:'💰',cls:'warn',txt:`You owe suppliers <b>${money(owed)}</b>`,view:'suppliers'});
+    // Investor profit waiting to be paid out, so a mid-month settlement is not forgotten.
+    const ivOwing=(INVESTORS||[]).filter(v=>v.balance>0);
+    if(ivOwing.length){
+      const tot=ivOwing.reduce((t,v)=>t+v.balance,0);
+      const who=ivOwing.length===1?`<b>${esc(ivOwing[0].name)}</b>`:`<b>${ivOwing.length}</b> investors`;
+      notifs.push({ic:'🤝',cls:'warn',txt:`You owe ${who} <b>${money(tot)}</b> in profit`,view:'investors'});
+    }
     // loans due within 3 days (or overdue)
     const today=new Date().toISOString().slice(0,10);
     (d.loansDue||[]).forEach(l=>{
