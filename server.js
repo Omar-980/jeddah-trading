@@ -427,6 +427,9 @@ async function api(req, res, url) {
     if (!v) return send(res, 401, { error: 'unauthorized' });
     const investments = queries.allInvestments().filter(i => i.investor_id === v.id && i.status !== 'cancelled');
     const totalInvested = investments.reduce((s, i) => s + i.amount, 0);
+    // Money still sitting in unsold stock — the investor's real current exposure, as opposed to
+    // the lifetime total, which counts the same capital again each time it is put back to work.
+    const capitalAtWork = investments.reduce((s, i) => s + Math.max(0, i.qty_remaining) * (i.cost_per_unit || 0), 0);
     const revenue = investments.reduce((s, i) => s + i.revenue, 0);
     const profit = investments.reduce((s, i) => s + i.investor_profit, 0);
     const paid = db.prepare('SELECT COALESCE(SUM(amount),0) a FROM investor_payouts WHERE investor_id=?').get(v.id).a;
@@ -434,8 +437,10 @@ async function api(req, res, url) {
     const series = db.prepare(`SELECT date(created_at) d, COALESCE(SUM(investor_profit),0) p FROM investor_sales
       WHERE investor_id=? AND created_at >= datetime('now','-30 days') GROUP BY date(created_at) ORDER BY d`).all(v.id);
     return send(res, 200, { investor: { name: v.name, phone: v.phone, email: v.email },
-      totals: { invested: totalInvested, revenue, profit, paid, balance: Math.round((profit - paid) * 100) / 100 },
+      totals: { invested: totalInvested, capital_at_work: Math.round(capitalAtWork * 100) / 100,
+                revenue, profit, paid, balance: Math.round((profit - paid) * 100) / 100 },
       investments: investments.map(i => ({ id: i.id, product_name: i.product_name, batch_no: i.batch_no,
+        round_no: i.round_no, rounds_total: i.rounds_total,
         qty_funded: i.qty_funded, qty_sold: i.qty_sold, qty_remaining: i.qty_remaining,
         amount: i.amount, cost_per_unit: i.cost_per_unit, investor_pct: i.investor_pct,
         revenue: i.revenue, investor_profit: i.investor_profit, status: i.status, invested_at: i.invested_at })),

@@ -1077,10 +1077,18 @@ const queries = {
   },
   allInvestors: () => db.prepare('SELECT * FROM investors ORDER BY id DESC').all().map(v => {
     const inv = db.prepare('SELECT COALESCE(SUM(amount),0) a, COUNT(*) n FROM investments WHERE investor_id=? AND status!=\'cancelled\'').get(v.id);
+    /* Money still tied up in unsold stock. This is NOT the same as the lifetime total: an
+       investor who puts in D15,000, sells it all and funds the same product again has a
+       lifetime total of D30,000 but only ever had D15,000 at risk. Both are shown. */
+    const atWork = db.prepare(`SELECT COALESCE(SUM(MAX(0, i.qty_funded - COALESCE(s.sold,0)) * i.cost_per_unit),0) a
+      FROM investments i
+      LEFT JOIN (SELECT investment_id, SUM(qty) sold FROM investor_sales GROUP BY investment_id) s ON s.investment_id=i.id
+      WHERE i.investor_id=? AND i.status!='cancelled'`).get(v.id).a;
     const pr = db.prepare('SELECT COALESCE(SUM(investor_profit),0) p FROM investor_sales WHERE investor_id=?').get(v.id).p;
     const paid = db.prepare('SELECT COALESCE(SUM(amount),0) a FROM investor_payouts WHERE investor_id=?').get(v.id).a;
     return { id: v.id, name: v.name, phone: v.phone, email: v.email, address: v.address, status: v.status, created_at: v.created_at,
-             invested: inv.a, investments: inv.n, profit_earned: r2(pr), paid_out: r2(paid), balance: r2(pr - paid) };
+             invested: inv.a, capital_at_work: r2(atWork), investments: inv.n,
+             profit_earned: r2(pr), paid_out: r2(paid), balance: r2(pr - paid) };
   }),
   investmentMetrics: (i) => {
     const agg = db.prepare(`SELECT COALESCE(SUM(qty),0) q, COALESCE(SUM(revenue),0) rev, COALESCE(SUM(cost),0) c,
@@ -1097,16 +1105,29 @@ const queries = {
   },
   // The size is part of what was funded: "Ajwa Dates 250g" is a different stake from
   // "Ajwa Dates 1kg", so the name carries it everywhere an investment is shown.
+  /* `round_no` tells one funding round apart from the next when the same investor puts money
+     into the same product and size again: the first stake is Round 1, the next Round 2, and so
+     on, counted per investor + product + size. `rounds_total` lets the screens hide the label
+     entirely when there has only ever been one round. */
   allInvestments: () => db.prepare(`SELECT i.*, v.name investor_name,
         p.name_en || COALESCE(' ' || pv.label_en, '') product_name,
-        pv.label_en variant_label
+        pv.label_en variant_label,
+        (SELECT COUNT(*) FROM investments e WHERE e.investor_id=i.investor_id AND e.product_id=i.product_id
+           AND COALESCE(e.variant_id,0)=COALESCE(i.variant_id,0) AND e.status!='cancelled' AND e.id<=i.id) round_no,
+        (SELECT COUNT(*) FROM investments e WHERE e.investor_id=i.investor_id AND e.product_id=i.product_id
+           AND COALESCE(e.variant_id,0)=COALESCE(i.variant_id,0) AND e.status!='cancelled') rounds_total
       FROM investments i JOIN investors v ON v.id=i.investor_id JOIN products p ON p.id=i.product_id
       LEFT JOIN product_variants pv ON pv.id = i.variant_id
       ORDER BY i.id DESC`).all().map(i => queries.investmentMetrics(i)),
   investorLedger: (investorId, limit = 60) => db.prepare(`
     SELECT * FROM (
       SELECT 'investment' type, i.created_at at, -0.0 amount,
-        'Invested D'||i.amount||' — '||p.name_en||COALESCE(' '||pv.label_en,'')||' ×'||i.qty_funded descr, i.id ref
+        'Invested D'||i.amount||' — '||p.name_en||COALESCE(' '||pv.label_en,'')||' ×'||i.qty_funded
+          ||CASE WHEN (SELECT COUNT(*) FROM investments e WHERE e.investor_id=i.investor_id AND e.product_id=i.product_id
+                AND COALESCE(e.variant_id,0)=COALESCE(i.variant_id,0) AND e.status!='cancelled') > 1
+            THEN ' (Round '||(SELECT COUNT(*) FROM investments e2 WHERE e2.investor_id=i.investor_id AND e2.product_id=i.product_id
+                AND COALESCE(e2.variant_id,0)=COALESCE(i.variant_id,0) AND e2.status!='cancelled' AND e2.id<=i.id)||')'
+            ELSE '' END descr, i.id ref
         FROM investments i JOIN products p ON p.id=i.product_id
         LEFT JOIN product_variants pv ON pv.id=i.variant_id
         WHERE i.investor_id=? AND i.status!='cancelled'
