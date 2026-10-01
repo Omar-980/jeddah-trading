@@ -39,6 +39,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--cream);color:v
 .panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:18px}
 .panel h3{font-family:Georgia,serif;color:var(--green-800);margin-bottom:14px}
 .inv{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+/* Filter chips above the investments list. Only the statuses the investor actually has are
+   shown, so the row stays quiet for someone with a single active stake. */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
+.chip{font-size:.8rem;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--ink);
+  border-radius:999px;padding:6px 14px;cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--green-600)}
+.chip.on{border-color:var(--green-700);background:rgba(28,125,74,.09);color:var(--green-800)}
+.chip .n{opacity:.6;font-weight:500;margin-inline-start:5px}
 .inv .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
 .inv b{color:var(--green-800)}
 .tag{font-size:.68rem;font-weight:700;border-radius:999px;padding:3px 10px}
@@ -79,7 +87,7 @@ canvas{width:100%;height:180px}
   <div class="wrap">
     <div class="grid" id="stats"></div>
     <div class="panel"><h3>📈 Your profit — last 30 days</h3><canvas id="chart" width="1040" height="180"></canvas></div>
-    <div class="panel"><h3>📦 Your investments</h3><div id="invList"></div>
+    <div class="panel"><h3>📦 Your investments</h3><div class="filters" id="invFilters"></div><div id="invList"></div>
       <p class="note">Profit is shared on <b>profit only</b> (selling price − cost), at your agreed percentage, using the actual selling price of every sale — discounts included. This page is read-only; contact Jeddah Trading for payouts or questions.</p></div>
     <div class="panel"><h3>💬 Messages & enquiries</h3>
       <div id="msgList" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
@@ -117,22 +125,31 @@ $('#loginForm').onsubmit=async e=>{
 $('#logout').onclick=async()=>{try{await fetch('/api/investor/logout',{method:'POST',headers:{'X-Investor-Token':TOKEN}});}catch{}
   TOKEN='';sessionStorage.removeItem('jt_inv');$('#app').style.display='none';$('#loginWrap').style.display='grid';};
 
-async function enter(){
-  const r=await fetch('/api/investor/dashboard',{headers:{'X-Investor-Token':TOKEN}});
-  if(!r.ok){TOKEN='';sessionStorage.removeItem('jt_inv');return;}
-  const d=await r.json();
-  $('#loginWrap').style.display='none';$('#app').style.display='block';
-  $('#whoName').textContent=d.investor.name;
-  const t=d.totals;
-  $('#stats').innerHTML=[
-    ['Total invested',money(t.invested)],['Sales generated',money(t.revenue)],
-    ['Your profit earned',money(t.profit),'gold'],['Paid to you',money(t.paid)],
-    ['Balance owed to you',money(t.balance),'gold']
-  ].map(([l,n,c])=>`<div class="stat ${c||''}"><div class="lbl">${l}</div><div class="num">${n}</div></div>`).join('');
-  $('#invList').innerHTML=d.investments.map(i=>{
+/* ---- Investments list with its own status filter ----
+   Once an investor has funded a few rounds the finished ones bury the live ones, so the list
+   can be narrowed to Active or Completed. The totals above stay whole-account on purpose —
+   filtering the list should not change what the investor is owed. */
+let INVESTMENTS=[], INV_FILTER='all';
+const STATUS_LABEL={active:'Active',completed:'Completed',settled:'Settled'};
+function renderInvestments(){
+  const counts={};
+  INVESTMENTS.forEach(i=>{counts[i.status]=(counts[i.status]||0)+1;});
+  // Only offer a status the investor actually has, and only offer "All" when it narrows anything.
+  const present=['active','completed','settled'].filter(k=>counts[k]);
+  const chips=present.length>1
+    ? [['all','All',INVESTMENTS.length],...present.map(k=>[k,STATUS_LABEL[k],counts[k]])]
+    : [];
+  if(!present.includes(INV_FILTER)&&INV_FILTER!=='all')INV_FILTER='all';
+  const fb=$('#invFilters');
+  fb.innerHTML=chips.map(([k,l,n])=>
+    `<button class="chip${INV_FILTER===k?' on':''}" data-filter="${k}">${l}<span class="n">${n}</span></button>`).join('');
+  fb.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{INV_FILTER=b.dataset.filter;renderInvestments();});
+
+  const list=INV_FILTER==='all'?INVESTMENTS:INVESTMENTS.filter(i=>i.status===INV_FILTER);
+  $('#invList').innerHTML=list.map(i=>{
     const pct=i.qty_funded?Math.round(i.qty_sold/i.qty_funded*100):0;
     return `<div class="inv">
-      <div class="top"><b>${esc(i.product_name)}</b><span class="tag ${i.status}">${i.status}</span></div>
+      <div class="top"><b>${esc(i.product_name)}${i.rounds_total>1?` <span style="font-weight:600;opacity:.75">\u00b7 Round ${i.round_no}</span>`:''}</b><span class="tag ${i.status}">${i.status}</span></div>
       <div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div>
       <div class="meta">
         <span>Sold <b>${i.qty_sold}/${i.qty_funded}</b> (${pct}%)</span>
@@ -142,10 +159,33 @@ async function enter(){
         <span>Your profit <b style="color:#9a7b1f">${money(i.investor_profit)}</b> (${i.investor_pct}%)</span>
         ${i.batch_no?`<span>Batch <b>${esc(i.batch_no)}</b></span>`:''}
         <span>Since <b>${i.invested_at}</b></span>
-        <button class="btn btn-outline" data-ask="${esc(i.product_name)}" style="padding:4px 12px;font-size:.78rem;margin-inline-start:auto">💬 Ask about this</button>
+        <button class="btn btn-outline" data-ask="${esc(i.product_name)}" style="padding:4px 12px;font-size:.78rem;margin-inline-start:auto">\ud83d\udcac Ask about this</button>
       </div>
     </div>`;
-  }).join('')||'<p style="color:var(--muted);font-size:.9rem">No investments yet.</p>';
+  }).join('')||`<p style="color:var(--muted);font-size:.9rem">${INV_FILTER==='all'?'No investments yet.':'No '+STATUS_LABEL[INV_FILTER].toLowerCase()+' investments.'}</p>`;
+  document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{
+    const t=$('#msgText');t.value=`Regarding my investment in ${b.dataset.ask}: `;t.focus();
+    t.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+}
+async function enter(){
+  const r=await fetch('/api/investor/dashboard',{headers:{'X-Investor-Token':TOKEN}});
+  if(!r.ok){TOKEN='';sessionStorage.removeItem('jt_inv');return;}
+  const d=await r.json();
+  $('#loginWrap').style.display='none';$('#app').style.display='block';
+  $('#whoName').textContent=d.investor.name;
+  const t=d.totals;
+  $('#stats').innerHTML=[
+    // "Capital at work" is the money still sitting in unsold stock — the real current exposure.
+    // "Total invested" is everything ever put in, so capital put back to work counts again.
+    ['Capital at work',money(t.capital_at_work||0),'',"Your money still sitting in stock that hasn't sold yet"],
+    ['Total invested (all time)',money(t.invested),'','Everything you have ever put in, including money reinvested after a batch sold out'],
+    ['Sales generated',money(t.revenue)],
+    ['Your profit earned',money(t.profit),'gold'],['Paid to you',money(t.paid)],
+    ['Balance owed to you',money(t.balance),'gold']
+  ].map(([l,n,c,tip])=>`<div class="stat ${c||''}"${tip?` title="${esc(tip)}"`:''}><div class="lbl">${l}</div><div class="num">${n}</div></div>`).join('');
+  INVESTMENTS=d.investments||[];
+  renderInvestments();
   $('#ledger').innerHTML=(d.ledger||[]).map(l=>{
     const isPay=l.type==='payout', isRev=l.type==='reversal', isInv=l.type==='investment';
     const amt=isInv?'':`<span class="amt ${l.amount>=0&&!isPay?'pos':'neg'}">${l.amount>=0&&!isPay?'+':''}${money(Math.abs(l.amount))}</span>`;
@@ -153,10 +193,7 @@ async function enter(){
   }).join('')||'<p style="color:var(--muted);font-size:.9rem">Nothing yet.</p>';
   drawChart(d.series||[]);
   loadMsgs();
-  document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{
-    const t=$('#msgText');t.value=`Regarding my investment in ${b.dataset.ask}: `;t.focus();
-    t.scrollIntoView({behavior:'smooth',block:'center'});
-  });
+  // the "Ask about this" buttons are bound inside renderInvestments(), so they survive filtering
   setTimeout(refresh,60000);   // live: refresh every minute
 }
 async function loadMsgs(){
