@@ -686,7 +686,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           <div class="toolbar"><input class="grow" id="ivSearch" placeholder="Search investor by name or phone…">
             <select id="ivOwedFilter"><option value="">All investors</option><option value="owed">Owed money only</option><option value="clear">Nothing owed</option></select></div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Investor</th><th class="hide-sm">Capital at work</th><th class="hide-sm">Invested all time</th><th>Profit earned</th><th class="hide-sm">Paid out</th><th>Balance owed</th><th></th></tr></thead>
+            <thead><tr><th>Investor</th><th>Capital deposited</th><th class="hide-sm">Capital at work</th><th class="hide-sm">Invested all time</th><th>Profit earned</th><th class="hide-sm">Paid out</th><th>Balance owed</th><th></th></tr></thead>
             <tbody id="ivRows"></tbody>
           </table></div>
         </div>
@@ -1102,7 +1102,22 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
   <div class="modal-body">
     <input type="hidden" id="ivm_id">
     <div class="pay-balance" id="ivmInfo"></div>
-    <h4 style="margin:14px 0 8px;font-size:.92rem;color:var(--green-800)">💸 Record payout</h4>
+
+    <h4 style="margin:14px 0 4px;font-size:.92rem;color:var(--green-800)">🏦 Capital deposited</h4>
+    <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">The money this investor actually handed over. Record each payment in; use <b>Capital returned</b> when you give some of it back. This is their capital, not their profit — profit is the payout section below.</p>
+    <div class="pay-balance" id="ivmCapital" style="font-size:1.05rem"></div>
+    <div class="grid2" style="margin-top:10px">
+      <div class="field"><label>Type</label><select id="dp_kind"><option value="deposit">Capital paid in</option><option value="return">Capital returned</option></select></div>
+      <div class="field"><label>Amount (GMD) *</label><input id="dp_amount" type="number" min="0" step="0.01"></div>
+      <div class="field"><label>Method</label><select id="dp_method"><option value="cash">Cash</option><option value="wave">Wave</option><option value="afrimoney">AfriMoney</option><option value="qmoney">QMoney</option><option value="bank">Bank transfer</option></select></div>
+      <div class="field"><label>Date</label><input id="dp_date" type="date"></div>
+      <div class="field"><label>Reference no.</label><input id="dp_ref" placeholder="Optional"></div>
+      <div class="field"><label>Note</label><input id="dp_notes" placeholder="e.g. starting capital"></div>
+    </div>
+    <button class="btn btn-gold btn-block" id="dp_add">Save capital entry</button>
+    <div id="dpHistory" style="max-height:170px;overflow-y:auto;font-size:.84rem;margin-top:10px"></div>
+
+    <h4 style="margin:18px 0 8px;font-size:.92rem;color:var(--green-800)">💸 Record payout <span style="font-weight:400;color:var(--muted)">(profit)</span></h4>
     <div class="grid2">
       <div class="field"><label>Amount (GMD) *</label><input id="po_amount" type="number" min="0" step="0.01"></div>
       <div class="field"><label>Method</label><select id="po_method"><option value="cash">Cash</option><option value="wave">Wave</option><option value="afrimoney">AfriMoney</option><option value="qmoney">QMoney</option><option value="bank">Bank transfer</option></select></div>
@@ -1260,10 +1275,12 @@ function renderInvestorsView(){
   // Money still in unsold stock. Differs from the lifetime total whenever an investor's
   // capital has been put back to work after a batch sold out.
   const atWork=INVESTORS.reduce((s,v)=>s+(v.capital_at_work||0),0);
+  const deposited=INVESTORS.reduce((s,v)=>s+(v.capital_deposited||0),0);
   const profit=INVESTORS.reduce((s,v)=>s+v.profit_earned,0);
   const owed=INVESTORS.reduce((s,v)=>s+Math.max(0,v.balance),0);
   $('#ivStats').innerHTML=
     statCard('Investors',INVESTORS.length,'cart','')+
+    statCard('Capital deposited',money(deposited)+' <small style="font-size:.5em;color:var(--muted)">handed over</small>','coins','')+
     statCard('Capital at work',money(atWork)+' <small style="font-size:.5em;color:var(--muted)">in unsold stock</small>','coins','')+
     statCard('Total invested (all time)',money(invested),'coins','')+
     statCard('Investor profit earned',money(profit),'coins','')+
@@ -1296,13 +1313,14 @@ function renderInvestorsView(){
   });
   $('#ivRows').innerHTML=ivList.map(v=>`<tr>
     <td><b>${esc(v.name)}</b><div style="font-size:.76rem;color:var(--muted)" dir="ltr">${esc(v.phone)}${v.email?' · '+esc(v.email):''}</div></td>
+    <td title="The capital this investor handed over, net of any returned"><b>${money(v.capital_deposited||0)}</b>${v.deposit_count?`<div style="font-size:.74rem;color:var(--muted)">${v.deposit_count} entr${v.deposit_count===1?'y':'ies'}</div>`:'<div style="font-size:.74rem;color:var(--danger)">not recorded</div>'}</td>
     <td class="hide-sm" title="Money still sitting in unsold stock">${money(v.capital_at_work||0)}</td>
     <td class="hide-sm" title="Everything this investor has ever put in, including capital put back to work after a batch sold out">${money(v.invested)} <span style="color:var(--muted);font-size:.76rem">(${v.investments})</span></td>
     <td style="color:#9a7b1f;font-weight:700">${money(v.profit_earned)}</td>
     <td class="hide-sm">${money(v.paid_out)}</td>
     <td><b style="${v.balance>0?'color:var(--danger)':''}">${money(v.balance)}</b></td>
     <td><div class="row-actions">${v.status==='inactive'?'<span class="tag grey">Inactive</span> ':''}<button class="btn btn-outline btn-sm" data-iv-open="${v.id}">Manage</button></div></td>
-  </tr>`).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">${INVESTORS.length?'No investor matches that search.':'No investors yet.'}</td></tr>`;
+  </tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">${INVESTORS.length?'No investor matches that search.':'No investors yet.'}</td></tr>`;
   renderInvestments();
   $$('#ivRows [data-iv-open]').forEach(b=>b.onclick=()=>openInvestorModal(+b.dataset.ivOpen));
 }
@@ -1350,16 +1368,62 @@ function inAutoTotal(){
 async function openInvestorModal(id){
   const v=INVESTORS.find(x=>x.id===id);if(!v)return;
   $('#ivm_id').value=v.id;$('#ivmTitle').textContent=v.name;
-  $('#ivmInfo').innerHTML=`Capital at work <b>${money(v.capital_at_work||0)}</b> · Invested all time <b>${money(v.invested)}</b> · Profit earned <b style="color:#9a7b1f">${money(v.profit_earned)}</b> · Paid <b>${money(v.paid_out)}</b> · Balance owed <b style="color:${v.balance>0?'var(--danger)':'inherit'}">${money(v.balance)}</b>`;
+  $('#ivmInfo').innerHTML=`Capital deposited <b>${money(v.capital_deposited||0)}</b> · Capital at work <b>${money(v.capital_at_work||0)}</b> · Invested all time <b>${money(v.invested)}</b> · Profit earned <b style="color:#9a7b1f">${money(v.profit_earned)}</b> · Paid <b>${money(v.paid_out)}</b> · Balance owed <b style="color:${v.balance>0?'var(--danger)':'inherit'}">${money(v.balance)}</b>`;
   $('#po_amount').value=v.balance>0?v.balance:'';$('#po_ref').value='';$('#pay_notes').value='';$('#ivm_pass').value='';
   $('#po_date').value=new Date().toISOString().slice(0,10);
   $('#ivm_status').value=v.status;
+  $('#dp_amount').value='';$('#dp_ref').value='';$('#dp_notes').value='';$('#dp_kind').value='deposit';
+  $('#dp_date').value=new Date().toISOString().slice(0,10);
+  renderCapital(v);
   try{
     const d=await api('/admin/investor-payouts?investor_id='+v.id);
     $('#poHistory').innerHTML=(d.payouts||[]).map(p=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>${p.paid_at} · ${esc(p.method)}${p.reference?' · '+esc(p.reference):''}${p.notes?' — '+esc(p.notes):''}</span><b>${money(p.amount)}</b></div>`).join('')||'<p style="color:var(--muted)">No payouts yet.</p>';
   }catch{}
   openModal('investorModal');
 }
+/* ---- Deposited capital ----
+   The starting figure an investor is told and remembers. Held as one row per payment in (and a
+   negative row when capital goes back), so the total always has dates behind it. */
+async function renderCapital(v){
+  const box=$('#ivmCapital'); if(!box)return;
+  box.innerHTML=`Capital deposited <b>${money(v.capital_deposited||0)}</b>`;
+  try{
+    const d=await api('/admin/investor-deposits?investor_id='+v.id);
+    const rows=d.deposits||[];
+    $('#dpHistory').innerHTML=rows.length?rows.map(x=>{
+      const out=x.amount<0;
+      return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span>${x.deposited_at} · ${esc(x.method)}${x.reference?' · '+esc(x.reference):''}${x.notes?' — '+esc(x.notes):''}</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <b style="color:${out?'var(--danger)':'var(--green-700)'}">${out?'−':'+'}${money(Math.abs(x.amount))}</b>
+          <button class="btn btn-danger btn-sm" data-dp-del="${x.id}" title="Remove this entry">✕</button>
+        </span></div>`;
+    }).join(''):'<p style="color:var(--muted)">No capital recorded yet — enter the starting amount above.</p>';
+    $$('[data-dp-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Remove this capital entry? The investor\'s deposited total will change.'))return;
+      try{await api('/admin/investor-deposits/'+b.dataset.dpDel,{method:'DELETE'});
+        toast('Entry removed');await loadInvestors();
+        const fresh=INVESTORS.find(x=>x.id===v.id); if(fresh)renderCapital(fresh);
+      }catch(e){toast(e.message);}
+    });
+  }catch(e){}
+}
+if($('#dp_add'))$('#dp_add').onclick=async()=>{
+  const id=$('#ivm_id').value; if(!id)return;
+  const amt=+$('#dp_amount').value||0;
+  if(!(amt>0)){toast('Enter the amount');return;}
+  try{
+    await api('/admin/investor-deposits',{method:'POST',body:JSON.stringify({investor_id:id,amount:amt,
+      kind:$('#dp_kind').value,method:$('#dp_method').value,reference:$('#dp_ref').value,
+      notes:$('#dp_notes').value,deposited_at:$('#dp_date').value})});
+    toast($('#dp_kind').value==='return'?'Capital returned — recorded':'Capital recorded');
+    $('#dp_amount').value='';$('#dp_ref').value='';$('#dp_notes').value='';
+    await loadInvestors();
+    const fresh=INVESTORS.find(x=>x.id===+id);
+    if(fresh){renderCapital(fresh);
+      $('#ivmInfo').innerHTML=`Capital deposited <b>${money(fresh.capital_deposited||0)}</b> · Capital at work <b>${money(fresh.capital_at_work||0)}</b> · Invested all time <b>${money(fresh.invested)}</b> · Profit earned <b style="color:#9a7b1f">${money(fresh.profit_earned)}</b> · Paid <b>${money(fresh.paid_out)}</b> · Balance owed <b style="color:${fresh.balance>0?'var(--danger)':'inherit'}">${money(fresh.balance)}</b>`;}
+  }catch(e){toast(e.message);}
+};
 if($('#ivAddBtn'))$('#ivAddBtn').onclick=()=>{['iv_name','iv_phone','iv_pass','iv_email','iv_addr'].forEach(i=>{if($('#'+i))$('#'+i).value='';});openModal('investorAddModal');setTimeout(()=>$('#iv_name')&&$('#iv_name').focus(),80);};
 if($('#iv_add')){
   $('#iv_add').onclick=async()=>{
@@ -1420,7 +1484,7 @@ if($('#iv_add')){
   $('#ivCsv').onclick=()=>{
     const head='Investor,Product / size,Round,Batch,Funded qty,Cost/unit,Invested,Sold,Remaining,Revenue,Gross profit,Investor %,Investor profit,Business profit,Status,Date\n';
     const rows=INVESTMENTS.map(i=>[i.investor_name,i.product_name,i.rounds_total>1?('Round '+i.round_no):'',i.batch_no,i.qty_funded,i.cost_per_unit,i.amount,i.qty_sold,i.qty_remaining,i.revenue,i.gross_profit,i.investor_pct,i.investor_profit,i.business_profit,i.status,i.invested_at].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');
-    const bal='\n\nInvestor,Capital at work,Total invested (all time),Profit earned,Paid out,Balance owed\n'+INVESTORS.map(v=>[v.name,v.capital_at_work||0,v.invested,v.profit_earned,v.paid_out,v.balance].join(',')).join('\n');
+    const bal='\n\nInvestor,Capital deposited,Capital at work,Total invested (all time),Profit earned,Paid out,Balance owed\n'+INVESTORS.map(v=>[v.name,v.capital_deposited||0,v.capital_at_work||0,v.invested,v.profit_earned,v.paid_out,v.balance].join(',')).join('\n');
     const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(head+rows+bal);a.download='investor-report.csv';a.click();
   };
 }
