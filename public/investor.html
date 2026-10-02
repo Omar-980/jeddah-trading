@@ -178,6 +178,8 @@ async function enter(){
   $('#stats').innerHTML=[
     // "Capital at work" is the money still sitting in unsold stock — the real current exposure.
     // "Total invested" is everything ever put in, so capital put back to work counts again.
+    // The investor's own starting figure, first and unmissable: what they actually paid in.
+    ['Capital deposited',money(t.capital_deposited||0),'gold','The capital you have paid in, less any capital returned to you'],
     ['Capital at work',money(t.capital_at_work||0),'',"Your money still sitting in stock that hasn't sold yet"],
     ['Total invested (all time)',money(t.invested),'','Everything you have ever put in, including money reinvested after a batch sold out'],
     ['Sales generated',money(t.revenue)],
