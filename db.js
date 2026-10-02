@@ -481,6 +481,27 @@ CREATE INDEX IF NOT EXISTS idx_variants_barcode ON product_variants(barcode);
 `);
 // Which size a stock movement / investment / profit row refers to. NULL = the product itself,
 // which is what every row written before this feature existed means.
+/* ---------- Investor deposited capital (additive) ----------
+   The money an investor actually hands over, which the system otherwise never learns about:
+   until now it only knew about capital once it had been allocated to a product. One row per
+   payment in — and a negative amount when capital is handed back — so the total is a running
+   record with dates behind it rather than a number someone retyped. Kept separate from
+   investor_payouts, which is PROFIT paid out, not capital. */
+db.exec(`
+CREATE TABLE IF NOT EXISTS investor_deposits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  investor_id INTEGER NOT NULL,
+  amount REAL NOT NULL,                    -- positive = paid in, negative = capital returned
+  method TEXT DEFAULT 'cash',
+  reference TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  deposited_at TEXT NOT NULL,
+  by_user TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_deposits_investor ON investor_deposits(investor_id);
+`);
+
 // Each size carries its own low-stock minimum: 6 × 1kg bags left is not the same worry as
 // 6 × 500g sachets. 0 means "use the shop-wide threshold", exactly like products.min_stock.
 if (!columnExists('product_variants', 'min_stock')) db.exec('ALTER TABLE product_variants ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0');
@@ -1086,8 +1107,11 @@ const queries = {
       WHERE i.investor_id=? AND i.status!='cancelled'`).get(v.id).a;
     const pr = db.prepare('SELECT COALESCE(SUM(investor_profit),0) p FROM investor_sales WHERE investor_id=?').get(v.id).p;
     const paid = db.prepare('SELECT COALESCE(SUM(amount),0) a FROM investor_payouts WHERE investor_id=?').get(v.id).a;
+    // The capital actually handed over, net of any capital handed back.
+    const dep = db.prepare('SELECT COALESCE(SUM(amount),0) a, COUNT(*) n FROM investor_deposits WHERE investor_id=?').get(v.id);
     return { id: v.id, name: v.name, phone: v.phone, email: v.email, address: v.address, status: v.status, created_at: v.created_at,
              invested: inv.a, capital_at_work: r2(atWork), investments: inv.n,
+             capital_deposited: r2(dep.a), deposit_count: dep.n,
              profit_earned: r2(pr), paid_out: r2(paid), balance: r2(pr - paid) };
   }),
   investmentMetrics: (i) => {

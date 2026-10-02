@@ -438,6 +438,9 @@ async function api(req, res, url) {
       WHERE investor_id=? AND created_at >= datetime('now','-30 days') GROUP BY date(created_at) ORDER BY d`).all(v.id);
     return send(res, 200, { investor: { name: v.name, phone: v.phone, email: v.email },
       totals: { invested: totalInvested, capital_at_work: Math.round(capitalAtWork * 100) / 100,
+                // The capital the investor actually handed over — their starting figure, net of
+                // any capital returned. Shown first so there is no doubt what they put in.
+                capital_deposited: Math.round(db.prepare('SELECT COALESCE(SUM(amount),0) a FROM investor_deposits WHERE investor_id=?').get(v.id).a * 100) / 100,
                 revenue, profit, paid, balance: Math.round((profit - paid) * 100) / 100 },
       investments: investments.map(i => ({ id: i.id, product_name: i.product_name, batch_no: i.batch_no,
         round_no: i.round_no, rounds_total: i.rounds_total,
@@ -1259,6 +1262,49 @@ async function api(req, res, url) {
       if (b.notes !== undefined) db.prepare('UPDATE investments SET notes=? WHERE id=?').run(String(b.notes).slice(0, 300), inv.id);
       return send(res, 200, { ok: true });
     }
+    /* ---- INVESTOR DEPOSITED CAPITAL ----
+       The money handed over, recorded payment by payment. A negative amount is capital handed
+       back. Distinct from investor-payouts, which pays out PROFIT and leaves capital alone. */
+    if (r[1] === 'investor-deposits' && method === 'GET') {
+      if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
+      const vid = Number(url.searchParams.get('investor_id')) || 0;
+      const rows = db.prepare(`SELECT d.*, v.name investor_name FROM investor_deposits d JOIN investors v ON v.id=d.investor_id
+        ${vid ? 'WHERE d.investor_id=?' : ''} ORDER BY d.deposited_at DESC, d.id DESC LIMIT 200`).all(...(vid ? [vid] : []));
+      return send(res, 200, { deposits: rows });
+    }
+    if (r[1] === 'investor-deposits' && method === 'POST') {
+      if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
+      const b = await readBody(req);
+      const v = queries.investorById(Number(b.investor_id));
+      if (!v) return send(res, 400, { error: 'Choose an investor' });
+      const kind = b.kind === 'return' ? 'return' : 'deposit';
+      const raw = Math.abs(Number(b.amount) || 0);
+      if (raw <= 0) return send(res, 400, { error: 'Enter the amount' });
+      const held = db.prepare('SELECT COALESCE(SUM(amount),0) a FROM investor_deposits WHERE investor_id=?').get(v.id).a;
+      // Capital cannot be handed back that was never handed in — that would read as a negative
+      // starting figure, which is exactly the confusion this is meant to remove.
+      if (kind === 'return' && raw > held + 0.001)
+        return send(res, 400, { error: 'That is more capital than is on record (D' + Math.round(held * 100) / 100 + ')' });
+      const amount = kind === 'return' ? -raw : raw;
+      const info = db.prepare(`INSERT INTO investor_deposits(investor_id,amount,method,reference,notes,deposited_at,by_user)
+        VALUES(?,?,?,?,?,?,?)`).run(v.id, amount, String(b.method || 'cash').slice(0, 30),
+          String(b.reference || '').slice(0, 60), String(b.notes || '').slice(0, 300),
+          /^\d{4}-\d{2}-\d{2}$/.test(b.deposited_at || '') ? b.deposited_at : new Date().toISOString().slice(0, 10),
+          me.username);
+      logAct(me.username, kind === 'return' ? 'investor_capital_return' : 'investor_deposit', `${v.name} — D${raw}`);
+      return send(res, 201, { ok: true, id: info.lastInsertRowid, capital_deposited: Math.round((held + amount) * 100) / 100 });
+    }
+    // A mistyped entry is removed rather than corrected in place, so the record stays honest
+    // about what was actually entered and when.
+    if (r[1] === 'investor-deposits' && r[2] && method === 'DELETE') {
+      if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
+      const row = db.prepare('SELECT d.*, v.name investor_name FROM investor_deposits d JOIN investors v ON v.id=d.investor_id WHERE d.id=?').get(Number(r[2]));
+      if (!row) return send(res, 404, { error: 'not found' });
+      db.prepare('DELETE FROM investor_deposits WHERE id=?').run(row.id);
+      logAct(me.username, 'investor_deposit_delete', `${row.investor_name} — D${Math.abs(row.amount)}`);
+      return send(res, 200, { ok: true });
+    }
+
     if (r[1] === 'investor-payouts' && method === 'GET') {
       if (!hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
       const vid = Number(url.searchParams.get('investor_id')) || 0;
