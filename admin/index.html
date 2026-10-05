@@ -833,6 +833,34 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <div class="field"><label>Offline auto-reply (EN)</label><textarea id="s_chat_offline_en"></textarea></div>
             <div class="field"><label>Offline auto-reply (AR)</label><textarea id="s_chat_offline_ar" dir="rtl"></textarea></div>
           </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+          <div class="section-label">Facebook &amp; Instagram ads</div>
+          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your products are published as a catalogue file that Facebook re-reads on its own, so adverts always show the current price and stock. Paste the two links below into Commerce Manager once.</p>
+          <div class="grid2">
+            <div class="field"><label>Meta Pixel ID</label><input id="s_meta_pixel_id" placeholder="e.g. 123456789012345" inputmode="numeric">
+              <small style="color:var(--muted)">Leave blank and no tracking code is loaded for shoppers at all. With an ID, Facebook can show an advert for the exact item someone looked at.</small></div>
+            <div class="field"><label>Catalogue currency</label>
+              <select id="s_catalog_currency">
+                <option value="GMD">GMD — Gambian Dalasi</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — Pound Sterling</option>
+              </select>
+              <small style="color:var(--muted)">Only change this if Facebook rejects the feed over currency.</small></div>
+          </div>
+          <div class="field"><label>Website address</label><input id="s_site_url" placeholder="https://shopjeddahtrading.com">
+            <small style="color:var(--muted)">Used in the catalogue and in link previews. Leave blank to work it out automatically.</small></div>
+          <div class="field"><label>Catalogue links (give these to Facebook)</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <input id="feedCsvUrl" readonly style="flex:1">
+              <button type="button" class="btn btn-outline btn-sm" data-copy="feedCsvUrl">Copy</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="feedXmlUrl" readonly style="flex:1">
+              <button type="button" class="btn btn-outline btn-sm" data-copy="feedXmlUrl">Copy</button>
+            </div>
+            <small style="color:var(--muted)">Commerce Manager → Catalogue → Data sources → Scheduled feed. Either link works; set it to refresh daily.</small>
+          </div>
           <div class="field"><label>Change owner password (leave blank to keep)</label><input id="s_admin_password" type="password" placeholder="New password" autocomplete="new-password"></div>
           <button type="submit" class="btn btn-primary">Save settings</button>
         </form>
@@ -3157,8 +3185,23 @@ $('#expenseForm').onsubmit=async e=>{
 };
 
 /* ---------- Settings ---------- */
-const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_delivery_over','low_stock_threshold','max_staff_discount_pct','announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar','pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar','est_delivery_en','est_delivery_ar','chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload'];
-function fillSettings(){SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)el.value=SETTINGS[k]||'';});}
+const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_delivery_over','low_stock_threshold','max_staff_discount_pct','announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar','pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar','est_delivery_en','est_delivery_ar','chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload',
+'meta_pixel_id','catalog_currency','site_url'];
+function fillSettings(){
+  SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)el.value=SETTINGS[k]||'';});
+  if($('#s_catalog_currency')&&!SETTINGS.catalog_currency)$('#s_catalog_currency').value='GMD';
+  // The catalogue links are built from wherever the shop is actually being served from.
+  const base=(SETTINGS.site_url||'').trim().replace(/\/+$/,'')||location.origin;
+  if($('#feedCsvUrl'))$('#feedCsvUrl').value=base+'/catalog.csv';
+  if($('#feedXmlUrl'))$('#feedXmlUrl').value=base+'/catalog.xml';
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-copy]');if(!b)return;
+  const el=$('#'+b.dataset.copy);if(!el)return;
+  const done=()=>{const was=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=was,1400);};
+  if(navigator.clipboard)navigator.clipboard.writeText(el.value).then(done).catch(()=>{el.select();done();});
+  else{el.select();document.execCommand&&document.execCommand('copy');done();}
+});
 $('#settingsForm').onsubmit=async e=>{
   e.preventDefault();
   const body={};SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)body[k]=el.value;});body.whatsapp_number=(body.whatsapp_number||'').replace(/[^0-9]/g,'');
