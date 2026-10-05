@@ -64,6 +64,9 @@ function publicSettings() {
     pay_note_ar: getSetting('pay_note_ar'),
     est_delivery_en: getSetting('est_delivery_en'),
     est_delivery_ar: getSetting('est_delivery_ar'),
+    // Advert measurement. Blank means no tracking code is loaded for the shopper at all.
+    meta_pixel_id: String(getSetting('meta_pixel_id', '') || '').replace(/[^0-9]/g, '').slice(0, 20),
+    catalog_currency: feedCurrency(),
   };
 }
 
@@ -2021,7 +2024,8 @@ async function api(req, res, url) {
       'announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar',
       'pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar',
       'est_delivery_en','est_delivery_ar','loyalty_earn_per','loyalty_point_value','loyalty_max_redeem_pct','referral_bonus_points',
-      'chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload','chat_hours'];
+      'chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload','chat_hours',
+      'meta_pixel_id','catalog_currency','site_url'];
     if (r[1] === 'settings' && method === 'GET') {
       const out = {}; SETTING_KEYS.forEach(k => out[k] = getSetting(k)); return send(res, 200, out);
     }
@@ -2043,6 +2047,228 @@ async function api(req, res, url) {
 function splitLines(v) {
   if (Array.isArray(v)) return v.filter(Boolean);
   return String(v||'').split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+/* ---------- share previews (Open Graph) ----------
+   Facebook, WhatsApp, Instagram and the rest never receive the "#..." part of a link and do not
+   run the page's JavaScript — they read the raw HTML the server sends and nothing else. So the
+   social tags are filled in here, before the page goes out: the shop's own cover for the home
+   page, and the product's real photo, name and price for a /p/<id> link. Nothing here exposes
+   cost, wholesale or any other private field — only what a shopper already sees on the page. */
+const SHELL_PATH = path.join(PUBLIC_DIR, 'index.html');
+let SHELL_CACHE = { mtime: -1, html: '' };
+function shellHtml() {
+  const st = fs.statSync(SHELL_PATH);
+  if (st.mtimeMs !== SHELL_CACHE.mtime) SHELL_CACHE = { mtime: st.mtimeMs, html: fs.readFileSync(SHELL_PATH, 'utf8') };
+  return SHELL_CACHE.html;
+}
+// The public address of this site. A `site_url` setting wins; otherwise it is read off the
+// request, which is what works on Render behind its proxy without configuring anything.
+function siteBase(req) {
+  const configured = String(getSetting('site_url', '') || '').trim().replace(/\/+$/, '');
+  if (configured) return configured;
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || 'http';
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  return host ? `${proto}://${host}` : '';
+}
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function absUrl(base, u) {
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  return base + (String(u).startsWith('/') ? u : '/' + u);
+}
+function plain(s, max) {
+  const out = String(s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return out.length > max ? out.slice(0, max - 1).trimEnd() + '…' : out;
+}
+const SHOP_TAGLINE = 'Herbs, Islamic essentials, perfumes, premium dates, clothing, electronics and household goods. Nationwide delivery in The Gambia — order on WhatsApp.';
+
+function homeSocial(base) {
+  const shop = getSetting('store_name', 'Jeddah Trading') || 'Jeddah Trading';
+  const title = `${shop} — Quality Goods for Every Home | The Gambia`;
+  const img = absUrl(base, '/og-cover.jpg');
+  return `
+<meta name="description" content="${esc(SHOP_TAGLINE)}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="${esc(shop)}" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(SHOP_TAGLINE)}" />
+<meta property="og:url" content="${esc(base + '/')}" />
+<meta property="og:image" content="${esc(img)}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="${esc(shop)} — quality goods, nationwide delivery in The Gambia" />
+<meta property="og:locale" content="en_GM" />
+<meta property="og:locale:alternate" content="ar_AR" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="${esc(base + '/')}" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Store","name":${JSON.stringify(shop)},
+ "description":"Herbs, Islamic products, perfumes, dates, clothing, electronics and general goods.",
+ "address":{"@type":"PostalAddress","addressLocality":"Serrekunda","addressRegion":"Kanifing","addressCountry":"GM"},
+ "telephone":"+2207093900","currenciesAccepted":"GMD","image":${JSON.stringify(img)},
+ "paymentAccepted":"Cash, Mobile Money, Bank Transfer","priceRange":"D"}
+</script>
+<title>${esc(title)}</title>`;
+}
+
+function productSocial(p, base) {
+  const shop = getSetting('store_name', 'Jeddah Trading') || 'Jeddah Trading';
+  const name = p.en.name || shop;
+  const low = p.hasSizes ? p.priceFrom : (p.sale || p.price);
+  const high = p.hasSizes ? p.priceTo : low;
+  const money = n => 'D' + Number(n || 0).toLocaleString('en-US');
+  const priceLabel = (p.hasSizes && high > low) ? `${money(low)} – ${money(high)}` : money(low);
+  const title = `${name} — ${priceLabel} | ${shop}`;
+  const sizes = p.hasSizes ? p.variants.filter(v => v.active).map(v => v.label_en).filter(Boolean) : [];
+  const desc = plain(p.en.desc, 180) ||
+    `${name} from ${shop}${sizes.length ? ' — available in ' + sizes.join(', ') : ''}. Nationwide delivery in The Gambia.`;
+  const photo = p.image || (Array.isArray(p.images) && p.images[0]) || '';
+  const img = photo ? absUrl(base, photo) : absUrl(base, '/og-cover.jpg');
+  const url = `${base}/p/${p.id}`;
+  const inStock = Number(p.stock) > 0;
+  const ld = {
+    '@context': 'https://schema.org', '@type': 'Product',
+    name, description: desc, image: img, sku: String(p.id),
+    brand: { '@type': 'Brand', name: p.brand || shop },
+    offers: {
+      '@type': 'Offer', url, price: Number(low || 0).toFixed(2), priceCurrency: 'GMD',
+      availability: 'https://schema.org/' + (inStock ? 'InStock' : 'OutOfStock'),
+      seller: { '@type': 'Organization', name: shop },
+    },
+  };
+  return `
+<meta name="description" content="${esc(desc)}" />
+<meta property="og:type" content="product" />
+<meta property="og:site_name" content="${esc(shop)}" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(desc)}" />
+<meta property="og:url" content="${esc(url)}" />
+<meta property="og:image" content="${esc(img)}" />
+<meta property="og:image:alt" content="${esc(name)}" />
+<meta property="og:locale" content="en_GM" />
+<meta property="og:locale:alternate" content="ar_AR" />
+<meta property="product:price:amount" content="${esc(Number(low || 0).toFixed(2))}" />
+<meta property="product:price:currency" content="GMD" />
+<meta property="product:availability" content="${inStock ? 'in stock' : 'out of stock'}" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="${esc(url)}" />
+<script type="application/ld+json">
+${JSON.stringify(ld)}
+</script>
+<title>${esc(title)}</title>`;
+}
+
+// Serves the storefront with its social tags rewritten. `p` null → the home-page tags.
+function serveShell(req, res, p) {
+  let html;
+  try { html = shellHtml(); } catch { return serveStatic(res, PUBLIC_DIR, 'index.html'); }
+  const base = siteBase(req);
+  const block = p ? productSocial(p, base) : homeSocial(base);
+  // A function replacement, so a "$" in a product name is never read as a capture reference.
+  const out = /<!--SOCIAL-->[\s\S]*?<!--\/SOCIAL-->/.test(html)
+    ? html.replace(/<!--SOCIAL-->[\s\S]*?<!--\/SOCIAL-->/, () => '<!--SOCIAL-->' + block + '\n<!--/SOCIAL-->')
+    : html;
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.end(out);
+}
+
+/* ---------- product catalog feed ----------
+   This is the file Facebook and Instagram read to build catalogue adverts — the carousels that
+   show a real product, its real photo and its real price, and follow a shopper who looked at it.
+   Meta re-fetches the URL on a schedule, so prices and stock stay right by themselves; nothing
+   has to be uploaded by hand. The same format is what Google Merchant Center reads.
+
+   One row per thing a customer can actually buy: a product sold in sizes contributes one row per
+   size, each with its own price and stock, tied together by item_group_id so Meta knows they are
+   one product. Only public information goes in — never cost or wholesale price. */
+const FEED_AVAILABLE = 'in stock', FEED_GONE = 'out of stock';
+function feedCurrency() {
+  return String(getSetting('catalog_currency', 'GMD') || 'GMD').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'GMD';
+}
+function feedRows(base) {
+  const shop = getSetting('store_name', 'Jeddah Trading') || 'Jeddah Trading';
+  const cur = feedCurrency();
+  const amount = n => Number(n || 0).toFixed(2) + ' ' + cur;
+  const catName = {};
+  try { for (const c of queries.activeCategories()) catName[c.slug] = c.en; } catch {}
+  const rows = [];
+  for (const p of queries.activeProducts()) {
+    const photo = p.image || (Array.isArray(p.images) && p.images[0]) || '';
+    const common = {
+      description: plain(p.en.desc, 600) || `${p.en.name} from ${shop}. Nationwide delivery in The Gambia.`,
+      condition: 'new',
+      brand: (p.brand || shop).slice(0, 70),
+      image_link: photo ? absUrl(base, photo) : absUrl(base, '/og-cover.jpg'),
+      additional_image_link: (Array.isArray(p.images) ? p.images.slice(1, 11) : []).map(u => absUrl(base, u)).join(','),
+      product_type: catName[p.cat] || p.cat || '',
+    };
+    const live = Array.isArray(p.variants) ? p.variants.filter(v => v.active) : [];
+    if (p.hasSizes && live.length) {
+      for (const v of live) {
+        const label = (v.label_en || '').trim();
+        rows.push({ ...common,
+          id: `jt-${p.id}-${v.id}`,
+          item_group_id: `jt-${p.id}`,
+          title: plain(label ? `${p.en.name} — ${label}` : p.en.name, 190),
+          availability: v.stock > 0 ? FEED_AVAILABLE : FEED_GONE,
+          price: amount(v.price),
+          sale_price: v.sale ? amount(v.sale) : '',
+          inventory: Math.max(0, Number(v.stock) || 0),
+          // The size the advert showed is the size that is already chosen when they arrive.
+          link: `${base}/p/${p.id}?size=${v.id}`,
+        });
+      }
+    } else {
+      rows.push({ ...common,
+        id: `jt-${p.id}`,
+        item_group_id: '',
+        title: plain(p.en.name, 190),
+        availability: Number(p.stock) > 0 ? FEED_AVAILABLE : FEED_GONE,
+        price: amount(p.price),
+        sale_price: p.sale ? amount(p.sale) : '',
+        inventory: Math.max(0, Number(p.stock) || 0),
+        link: `${base}/p/${p.id}`,
+      });
+    }
+  }
+  return rows;
+}
+const FEED_COLUMNS = ['id', 'title', 'description', 'availability', 'condition', 'price', 'sale_price',
+  'link', 'image_link', 'additional_image_link', 'brand', 'item_group_id', 'product_type', 'inventory'];
+function csvCell(v) {
+  return '"' + String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').replace(/"/g, '""') + '"';
+}
+function feedCsv(base) {
+  const lines = [FEED_COLUMNS.join(',')];
+  for (const row of feedRows(base)) lines.push(FEED_COLUMNS.map(c => csvCell(row[c])).join(','));
+  return lines.join('\n') + '\n';
+}
+function xmlText(v) {
+  return String(v == null ? '' : v)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function feedXml(base) {
+  const shop = getSetting('store_name', 'Jeddah Trading') || 'Jeddah Trading';
+  const out = ['<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">', '<channel>',
+    `<title>${xmlText(shop)}</title>`, `<link>${xmlText(base + '/')}</link>`,
+    `<description>${xmlText(shop + ' product catalogue')}</description>`];
+  for (const row of feedRows(base)) {
+    out.push('<item>');
+    for (const c of FEED_COLUMNS) {
+      if (row[c] === '' || row[c] == null) continue;
+      out.push(`<g:${c}>${xmlText(row[c])}</g:${c}>`);
+    }
+    out.push('</item>');
+  }
+  out.push('</channel>', '</rss>');
+  return out.join('\n') + '\n';
 }
 
 /* ---------- static files ---------- */
@@ -2078,7 +2304,35 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/uploads/')) {
       return serveStatic(res, UPLOAD_DIR, decodeURIComponent(url.pathname.replace(/^\/uploads\/?/, '')));
     }
-    const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+    // The catalogue Facebook, Instagram and Google read on a schedule. Public on purpose:
+    // their crawlers sign in to nothing, and every figure in it is already on the shop.
+    if (url.pathname === '/catalog.csv' || url.pathname === '/catalog.xml') {
+      const base = siteBase(req);
+      const xml = url.pathname.endsWith('.xml');
+      let body;
+      try { body = xml ? feedXml(base) : feedCsv(base); }
+      catch (e) { console.error('feed error:', e); return send(res, 500, { error: 'feed unavailable' }); }
+      res.writeHead(200, {
+        'Content-Type': xml ? 'application/xml; charset=utf-8' : 'text/csv; charset=utf-8',
+        'Content-Disposition': `inline; filename="catalog.${xml ? 'xml' : 'csv'}"`,
+        'Cache-Control': 'public, max-age=900',
+      });
+      return res.end(body);
+    }
+    // Shareable product link: /p/<id> (an optional trailing slug is ignored, so
+    // /p/12/ajwa-dates reads the same). Unknown or switched-off products still open
+    // the shop rather than a dead end, so an old shared link never breaks.
+    const share = /^\/p\/(\d+)(?:\/|$)/.exec(url.pathname);
+    if (share) {
+      let p = null;
+      try {
+        const found = queries.productById(Number(share[1]));
+        if (found && found.active && found.status !== 'archived' && found.status !== 'draft') p = found;
+      } catch { p = null; }
+      return serveShell(req, res, p);
+    }
+    if (url.pathname === '/' || url.pathname === '/index.html') return serveShell(req, res, null);
+    const rel = url.pathname.slice(1);
     return serveStatic(res, PUBLIC_DIR, decodeURIComponent(rel));
   } catch (e) {
     console.error('Server error:', e);

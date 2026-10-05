@@ -576,6 +576,10 @@ const DEFAULT_SETTINGS = {
   chat_hours: '9:00–20:00 Sat–Thu',
   chat_upload: '1',               // allow image / payment-proof attachments
   chat_maxmb: '4',
+  // ---- Facebook / Instagram ads ----
+  meta_pixel_id: '',              // empty = no tracking code is sent to shoppers at all
+  catalog_currency: 'GMD',        // the currency written into the product feed
+  site_url: '',                   // public address, e.g. https://shopjeddahtrading.com (blank = work it out from the request)
 };
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k, null) === null) setSetting(k, v);
