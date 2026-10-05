@@ -4,14 +4,23 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#0c3b22" />
-<meta name="description" content="Jeddah Trading — herbs, Islamic products, perfumes, dates, clothing, electronics & general goods in The Gambia. Order on WhatsApp, pay with WAVE, AfriMoney, QMoney or cash on delivery." />
 <meta name="keywords" content="Jeddah Trading, Gambia, herbs, Islamic products, perfumes, oud, dates, honey, thobe, abaya, Hajj gifts, Serrekunda, Banjul, WhatsApp shopping" />
+<!--SOCIAL-->
+<!-- Everything between these two markers is rewritten by the server on each page load, so a
+     shared product link shows that product's own photo, name and price on Facebook and
+     WhatsApp. What is written here is the fallback for the home page. -->
+<meta name="description" content="Jeddah Trading — herbs, Islamic products, perfumes, dates, clothing, electronics & general goods in The Gambia. Order on WhatsApp, pay with WAVE, AfriMoney, QMoney or cash on delivery." />
 <meta property="og:type" content="website" />
+<meta property="og:site_name" content="Jeddah Trading" />
 <meta property="og:title" content="Jeddah Trading — Quality Goods for Every Home | The Gambia" />
 <meta property="og:description" content="Herbs, Islamic essentials, perfumes, premium dates, clothing, electronics and household goods. Nationwide delivery in The Gambia — order on WhatsApp." />
+<meta property="og:image" content="/og-cover.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Jeddah Trading — quality goods, nationwide delivery in The Gambia" />
 <meta property="og:locale" content="en_GM" />
 <meta property="og:locale:alternate" content="ar_AR" />
-<meta name="twitter:card" content="summary" />
+<meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Store","name":"Jeddah Trading",
  "description":"Herbs, Islamic products, perfumes, dates, clothing, electronics and general goods.",
@@ -20,6 +29,7 @@
  "paymentAccepted":"Cash, Mobile Money, Bank Transfer","priceRange":"D"}
 </script>
 <title>Jeddah Trading — Quality Goods for Every Home | The Gambia</title>
+<!--/SOCIAL-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -2384,8 +2394,36 @@ function startHeroTimer(){
   heroTimer=setInterval(()=>showHeroSlide(heroIdx+1),6000);
 }
 
+/* ---------- Facebook / Instagram advert measurement ----------
+   Nothing here runs unless a Pixel ID has been entered on the admin Settings page. With no ID,
+   no third-party code is loaded at all and nothing about the shopper leaves this site. When an
+   ID is set, each event reports the same product IDs that appear in the catalogue feed
+   (/catalog.csv) — that matching is what lets an advert show the very item someone looked at. */
+let PIXEL_ON=false;
+function feedId(id,vid){return 'jt-'+id+(vid?'-'+vid:'')}
+function fbCurrency(){return (PAYINFO&&PAYINFO.catalog_currency)||'GMD'}
+function initPixel(){
+  const id=String((PAYINFO&&PAYINFO.meta_pixel_id)||'');
+  if(!/^[0-9]{6,20}$/.test(id))return;        // no ID, or not a plausible one → load nothing
+  if(window.fbq)return;
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s);
+  }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  try{fbq('init',id);fbq('track','PageView');PIXEL_ON=true;}catch(e){PIXEL_ON=false;}
+}
+function track(ev,data){ if(PIXEL_ON&&window.fbq){ try{fbq('track',ev,data||{})}catch(e){} } }
+// The cart, in the shape Facebook expects, for the checkout and purchase events.
+function cartContents(){
+  return cart.map(i=>({id:feedId(i.id,i.vid), quantity:i.qty,
+                       item_price:linePrice(prod(i.id),i.vid)}));
+}
+
 /* ---------- Share ---------- */
-function productLink(id){return location.origin+location.pathname+'#product='+id}
+/* A shared link must be a real path, not a #hash: Facebook and WhatsApp never send the part
+   after # to the server, so a #product= link can only ever show the generic shop preview.
+   /p/<id> is served by the server with that product's own photo, name and price. */
+function productLink(id){return location.origin+'/p/'+id}
 function shareProduct(how,id){
   const p=prod(id);if(!p)return;
   const link=productLink(id), text=p[LANG].name+' — '+STORE_NAME;
@@ -2505,6 +2543,8 @@ function relatedFor(p){
 }
 function renderProductPage(id){
   const p=prod(id); if(!p){location.hash='';return;}
+  track('ViewContent',{content_type:'product', content_ids:[feedId(p.id,0)],
+    content_name:p.en.name, value:unitPrice(p), currency:fbCurrency()});
   const d=p[LANG], ss=stockState(p), out=ss==='out';
   const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
   const catLabel=(catMap[p.cat]&&catMap[p.cat][LANG])||'';
@@ -2716,6 +2756,8 @@ function addToCart(id,qty,vid){
   const k=ckey(id,vid);
   const e=cart.find(i=>ckey(i.id,i.vid)===k);
   if(e){e.qty=Math.min(max,e.qty+qty);}else cart.push({id,vid,qty:Math.min(max,qty)});
+  track('AddToCart',{content_type:'product', content_ids:[feedId(id,vid)],
+    content_name:lineName(p,vid), value:linePrice(p,vid)*qty, currency:fbCurrency()});
   updateCart(); bump(); toast(t('toast_added'));
 }
 function setQty(key,delta){
@@ -2813,6 +2855,8 @@ function openCheckout(){
     if(!coData.addr&&CUST.address)coData.addr=CUST.address;
     if(!coData.zoneId&&CUST.zone_id)coData.zoneId=CUST.zone_id;
   }
+  track('InitiateCheckout',{content_type:'product', contents:cartContents(),
+    num_items:cart.reduce((s,i)=>s+i.qty,0), value:cartSubtotal(), currency:fbCurrency()});
   coStep=1; closeAll(); renderCheckout(); showModal('#checkoutModal');
 }
 function renderCheckout(){
@@ -2993,6 +3037,8 @@ async function placeOrder(){
   // snapshot for the receipt (cart is cleared after)
   let sub=cartSubtotal(), fee=deliveryFee(), disc=coDiscountTotal();
   const snapItems=cart.map(i=>{const p=prod(i.id);return {name:lineName(p,i.vid), qty:i.qty, line:linePrice(p,i.vid)*i.qty};});
+  const snapContents=cartContents();   // taken before the cart is emptied below
+  const snapCount=cart.reduce((s,i)=>s+i.qty,0);
   let ref='';
   try{
     const hdrs={'Content-Type':'application/json'};
@@ -3012,6 +3058,9 @@ async function placeOrder(){
     addr:coData.addr, area:coData.area, pay:payLabel(coData.pay), items:snapItems, sub, fee, disc, total:sub-disc+fee,
     date:new Date().toLocaleString()};
   LAST_RECEIPT=receipt;
+  // Reported once the order really exists, with the totals the server worked out.
+  track('Purchase',{content_type:'product', contents:snapContents, num_items:snapCount,
+    value:receipt.total, currency:fbCurrency(), order_id:ref||undefined});
   $('#checkoutCard').innerHTML=`<div style="padding:30px 26px"><div class="order-success">
     <div class="os-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></div>
     <h3 class="display" style="color:var(--green-800);font-size:1.5rem;margin-bottom:4px">${t('co_placed')}</h3>
@@ -3967,6 +4016,7 @@ async function init(){
   $('#yr').textContent='2026';
   renderSkeletons();
   await loadLiveData();
+  initPixel();        // silent unless a Pixel ID is set in Settings
   applyLang();
   observeReveals();
   // header shadow
@@ -4035,7 +4085,19 @@ async function init(){
   addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
   // product page routing
   addEventListener('hashchange',handleRoute);
+  // Someone arriving from a shared /p/<id> link lands on the product it names.
+  const sharedProduct=/^\/p\/(\d+)/.exec(location.pathname);
+  // A catalogue advert links to one size: /p/12?size=34. Read it before the address is tidied.
+  let sharedSize=0;
+  try{sharedSize=+(new URLSearchParams(location.search).get('size')||0)||0;}catch(e){}
+  if(sharedProduct){
+    try{history.replaceState(null,'','/#product='+sharedProduct[1]);}
+    catch{location.hash='product='+sharedProduct[1];}
+  }
   handleRoute();
+  if(sharedProduct&&sharedSize&&document.body.classList.contains('viewing-product')){
+    try{selectSize(sharedSize);}catch(e){}
+  }
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
