@@ -505,6 +505,15 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       <section class="view" id="view-products">
         <div class="page-head"><div><h2>Products</h2><p>Add, edit and manage everything customers see</p></div><button class="btn btn-gold" id="addProd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M12 5v14M5 12h14"/></svg>Add Product</button></div>
         <div class="toolbar"><input class="grow" id="prodSearch" placeholder="Search name, SKU or barcode…"><select id="prodCatFilter"><option value="">All categories</option></select><select id="prodStockFilter"><option value="">All products</option><option value="deals">⚡ Flash deals</option><option value="low">Low / out of stock</option><option value="new">New arrivals</option><option value="best">Best sellers</option></select></div>
+        <div class="panel" id="photoPanel" style="margin-bottom:16px">
+          <h3>Photo size</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:12px">New photos are shrunk automatically when you upload them. Use this once to shrink the photos that were already here — the pictures stay the same, they just become much lighter, so the shop opens faster on phone data. Nothing is deleted and no price or stock is touched.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-outline" id="optScan">Check photo sizes</button>
+            <button class="btn btn-primary" id="optRun" style="display:none">Shrink them</button>
+            <span id="optNote" style="color:var(--muted);font-size:.86rem"></span>
+          </div>
+        </div>
         <div class="tbl-wrap"><table>
           <thead><tr><th>Product</th><th class="hide-sm">SKU</th><th class="hide-sm">Category</th><th>Price</th><th class="hide-sm">Cost</th><th>Stock</th><th class="hide-sm">Status</th><th></th></tr></thead>
           <tbody id="prodRows"></tbody>
@@ -2199,15 +2208,124 @@ $('#p_sizeRows').addEventListener('click',e=>{
     PSIZES[i].barcode=String(Date.now()).slice(-9)+Math.floor(Math.random()*90+10);
     renderSizes();return;}
 });
-$('#addProd').onclick=()=>openProdModal(null);
-$('#p_file').onchange=e=>{
-  const files=[...e.target.files];e.target.value='';
-  files.forEach(f=>{
-    if(PGALLERY.length>=8){toast('Up to 8 photos');return;}
-    if(f.size>4*1024*1024){toast(f.name+' is too large (max 4MB)');return;}
-    const rd=new FileReader();rd.onload=()=>{PGALLERY.push(rd.result);renderGallery();};rd.readAsDataURL(f);
+/* ---------- Photo shrinking ----------
+   A phone camera makes a 3–6 MB photo, and nothing in the shop ever shows one wider than about
+   1200 pixels. So the browser redraws each picture at that size before it is ever uploaded: the
+   shop opens far quicker on phone data, the Facebook catalogue gets the same lighter pictures,
+   and the photo on your own phone or computer is never altered. If anything goes wrong the
+   original is uploaded as before, so a photo is never lost to this. */
+const PHOTO_MAX=1200, PHOTO_Q=0.82, PHOTO_TARGET=240*1024;
+function dataUrlBytes(d){ return Math.round((String(d).split(',')[1]||'').length*0.75); }
+// src: a File chosen in a form, or the URL of a photo already on the shop.
+function shrinkPhoto(src){
+  return new Promise(resolve=>{
+    let objUrl=null;
+    const finish=v=>{ if(objUrl)URL.revokeObjectURL(objUrl); resolve(v); };
+    const img=new Image();
+    img.onerror=()=>finish(null);
+    img.onload=()=>{
+      try{
+        const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+        if(!W||!H)return finish(null);
+        const scale=Math.min(1,PHOTO_MAX/Math.max(W,H));
+        const w=Math.max(1,Math.round(W*scale)), h=Math.max(1,Math.round(H*scale));
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        const x=c.getContext('2d');
+        x.fillStyle='#ffffff';x.fillRect(0,0,w,h);   // a JPEG has no transparency: white, never black
+        x.drawImage(img,0,0,w,h);
+        let q=PHOTO_Q,out=c.toDataURL('image/jpeg',q);
+        while(dataUrlBytes(out)>PHOTO_TARGET&&q>0.5){q=Math.round((q-0.08)*100)/100;out=c.toDataURL('image/jpeg',q);}
+        finish(out&&out.startsWith('data:image/')?out:null);
+      }catch(e){ finish(null); }   // a tainted canvas or an odd file → keep the original
+    };
+    if(typeof src==='string'){ img.src=src; }
+    else { objUrl=URL.createObjectURL(src); img.src=objUrl; }
   });
+}
+function fileToDataUrl(f){
+  return new Promise(r=>{const rd=new FileReader();rd.onload=()=>r(rd.result);rd.onerror=()=>r(null);rd.readAsDataURL(f);});
+}
+async function photoForUpload(f){ return (await shrinkPhoto(f)) || (await fileToDataUrl(f)); }
+
+$('#addProd').onclick=()=>openProdModal(null);
+$('#p_file').onchange=async e=>{
+  const files=[...e.target.files];e.target.value='';
+  for(const f of files){
+    if(PGALLERY.length>=8){toast('Up to 8 photos');break;}
+    // The cap is on what comes off the camera; what gets uploaded is the shrunken copy.
+    if(f.size>16*1024*1024){toast(f.name+' is too large (max 16MB)');continue;}
+    const d=await photoForUpload(f);
+    if(!d){toast('Could not read '+f.name);continue;}
+    PGALLERY.push(d);renderGallery();
+  }
 };
+/* ---------- Shrinking the photos that are already on the shop ----------
+   A scan first, so you can see what it would save before anything changes. The shrinking then
+   goes product by product, replacing only the photos that are actually heavy; a photo that is
+   already small, or that cannot be read for any reason, is left exactly as it is. */
+let OPT_PLAN=null;
+function mb(n){ return (n/1048576).toFixed(1)+' MB'; }
+function photoUrlsOf(p){
+  const list=(p.images&&p.images.length)?p.images.slice():(p.image?[p.image]:[]);
+  return list.filter(u=>typeof u==='string'&&u.startsWith('/uploads/'));
+}
+async function photoSize(u){
+  try{ const r=await fetch(u,{method:'HEAD'}); return r.ok?Number(r.headers.get('content-length')||0):0; }
+  catch(e){ return 0; }
+}
+if($('#optScan'))$('#optScan').onclick=async()=>{
+  const btn=$('#optScan'),note=$('#optNote'),run=$('#optRun');
+  btn.disabled=true;run.style.display='none';note.textContent='Checking…';
+  const plan=[]; let total=0,heavy=0,heavyBytes=0,checked=0;
+  const withPhotos=PRODUCTS.filter(p=>photoUrlsOf(p).length);
+  for(const p of withPhotos){
+    const urls=photoUrlsOf(p); const big=[];
+    for(const u of urls){
+      const s=await photoSize(u); total++; checked++;
+      if(s>PHOTO_TARGET*1.25){ big.push(u); heavy++; heavyBytes+=s; }
+    }
+    if(big.length)plan.push({id:p.id,name:p.name_en||p.en&&p.en.name||('#'+p.id),bytes:heavyBytes});
+    note.textContent='Checked '+checked+' photos…';
+  }
+  OPT_PLAN=plan;
+  btn.disabled=false;
+  if(!heavy){ note.textContent='All '+total+' photos are already a good size — nothing to do.'; return; }
+  note.textContent=heavy+' of '+total+' photos are heavy ('+mb(heavyBytes)+' in total) across '+plan.length+(plan.length===1?' product.':' products.');
+  run.style.display='';
+};
+if($('#optRun'))$('#optRun').onclick=async()=>{
+  if(!OPT_PLAN||!OPT_PLAN.length){toast('Run the check first');return;}
+  const run=$('#optRun'),scan=$('#optScan'),note=$('#optNote');
+  run.disabled=scan.disabled=true;
+  let done=0,changed=0,before=0,after=0,failed=0;
+  for(const row of OPT_PLAN){
+    const p=PRODUCTS.find(x=>x.id===row.id); if(!p){done++;continue;}
+    const urls=(p.images&&p.images.length)?p.images.slice():(p.image?[p.image]:[]);
+    const next=[]; let touched=false;
+    for(const u of urls){
+      if(typeof u!=='string'||!u.startsWith('/uploads/')){next.push(u);continue;}
+      const size=await photoSize(u);
+      if(size&&size<=PHOTO_TARGET*1.25){next.push(u);continue;}
+      const small=await shrinkPhoto(u);
+      if(!small){ next.push(u); failed++; continue; }
+      const nb=dataUrlBytes(small);
+      if(size&&nb>=size){ next.push(u); continue; }   // never make a photo bigger
+      before+=size; after+=nb; next.push(small); touched=true;
+    }
+    if(touched){
+      try{ await api('/admin/products/'+p.id,{method:'PATCH',body:JSON.stringify({images:next})}); changed++; }
+      catch(e){ failed++; }
+    }
+    done++;
+    note.textContent='Shrunk '+done+' of '+OPT_PLAN.length+' products…';
+  }
+  run.disabled=scan.disabled=false; run.style.display='none'; OPT_PLAN=null;
+  note.textContent=changed+(changed===1?' product':' products')+' updated · '+mb(before)+' of photos became '+mb(after)+
+    (failed?' · '+failed+' left unchanged':'');
+  toast('Photos shrunk');
+  try{ const fresh=await api('/admin/products'); PRODUCTS=fresh.products; renderProducts(); }catch(e){}
+};
+
 // SKU auto-generate: JT-<CAT3>-<seq>
 $('#p_skuGen').onclick=()=>{
   const cat=($('#p_cat').value||'gen').slice(0,3).toUpperCase();
@@ -2615,7 +2733,7 @@ if($('#cpAdd'))$('#cpAdd').onclick=async()=>{
   }catch(err){toast(err.message);}
 };
 let BN_IMG=null;
-if($('#bn_file'))$('#bn_file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>4*1024*1024){toast('Image too large (max 4MB)');return;}const rd=new FileReader();rd.onload=()=>{BN_IMG=rd.result;const pv=$('#bn_preview');pv.src=rd.result;pv.style.display='block';};rd.readAsDataURL(f);};
+if($('#bn_file'))$('#bn_file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>16*1024*1024){toast('Image too large (max 16MB)');return;}const d=await photoForUpload(f);if(!d){toast('Could not read that image');return;}BN_IMG=d;const pv=$('#bn_preview');pv.src=d;pv.style.display='block';};
 if($('#bnAdd'))$('#bnAdd').onclick=async()=>{
   if(!BN_IMG){toast('Upload a banner image first');return;}
   try{
@@ -2763,7 +2881,7 @@ function openCatModal(c){
   const pv=$('#ct_preview');if(c&&c.image){pv.src=c.image;pv.style.display='block';}else{pv.style.display='none';pv.src='';}
   openModal('catModal');
 }
-$('#ct_file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>4*1024*1024){toast('Image too large (max 4MB)');return;}const rd=new FileReader();rd.onload=()=>{catFile=rd.result;const pv=$('#ct_preview');pv.src=rd.result;pv.style.display='block';};rd.readAsDataURL(f);};
+$('#ct_file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>16*1024*1024){toast('Image too large (max 16MB)');return;}const d=await photoForUpload(f);if(!d){toast('Could not read that image');return;}catFile=d;const pv=$('#ct_preview');pv.src=d;pv.style.display='block';};
 $('#catForm').onsubmit=async e=>{
   e.preventDefault();const id=$('#ct_id').value;
   const body={name_en:$('#ct_name_en').value,name_ar:$('#ct_name_ar').value,icon:$('#ct_icon').value,is_active:$('#ct_active').checked};
