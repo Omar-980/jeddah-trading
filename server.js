@@ -2272,21 +2272,13 @@ function feedXml(base) {
 }
 
 /* ---------- static files ---------- */
-function serveStatic(res, baseDir, relPath, method) {
+function serveStatic(res, baseDir, relPath) {
   let fp = path.join(baseDir, relPath);
   if (!fp.startsWith(baseDir)) return send(res, 403, { error: 'forbidden' });
   if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!fs.existsSync(fp)) return send(res, 404, 'Not found', { 'Content-Type': 'text/plain' });
   const ext = path.extname(fp).toLowerCase();
-  // Content-Length lets a browser show real progress, and lets the admin panel ask how big a
-  // photo is with a HEAD request instead of downloading the whole thing to find out.
-  const size = fs.statSync(fp).size;
-  res.writeHead(200, {
-    'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Content-Length': size,
-    'Cache-Control': 'no-cache',
-  });
-  if (String(method || '').toUpperCase() === 'HEAD') return res.end();
+  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(fp).pipe(res);
 }
 
@@ -2303,14 +2295,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       const rel = url.pathname.replace(/^\/admin\/?/, '') || 'index.html';
-      return serveStatic(res, ADMIN_DIR, rel, req.method);
+      return serveStatic(res, ADMIN_DIR, rel);
     }
     if (url.pathname === '/investor' || url.pathname === '/investor/') {
-      return serveStatic(res, PUBLIC_DIR, 'investor.html', req.method);
+      return serveStatic(res, PUBLIC_DIR, 'investor.html');
     }
     // Serve uploaded product images from the (possibly volume-backed) upload dir.
     if (url.pathname.startsWith('/uploads/')) {
-      return serveStatic(res, UPLOAD_DIR, decodeURIComponent(url.pathname.replace(/^\/uploads\/?/, '')), req.method);
+      return serveStatic(res, UPLOAD_DIR, decodeURIComponent(url.pathname.replace(/^\/uploads\/?/, '')));
     }
     // The catalogue Facebook, Instagram and Google read on a schedule. Public on purpose:
     // their crawlers sign in to nothing, and every figure in it is already on the shop.
@@ -2341,7 +2333,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/' || url.pathname === '/index.html') return serveShell(req, res, null);
     const rel = url.pathname.slice(1);
-    return serveStatic(res, PUBLIC_DIR, decodeURIComponent(rel), req.method);
+    return serveStatic(res, PUBLIC_DIR, decodeURIComponent(rel));
   } catch (e) {
     console.error('Server error:', e);
     send(res, 500, { error: 'server error' });
