@@ -260,6 +260,8 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .gallery .gi{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1.5px solid var(--border);background:#fff}
 .gallery .gi img{width:100%;height:100%;object-fit:cover}
 .gallery .gi .gx{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(192,57,43,.92);color:#fff;display:grid;place-items:center;font-size:.8rem;line-height:1;cursor:pointer}
+.gallery .gi .gcut{position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:6px;background:rgba(12,59,34,.9);color:#fff;display:grid;place-items:center;font-size:.72rem;line-height:1;cursor:pointer}
+.btn-sm.on{background:var(--green-700);color:#fff;border-color:var(--green-700)}
 .gallery .gi .primary-badge{position:absolute;bottom:0;left:0;right:0;background:rgba(28,125,74,.92);color:#fff;font-size:.6rem;text-align:center;padding:1px}
 .gallery .gadd{width:72px;height:72px;border-radius:10px;border:2px dashed var(--border);display:grid;place-items:center;cursor:pointer;color:var(--green-700);font-size:1.6rem}
 .gallery .gadd:hover{border-color:var(--green-600)}
@@ -460,7 +462,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Wide promo images shown under the hero. Link them to a product (#product=5), a category, or the shop.</p>
           <div style="text-align:center;margin-bottom:12px">
             <img class="img-preview" id="bn_preview" alt="">
-            <label class="img-drop" for="bn_file"><div style="font-weight:600;color:var(--green-700)">Click to upload banner image</div><div class="hint">Wide image works best (e.g. 1200×400) · up to 4MB</div></label>
+            <label class="img-drop" for="bn_file"><div style="font-weight:600;color:var(--green-700)">Click to upload banner image</div><div class="hint">Wide image works best (e.g. 1200×400) · up to 16MB — it is shrunk for you</div></label>
             <input type="file" id="bn_file" accept="image/*" style="display:none">
           </div>
           <div class="grid2">
@@ -505,6 +507,25 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       <section class="view" id="view-products">
         <div class="page-head"><div><h2>Products</h2><p>Add, edit and manage everything customers see</p></div><button class="btn btn-gold" id="addProd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M12 5v14M5 12h14"/></svg>Add Product</button></div>
         <div class="toolbar"><input class="grow" id="prodSearch" placeholder="Search name, SKU or barcode…"><select id="prodCatFilter"><option value="">All categories</option></select><select id="prodStockFilter"><option value="">All products</option><option value="deals">⚡ Flash deals</option><option value="low">Low / out of stock</option><option value="new">New arrivals</option><option value="best">Best sellers</option></select></div>
+        <div class="panel" id="restorePanel" style="margin-bottom:16px">
+          <h3>Put the original photos back</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:12px">Shrinking a photo never deleted the one it replaced. This finds those originals, works out which product each belongs to by comparing the pictures, and puts them back exactly as they were. Nothing is deleted either way, and no price or stock is touched.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-outline" id="rsScan">Find the originals</button>
+            <button class="btn btn-primary" id="rsRun" style="display:none">Put them back</button>
+            <span id="rsNote" style="color:var(--muted);font-size:.86rem"></span>
+          </div>
+        </div>
+
+        <div class="panel" id="photoPanel" style="margin-bottom:16px">
+          <h3>Photo size</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:12px">New photos are shrunk automatically when you upload them. Use this once to shrink the photos that were already here — the pictures stay the same, they just become much lighter, so the shop opens faster on phone data. Nothing is deleted and no price or stock is touched.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-outline" id="optScan">Check photo sizes</button>
+            <button class="btn btn-primary" id="optRun" style="display:none">Shrink them</button>
+            <span id="optNote" style="color:var(--muted);font-size:.86rem"></span>
+          </div>
+        </div>
         <div class="tbl-wrap"><table>
           <thead><tr><th>Product</th><th class="hide-sm">SKU</th><th class="hide-sm">Category</th><th>Price</th><th class="hide-sm">Cost</th><th>Stock</th><th class="hide-sm">Status</th><th></th></tr></thead>
           <tbody id="prodRows"></tbody>
@@ -909,7 +930,27 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
     <div class="section-label">Photos</div>
     <div class="gallery" id="p_gallery"></div>
     <input type="file" id="p_file" accept="image/*" multiple style="display:none">
-    <div class="hint" style="text-align:center">First photo is the main image · up to 8 · JPG / PNG / WebP · 4MB each</div>
+    <div class="hint" style="text-align:center">First photo is the main image · up to 8 · JPG / PNG / WebP · up to 16MB each, shrunk for you</div>
+    <div id="bgPanel" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--cream)">
+      <div style="font-weight:600;color:var(--green-800);margin-bottom:4px">Remove the backdrop</div>
+      <div class="hint" style="margin-bottom:10px">Shown on the colour your shop puts behind a photo. Check the edges before you keep it — a white or cream product can lose its outline on the stronger settings.</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+        <div style="background:#f3ecdb;border-radius:10px;padding:8px;display:grid;place-items:center;min-width:190px;min-height:190px">
+          <img id="bgPreview" alt="" style="max-width:174px;max-height:174px;display:block">
+        </div>
+        <div style="flex:1;min-width:190px">
+          <label style="font-size:.84rem;font-weight:600;display:block;margin-bottom:6px">Strength</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="bgStrength">
+            <button type="button" class="btn btn-outline btn-sm on" data-bgtol="10">Gentle</button>
+            <button type="button" class="btn btn-outline btn-sm" data-bgtol="20">Medium</button>
+            <button type="button" class="btn btn-outline btn-sm" data-bgtol="34">Strong</button>
+          </div>
+          <div id="bgNote" class="hint" style="margin-bottom:10px"></div>
+          <button type="button" class="btn btn-primary btn-sm" id="bgApply">Use this one</button>
+          <button type="button" class="btn btn-outline btn-sm" id="bgCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <div class="section-label">Details</div>
     <div class="grid2">
@@ -2094,12 +2135,13 @@ $('#prodSearch').oninput=renderProducts;$('#prodCatFilter').onchange=renderProdu
 if($('#prodStockFilter'))$('#prodStockFilter').onchange=renderProducts;
 let PGALLERY=[];  // array of image strings (existing /uploads paths or new data URLs)
 function renderGallery(){
-  const items=PGALLERY.map((src,i)=>`<div class="gi"><img src="${src}" alt="">${i===0?'<span class="primary-badge">Main</span>':''}<span class="gx" data-gimg-rm="${i}">✕</span></div>`).join('');
+  const items=PGALLERY.map((src,i)=>`<div class="gi"><img src="${src}" alt="">${i===0?'<span class="primary-badge">Main</span>':''}<span class="gx" data-gimg-rm="${i}">✕</span><span class="gcut" data-gimg-cut="${i}" title="Remove the backdrop">✂</span></div>`).join('');
   const add=PGALLERY.length<8?`<div class="gadd" id="p_galleryAdd">+</div>`:'';
   $('#p_gallery').innerHTML=items+add;
   const a=$('#p_galleryAdd');if(a)a.onclick=()=>$('#p_file').click();
 }
 function openProdModal(p){
+  closeBgPanel();   // never carry a half-finished cut-out from the last product into this one
   PGALLERY=p?((p.images&&p.images.length)?[...p.images]:(p.image?[p.image]:[])):[];
   $('#pmTitle').textContent=p?'Edit Product':'Add Product';
   $('#p_id').value=p?p.id:'';
@@ -2199,15 +2241,347 @@ $('#p_sizeRows').addEventListener('click',e=>{
     PSIZES[i].barcode=String(Date.now()).slice(-9)+Math.floor(Math.random()*90+10);
     renderSizes();return;}
 });
-$('#addProd').onclick=()=>openProdModal(null);
-$('#p_file').onchange=e=>{
-  const files=[...e.target.files];e.target.value='';
-  files.forEach(f=>{
-    if(PGALLERY.length>=8){toast('Up to 8 photos');return;}
-    if(f.size>4*1024*1024){toast(f.name+' is too large (max 4MB)');return;}
-    const rd=new FileReader();rd.onload=()=>{PGALLERY.push(rd.result);renderGallery();};rd.readAsDataURL(f);
+/* ---------- Photo shrinking ----------
+   A phone camera makes a 3–6 MB photo, and nothing in the shop ever shows one wider than about
+   1200 pixels. So the browser redraws each picture at that size before it is ever uploaded: the
+   shop opens far quicker on phone data, the Facebook catalogue gets the same lighter pictures,
+   and the photo on your own phone or computer is never altered. If anything goes wrong the
+   original is uploaded as before, so a photo is never lost to this. */
+const PHOTO_MAX=1200, PHOTO_Q=0.82, PHOTO_TARGET=240*1024;
+const PHOTO_PNG_MAX=500*1024;   // a see-through photo is allowed to be heavier than a flat one
+const PHOTO_HEAVY=500*1024;     // above this a photo on the shop counts as worth shrinking
+function dataUrlBytes(d){ return Math.round((String(d).split(',')[1]||'').length*0.75); }
+// Does this picture have see-through parts? A product photographed on a plain background that
+// was then cut out does; an ordinary photograph does not.
+function looksSeeThrough(ctx,w,h){
+  try{
+    const d=ctx.getImageData(0,0,w,h).data;
+    for(let i=3;i<d.length;i+=12){ if(d[i]<250) return true; }   // every third pixel's alpha
+    return false;
+  }catch(e){ return false; }   // cannot read the pixels → treat it as an ordinary photo
+}
+function drawAt(img,max){
+  const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+  const scale=Math.min(1,max/Math.max(W,H));
+  const w=Math.max(1,Math.round(W*scale)), h=Math.max(1,Math.round(H*scale));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');
+  x.drawImage(img,0,0,w,h);
+  return {c:c,x:x,w:w,h:h};
+}
+// src: a File chosen in a form, or the URL of a photo already on the shop.
+function shrinkPhoto(src){
+  return new Promise(resolve=>{
+    let objUrl=null;
+    const finish=v=>{ if(objUrl)URL.revokeObjectURL(objUrl); resolve(v); };
+    const img=new Image();
+    img.onerror=()=>finish(null);
+    img.onload=()=>{
+      try{
+        if(!(img.naturalWidth||img.width))return finish(null);
+        const first=drawAt(img,PHOTO_MAX);
+        if(looksSeeThrough(first.x,first.w,first.h)){
+          /* Cut-out photos stay see-through, so the card's own colour shows behind them here,
+             on the product page, on WhatsApp and in adverts. They cannot be saved as a JPEG —
+             that would put a white box behind them — so they stay a PNG, and if that comes out
+             heavy the picture is made a little smaller rather than losing its transparency. */
+          let max=PHOTO_MAX, out=first.c.toDataURL('image/png');
+          while(dataUrlBytes(out)>PHOTO_PNG_MAX&&max>520){
+            max=Math.round(max*0.8);
+            out=drawAt(img,max).c.toDataURL('image/png');
+          }
+          return finish(out&&out.startsWith('data:image/')?out:null);
+        }
+        // An ordinary photograph: nothing shows through, so white underneath is invisible and
+        // a JPEG is several times lighter than the same picture as a PNG.
+        const x=first.x;
+        x.globalCompositeOperation='destination-over';
+        x.fillStyle='#ffffff';x.fillRect(0,0,first.w,first.h);
+        x.globalCompositeOperation='source-over';
+        let q=PHOTO_Q,out=first.c.toDataURL('image/jpeg',q);
+        while(dataUrlBytes(out)>PHOTO_TARGET&&q>0.5){q=Math.round((q-0.08)*100)/100;out=first.c.toDataURL('image/jpeg',q);}
+        finish(out&&out.startsWith('data:image/')?out:null);
+      }catch(e){ finish(null); }   // a tainted canvas or an odd file → keep the original
+    };
+    if(typeof src==='string'){ img.src=src; }
+    else { objUrl=URL.createObjectURL(src); img.src=objUrl; }
   });
+}
+function fileToDataUrl(f){
+  return new Promise(r=>{const rd=new FileReader();rd.onload=()=>r(rd.result);rd.onerror=()=>r(null);rd.readAsDataURL(f);});
+}
+async function photoForUpload(f){ return (await shrinkPhoto(f)) || (await fileToDataUrl(f)); }
+
+/* ---------- Removing a plain backdrop ----------
+   Done one photo at a time, with the result shown first, because no single setting is right for
+   every picture. The fill starts at the edges of the photo and spreads inwards, clearing only
+   what is close enough in colour to the corners — so a white label in the middle of a product is
+   never punched out. It still cannot tell a cream abaya from a cream backdrop, which is why the
+   preview and the gentle default matter. */
+function removeBackdrop(src,tol){
+  return new Promise(resolve=>{
+    let objUrl=null;
+    const finish=v=>{ if(objUrl)URL.revokeObjectURL(objUrl); resolve(v); };
+    const img=new Image();
+    img.onerror=()=>finish(null);
+    img.onload=()=>{
+      try{
+        const {c,x,w,h}=drawAt(img,PHOTO_MAX);
+        const id=x.getImageData(0,0,w,h), d=id.data;
+        const at=(px,py)=>((py*w+px)<<2);
+        const corner=[at(0,0),at(w-1,0),at(0,h-1),at(w-1,h-1)];
+        const bg=[0,1,2].map(k=>Math.round(corner.reduce((s,i)=>s+d[i+k],0)/4));
+        const near=i=>Math.max(Math.abs(d[i]-bg[0]),Math.abs(d[i+1]-bg[1]),Math.abs(d[i+2]-bg[2]));
+        const seen=new Uint8Array(w*h);
+        const q=new Int32Array(w*h); let head=0,tail=0;
+        const push=(px,py)=>{const n=py*w+px; if(!seen[n]){seen[n]=1;q[tail++]=n;}};
+        for(let px=0;px<w;px++){push(px,0);push(px,h-1);}
+        for(let py=0;py<h;py++){push(0,py);push(w-1,py);}
+        let cleared=0;
+        while(head<tail){
+          const n=q[head++], px=n%w, py=(n-px)/w, i=n<<2;
+          if(d[i+3]===0)continue;
+          if(near(i)>tol)continue;
+          d[i+3]=0; cleared++;
+          if(px+1<w)push(px+1,py);
+          if(px>0)push(px-1,py);
+          if(py+1<h)push(px,py+1);
+          if(py>0)push(px,py-1);
+        }
+        // Soften the cut: a pixel left standing next to a cleared one fades out if it is still
+        // close to the backdrop, which takes the hard stair-step off the edge.
+        const soft=tol*1.8;
+        for(let py=0;py<h;py++)for(let px=0;px<w;px++){
+          const i=at(px,py); if(d[i+3]===0)continue;
+          const edge=(px>0&&d[at(px-1,py)+3]===0)||(px+1<w&&d[at(px+1,py)+3]===0)||
+                     (py>0&&d[at(px,py-1)+3]===0)||(py+1<h&&d[at(px,py+1)+3]===0);
+          if(!edge)continue;
+          const dist=near(i);
+          if(dist<soft)d[i+3]=Math.round(255*Math.max(0,Math.min(1,dist/soft)));
+        }
+        x.putImageData(id,0,0);
+        finish({url:c.toDataURL('image/png'), cleared:cleared/(w*h), bg:bg});
+      }catch(e){ finish(null); }
+    };
+    if(typeof src==='string'){ img.src=src; }
+    else { objUrl=URL.createObjectURL(src); img.src=objUrl; }
+  });
+}
+let BG_INDEX=-1, BG_TOL=10, BG_RESULT=null;
+async function bgPreview(){
+  const note=$('#bgNote'), prev=$('#bgPreview');
+  if(BG_INDEX<0)return;
+  note.textContent='Working…';
+  const out=await removeBackdrop(PGALLERY[BG_INDEX],BG_TOL);
+  if(!out){note.textContent='This photo could not be read.';BG_RESULT=null;return;}
+  BG_RESULT=out.url; prev.src=out.url;
+  const pct=Math.round(out.cleared*100);
+  note.textContent=pct<2
+    ? 'Almost nothing was removed — this photo may not have a plain backdrop.'
+    : pct+'% of the picture was cleared. Check the edges of the product above.';
+}
+function openBgPanel(i){
+  BG_INDEX=i; BG_TOL=10; BG_RESULT=null;
+  $$('#bgStrength [data-bgtol]').forEach(b=>b.classList.toggle('on',+b.dataset.bgtol===10));
+  $('#bgPanel').style.display='';
+  $('#bgPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  bgPreview();
+}
+function closeBgPanel(){ BG_INDEX=-1; BG_RESULT=null; $('#bgPanel').style.display='none'; $('#bgPreview').removeAttribute('src'); }
+$('#bgStrength').onclick=e=>{
+  const b=e.target.closest('[data-bgtol]'); if(!b)return;
+  BG_TOL=+b.dataset.bgtol;
+  $$('#bgStrength [data-bgtol]').forEach(x=>x.classList.toggle('on',x===b));
+  bgPreview();
 };
+$('#bgCancel').onclick=closeBgPanel;
+$('#bgApply').onclick=async()=>{
+  if(BG_INDEX<0||!BG_RESULT){toast('Nothing to apply');return;}
+  const i=BG_INDEX, cut=BG_RESULT;
+  const sized=await shrinkPhoto(cut);     // keeps it see-through, just a sensible size
+  PGALLERY[i]=sized||cut;
+  closeBgPanel(); renderGallery(); toast('Backdrop removed');
+};
+
+$('#addProd').onclick=()=>openProdModal(null);
+$('#p_file').onchange=async e=>{
+  const files=[...e.target.files];e.target.value='';
+  for(const f of files){
+    if(PGALLERY.length>=8){toast('Up to 8 photos');break;}
+    // The cap is on what comes off the camera; what gets uploaded is the shrunken copy.
+    if(f.size>16*1024*1024){toast(f.name+' is too large (max 16MB)');continue;}
+    const d=await photoForUpload(f);
+    if(!d){toast('Could not read '+f.name);continue;}
+    PGALLERY.push(d);renderGallery();
+  }
+};
+/* ---------- Putting an original photo back ----------
+   A shrunk photo is a resized copy of the original, so the two pictures still look the same.
+   Each one is reduced to a small grey thumbprint and compared: for every photo on a product we
+   look for the leftover file that matches it, and only accept the match when it is both close
+   and clearly better than the next best, so two similar products are never swapped. */
+const PRINT_N=20;                       // thumbprint is 20x20 grey values
+const PRINT_NEAR=14, PRINT_MARGIN=1.35; // how close to accept, and how much better than second
+function photoPrint(url){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onerror=()=>resolve(null);
+    img.onload=()=>{
+      try{
+        const c=document.createElement('canvas');c.width=PRINT_N;c.height=PRINT_N;
+        const x=c.getContext('2d');
+        x.fillStyle='#ffffff';x.fillRect(0,0,PRINT_N,PRINT_N);   // flatten, so a white box and a
+        x.drawImage(img,0,0,PRINT_N,PRINT_N);                    // see-through original still match
+        const d=x.getImageData(0,0,PRINT_N,PRINT_N).data, out=new Float32Array(PRINT_N*PRINT_N);
+        let sum=0;
+        for(let i=0,p=0;i<d.length;i+=4,p++){
+          const g=(d[i]*299+d[i+1]*587+d[i+2]*114)/1000;
+          out[p]=g; sum+=g;
+        }
+        const mean=sum/out.length;
+        for(let p=0;p<out.length;p++)out[p]-=mean;   // ignore overall brightness, compare shape
+        resolve(out);
+      }catch(e){ resolve(null); }
+    };
+    img.src=url;
+  });
+}
+function printGap(a,b){
+  let t=0;
+  for(let i=0;i<a.length;i++)t+=Math.abs(a[i]-b[i]);
+  return t/a.length;
+}
+let RS_PLAN=null;
+if($('#rsScan'))$('#rsScan').onclick=async()=>{
+  const scan=$('#rsScan'),run=$('#rsRun'),note=$('#rsNote');
+  scan.disabled=true;run.style.display='none';note.textContent='Looking for original files…';
+  let originals=[];
+  try{ originals=(await api('/admin/photo-originals')).originals||[]; }
+  catch(e){ note.textContent=e.message; scan.disabled=false; return; }
+  if(!originals.length){ note.textContent='No leftover originals were found.'; scan.disabled=false; return; }
+
+  note.textContent='Reading '+originals.length+' original files…';
+  const prints=[];
+  for(const o of originals){
+    const p=await photoPrint(o.url);
+    if(p)prints.push({url:o.url,size:o.size,print:p});
+  }
+
+  const plan=[]; let matched=0, totalPhotos=0;
+  const withPhotos=PRODUCTS.filter(p=>photoUrlsOf(p).length);
+  let done=0;
+  for(const p of withPhotos){
+    const urls=(p.images&&p.images.length)?p.images.slice():(p.image?[p.image]:[]);
+    const next=[]; let any=false;
+    for(const u of urls){
+      totalPhotos++;
+      if(typeof u!=='string'||!u.startsWith('/uploads/')){next.push(u);continue;}
+      const cur=await photoPrint(u);
+      if(!cur){next.push(u);continue;}
+      let best=null,bestGap=Infinity,secondGap=Infinity;
+      for(const c of prints){
+        const g=printGap(cur,c.print);
+        if(g<bestGap){secondGap=bestGap;bestGap=g;best=c;}
+        else if(g<secondGap)secondGap=g;
+      }
+      // accept only a close match that is clearly better than anything else, and only when the
+      // original is actually the heavier file — otherwise it is not the one we replaced
+      if(best&&bestGap<PRINT_NEAR&&(secondGap===Infinity||secondGap>bestGap*PRINT_MARGIN)&&best.size>0){
+        next.push(best.url); any=true; matched++;
+      } else next.push(u);
+    }
+    if(any)plan.push({id:p.id,images:next});
+    done++; note.textContent='Checked '+done+' of '+withPhotos.length+' products…';
+  }
+  RS_PLAN=plan; scan.disabled=false;
+  if(!matched){ note.textContent='No originals could be matched to the photos now on the shop.'; return; }
+  note.textContent='Found originals for '+matched+' of '+totalPhotos+' photos, across '+
+    plan.length+(plan.length===1?' product.':' products.');
+  run.style.display='';
+};
+if($('#rsRun'))$('#rsRun').onclick=async()=>{
+  if(!RS_PLAN||!RS_PLAN.length){toast('Run the search first');return;}
+  const run=$('#rsRun'),scan=$('#rsScan'),note=$('#rsNote');
+  run.disabled=scan.disabled=true;
+  let ok=0,failed=0,done=0;
+  for(const row of RS_PLAN){
+    try{ await api('/admin/products/'+row.id,{method:'PATCH',body:JSON.stringify({images:row.images})}); ok++; }
+    catch(e){ failed++; }
+    done++; note.textContent='Restored '+done+' of '+RS_PLAN.length+'…';
+  }
+  run.disabled=scan.disabled=false; run.style.display='none'; RS_PLAN=null;
+  note.textContent=ok+(ok===1?' product':' products')+' put back'+(failed?' · '+failed+' could not be':'');
+  toast('Original photos restored');
+  try{ const fresh=await api('/admin/products'); PRODUCTS=fresh.products; renderProducts(); }catch(e){}
+};
+
+/* ---------- Shrinking the photos that are already on the shop ----------
+   A scan first, so you can see what it would save before anything changes. The shrinking then
+   goes product by product, replacing only the photos that are actually heavy; a photo that is
+   already small, or that cannot be read for any reason, is left exactly as it is. */
+let OPT_PLAN=null;
+function mb(n){ return (n/1048576).toFixed(1)+' MB'; }
+function photoUrlsOf(p){
+  const list=(p.images&&p.images.length)?p.images.slice():(p.image?[p.image]:[]);
+  return list.filter(u=>typeof u==='string'&&u.startsWith('/uploads/'));
+}
+async function photoSize(u){
+  try{ const r=await fetch(u,{method:'HEAD'}); return r.ok?Number(r.headers.get('content-length')||0):0; }
+  catch(e){ return 0; }
+}
+if($('#optScan'))$('#optScan').onclick=async()=>{
+  const btn=$('#optScan'),note=$('#optNote'),run=$('#optRun');
+  btn.disabled=true;run.style.display='none';note.textContent='Checking…';
+  const plan=[]; let total=0,heavy=0,heavyBytes=0,checked=0;
+  const withPhotos=PRODUCTS.filter(p=>photoUrlsOf(p).length);
+  for(const p of withPhotos){
+    const urls=photoUrlsOf(p); const big=[];
+    for(const u of urls){
+      const s=await photoSize(u); total++; checked++;
+      if(s>PHOTO_HEAVY){ big.push(u); heavy++; heavyBytes+=s; }
+    }
+    if(big.length)plan.push({id:p.id,name:p.name_en||p.en&&p.en.name||('#'+p.id),bytes:heavyBytes});
+    note.textContent='Checked '+checked+' photos…';
+  }
+  OPT_PLAN=plan;
+  btn.disabled=false;
+  if(!heavy){ note.textContent='All '+total+' photos are already a good size — nothing to do.'; return; }
+  note.textContent=heavy+' of '+total+' photos are heavy ('+mb(heavyBytes)+' in total) across '+plan.length+(plan.length===1?' product.':' products.');
+  run.style.display='';
+};
+if($('#optRun'))$('#optRun').onclick=async()=>{
+  if(!OPT_PLAN||!OPT_PLAN.length){toast('Run the check first');return;}
+  const run=$('#optRun'),scan=$('#optScan'),note=$('#optNote');
+  run.disabled=scan.disabled=true;
+  let done=0,changed=0,before=0,after=0,failed=0;
+  for(const row of OPT_PLAN){
+    const p=PRODUCTS.find(x=>x.id===row.id); if(!p){done++;continue;}
+    const urls=(p.images&&p.images.length)?p.images.slice():(p.image?[p.image]:[]);
+    const next=[]; let touched=false;
+    for(const u of urls){
+      if(typeof u!=='string'||!u.startsWith('/uploads/')){next.push(u);continue;}
+      const size=await photoSize(u);
+      if(size&&size<=PHOTO_HEAVY){next.push(u);continue;}
+      const small=await shrinkPhoto(u);
+      if(!small){ next.push(u); failed++; continue; }
+      const nb=dataUrlBytes(small);
+      if(size&&nb>size*0.85){ next.push(u); continue; }   // not worth rewriting for a token saving
+      before+=size; after+=nb; next.push(small); touched=true;
+    }
+    if(touched){
+      try{ await api('/admin/products/'+p.id,{method:'PATCH',body:JSON.stringify({images:next})}); changed++; }
+      catch(e){ failed++; }
+    }
+    done++;
+    note.textContent='Shrunk '+done+' of '+OPT_PLAN.length+' products…';
+  }
+  run.disabled=scan.disabled=false; run.style.display='none'; OPT_PLAN=null;
+  note.textContent=changed+(changed===1?' product':' products')+' updated · '+mb(before)+' of photos became '+mb(after)+
+    (failed?' · '+failed+' left unchanged':'');
+  toast('Photos shrunk');
+  try{ const fresh=await api('/admin/products'); PRODUCTS=fresh.products; renderProducts(); }catch(e){}
+};
+
 // SKU auto-generate: JT-<CAT3>-<seq>
 $('#p_skuGen').onclick=()=>{
   const cat=($('#p_cat').value||'gen').slice(0,3).toUpperCase();
@@ -2615,7 +2989,7 @@ if($('#cpAdd'))$('#cpAdd').onclick=async()=>{
   }catch(err){toast(err.message);}
 };
 let BN_IMG=null;
-if($('#bn_file'))$('#bn_file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>4*1024*1024){toast('Image too large (max 4MB)');return;}const rd=new FileReader();rd.onload=()=>{BN_IMG=rd.result;const pv=$('#bn_preview');pv.src=rd.result;pv.style.display='block';};rd.readAsDataURL(f);};
+if($('#bn_file'))$('#bn_file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>16*1024*1024){toast('Image too large (max 16MB)');return;}const d=await photoForUpload(f);if(!d){toast('Could not read that image');return;}BN_IMG=d;const pv=$('#bn_preview');pv.src=d;pv.style.display='block';};
 if($('#bnAdd'))$('#bnAdd').onclick=async()=>{
   if(!BN_IMG){toast('Upload a banner image first');return;}
   try{
@@ -2763,7 +3137,7 @@ function openCatModal(c){
   const pv=$('#ct_preview');if(c&&c.image){pv.src=c.image;pv.style.display='block';}else{pv.style.display='none';pv.src='';}
   openModal('catModal');
 }
-$('#ct_file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>4*1024*1024){toast('Image too large (max 4MB)');return;}const rd=new FileReader();rd.onload=()=>{catFile=rd.result;const pv=$('#ct_preview');pv.src=rd.result;pv.style.display='block';};rd.readAsDataURL(f);};
+$('#ct_file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>16*1024*1024){toast('Image too large (max 16MB)');return;}const d=await photoForUpload(f);if(!d){toast('Could not read that image');return;}catFile=d;const pv=$('#ct_preview');pv.src=d;pv.style.display='block';};
 $('#catForm').onsubmit=async e=>{
   e.preventDefault();const id=$('#ct_id').value;
   const body={name_en:$('#ct_name_en').value,name_ar:$('#ct_name_ar').value,icon:$('#ct_icon').value,is_active:$('#ct_active').checked};
@@ -3278,7 +3652,8 @@ document.addEventListener('click',async e=>{
   if(el=x('data-cat-del')){if(confirm('Delete this category?')){try{await api('/admin/categories/'+el.dataset.catDel,{method:'DELETE'});toast('Deleted');await loadAll();}catch(err){toast(err.message);}}return;}
   if(el=x('data-sup-edit')){openSupModal(SUPPLIERS.find(s=>s.id==el.dataset.supEdit));return;}
   if(el=x('data-sup-del')){if(confirm('Delete this supplier?')){try{await api('/admin/suppliers/'+el.dataset.supDel,{method:'DELETE'});toast('Deleted');await loadAll();}catch(err){toast(err.message);}}return;}
-  if(el=x('data-gimg-rm')){PGALLERY.splice(+el.dataset.gimgRm,1);renderGallery();return;}
+  if(el=x('data-gimg-rm')){const i=+el.dataset.gimgRm;PGALLERY.splice(i,1);if(BG_INDEX===i)closeBgPanel();renderGallery();return;}
+  if(el=x('data-gimg-cut')){openBgPanel(+el.dataset.gimgCut);return;}
   if(el=x('data-invoice')){const o=ORDERS.find(o=>o.id==el.dataset.invoice);if(o)printInvoice(o);return;}
   if(el=x('data-proof')){window.open(el.dataset.proof,'_blank');return;}
   if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
