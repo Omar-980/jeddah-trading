@@ -894,6 +894,37 @@ async function api(req, res, url) {
     if (r[1] === 'products' && method === 'GET') return send(res, 200, { products: queries.allProducts() });
     if (r[1] === 'categories' && method === 'GET') return send(res, 200, { categories: queries.allCategories() });
 
+    /* Original photo files still on disk ------------------------------------------------
+       Shrinking a photo writes a new file and points the product at it; the file it replaced
+       is left alone. This lists the upload files nothing in the shop refers to any more, so
+       the admin page can offer to put an original back. Payment proofs, chat attachments,
+       category pictures and banners are all treated as "in use" and never listed. */
+    if (r[1] === 'photo-originals' && method === 'GET') {
+      if (!hasPerm(me, 'products')) return send(res, 403, { error: 'No permission' });
+      const used = new Set();
+      const add = v => { const s = String(v || '').trim(); if (s.startsWith('/uploads/')) used.add(s.slice('/uploads/'.length)); };
+      for (const row of db.prepare('SELECT image, images FROM products').all()) {
+        add(row.image);
+        try { const g = JSON.parse(row.images || '[]'); if (Array.isArray(g)) g.forEach(add); } catch {}
+      }
+      for (const row of db.prepare('SELECT image FROM categories').all()) add(row.image);
+      for (const row of db.prepare('SELECT image FROM banners').all()) add(row.image);
+      for (const row of db.prepare("SELECT attachment_url FROM chat_messages WHERE attachment_url<>''").all()) add(row.attachment_url);
+      for (const row of db.prepare("SELECT payment_proof FROM orders WHERE payment_proof<>''").all()) add(row.payment_proof);
+      let names = [];
+      try { names = fs.readdirSync(UPLOAD_DIR); } catch {}
+      const spare = [];
+      for (const name of names) {
+        if (used.has(name)) continue;
+        if (!/\.(png|jpe?g|gif|webp)$/i.test(name)) continue;
+        let size = 0;
+        try { const st = fs.statSync(path.join(UPLOAD_DIR, name)); if (!st.isFile()) continue; size = st.size; } catch { continue; }
+        spare.push({ url: '/uploads/' + name, size });
+      }
+      spare.sort((a, b) => b.size - a.size);
+      return send(res, 200, { originals: spare.slice(0, 600), inUse: used.size });
+    }
+
     if (r[1] === 'products' && method === 'POST') {
       if (!requirePerm(req, res, 'products')) return;
       const b = await readBody(req);
@@ -2272,13 +2303,21 @@ function feedXml(base) {
 }
 
 /* ---------- static files ---------- */
-function serveStatic(res, baseDir, relPath) {
+function serveStatic(res, baseDir, relPath, method) {
   let fp = path.join(baseDir, relPath);
   if (!fp.startsWith(baseDir)) return send(res, 403, { error: 'forbidden' });
   if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!fs.existsSync(fp)) return send(res, 404, 'Not found', { 'Content-Type': 'text/plain' });
   const ext = path.extname(fp).toLowerCase();
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+  // Content-Length lets a browser show real progress, and lets the admin panel ask how big a
+  // photo is with a HEAD request instead of downloading the whole thing to find out.
+  const size = fs.statSync(fp).size;
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Content-Length': size,
+    'Cache-Control': 'no-cache',
+  });
+  if (String(method || '').toUpperCase() === 'HEAD') return res.end();
   fs.createReadStream(fp).pipe(res);
 }
 
@@ -2295,14 +2334,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       const rel = url.pathname.replace(/^\/admin\/?/, '') || 'index.html';
-      return serveStatic(res, ADMIN_DIR, rel);
+      return serveStatic(res, ADMIN_DIR, rel, req.method);
     }
     if (url.pathname === '/investor' || url.pathname === '/investor/') {
-      return serveStatic(res, PUBLIC_DIR, 'investor.html');
+      return serveStatic(res, PUBLIC_DIR, 'investor.html', req.method);
     }
     // Serve uploaded product images from the (possibly volume-backed) upload dir.
     if (url.pathname.startsWith('/uploads/')) {
-      return serveStatic(res, UPLOAD_DIR, decodeURIComponent(url.pathname.replace(/^\/uploads\/?/, '')));
+      return serveStatic(res, UPLOAD_DIR, decodeURIComponent(url.pathname.replace(/^\/uploads\/?/, '')), req.method);
     }
     // The catalogue Facebook, Instagram and Google read on a schedule. Public on purpose:
     // their crawlers sign in to nothing, and every figure in it is already on the shop.
@@ -2333,7 +2372,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/' || url.pathname === '/index.html') return serveShell(req, res, null);
     const rel = url.pathname.slice(1);
-    return serveStatic(res, PUBLIC_DIR, decodeURIComponent(rel));
+    return serveStatic(res, PUBLIC_DIR, decodeURIComponent(rel), req.method);
   } catch (e) {
     console.error('Server error:', e);
     send(res, 500, { error: 'server error' });
