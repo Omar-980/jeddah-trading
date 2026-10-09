@@ -126,9 +126,12 @@ a{color:inherit}
 .alert-chip b{color:var(--danger)}
 .alert-chip.out b{color:#9aa39c}
 
-.tbl-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+/* A long table scrolls inside its own frame rather than running the page down for a
+   hundred rows, and the header row stays put while it does. */
+.tbl-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:auto;max-height:72vh}
 table{width:100%;border-collapse:collapse}
 th{background:var(--green-800);color:#fff;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:12px 14px}
+.tbl-wrap thead th{position:sticky;top:0;z-index:4}
 td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:.9rem;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fcfaf3}
@@ -316,7 +319,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
      table pushes the whole page sideways instead of scrolling internally. */
   .app.on>div{min-width:0}
   .main{min-width:0}
-  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tbl-wrap{overflow:auto;-webkit-overflow-scrolling:touch;max-height:68vh}
   .tbl-wrap table{min-width:560px}
   .tbl-wrap th,.tbl-wrap td{white-space:nowrap}
 }
@@ -537,6 +540,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
         <div class="toolbar"><select id="ordFilter"><option value="">All statuses</option><option value="new">New</option><option value="confirmed">Confirmed</option><option value="paid">Paid</option><option value="packed">Packed</option><option value="out_for_delivery">Out for delivery</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
           <select id="ordChannel"><option value="">All sales</option><option value="online">Online only</option><option value="onsite">In-shop only</option></select></div>
         <div id="ordList"></div>
+        <div id="ordMore"></div>
       </section>
 
       <!-- DELIVERIES (courier's own screen) -->
@@ -2703,14 +2707,25 @@ $('#prodForm').onsubmit=async e=>{
 };
 
 /* ---------- Orders ---------- */
+/* Every order is a full card with its items, so the list used to be thousands of pixels
+   long by the end of a busy month. The newest ten show; the rest come a page at a time. */
+let ORD_SHOWN=10;
+const ORD_STEP=10;
+// A reload after changing a status keeps however far down the list the user had opened.
 async function loadOrders(){const f=$('#ordFilter').value;const d=await api('/admin/orders'+(f?'?status='+f:''));ORDERS=d.orders;renderOrders();}
-$('#ordFilter').onchange=loadOrders;$('#ordChannel').onchange=renderOrders;
+$('#ordFilter').onchange=()=>{ORD_SHOWN=ORD_STEP;loadOrders();};
+$('#ordChannel').onchange=()=>{ORD_SHOWN=ORD_STEP;renderOrders();};
 function renderOrders(){
   const editable=can('orders');
   const ch=$('#ordChannel').value;
   let list=ch?ORDERS.filter(o=>(o.channel||'online')===ch):ORDERS;
-  if(!list.length){$('#ordList').innerHTML='<div class="panel" style="text-align:center;color:var(--muted)">No orders to show.</div>';return;}
-  $('#ordList').innerHTML=list.map(o=>{
+  if(!list.length){
+    $('#ordList').innerHTML='<div class="panel" style="text-align:center;color:var(--muted)">No orders to show.</div>';
+    $('#ordMore').innerHTML='';
+    return;
+  }
+  const page=list.slice(0,ORD_SHOWN);
+  $('#ordList').innerHTML=page.map(o=>{
     const waPhone=(o.customer_phone||'').replace(/[^0-9]/g,'');
     const items=(o.items||[]).map(i=>`<div class="oi"><span>${esc(i.name)} ×${i.qty}</span><span>${money(i.line)}</span></div>`).join('');
     const waMsg='Assalamu alaikum '+(o.customer_name||'')+', regarding your order '+o.order_number+' from Jeddah Trading:';
@@ -2736,6 +2751,12 @@ function renderOrders(){
         ${waPhone?`<a class="btn btn-outline btn-sm" target="_blank" href="https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}">Message customer</a>`:''}
       </div></div>`;
   }).join('');
+  const hidden=list.length-page.length;
+  $('#ordMore').innerHTML=hidden>0
+    ? `<button class="btn btn-outline" id="ordMoreBtn" style="width:100%;max-width:340px;margin:2px auto 18px;display:block">Show ${Math.min(hidden,ORD_STEP)} more <span style="opacity:.6;font-weight:500">${page.length}/${list.length}</span></button>`
+    : '';
+  const mb=$('#ordMoreBtn');
+  if(mb)mb.onclick=()=>{ORD_SHOWN+=ORD_STEP;renderOrders();};
   $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast('Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
   $$('[data-assign]').forEach(sel=>sel.onchange=()=>assignCourier(sel.dataset.assign,sel.value));
 }
