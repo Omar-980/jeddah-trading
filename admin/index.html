@@ -855,6 +855,29 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <div class="field"><label>Offline auto-reply (AR)</label><textarea id="s_chat_offline_ar" dir="rtl"></textarea></div>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+          <div class="section-label">United Kingdom</div>
+          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your UK partner holds the stock and posts the orders. Their name and full UK address are required by UK food labelling law and are shown to buyers. Nothing here appears on the shop until "Sell in the UK" is on.</p>
+          <div class="grid2">
+            <div class="field"><label>Sell in the UK</label><select id="s_uk_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
+            <div class="field"><label>Partner / importer name</label><input id="s_uk_business_name" placeholder="e.g. Jeddah Trading UK"></div>
+            <div class="field"><label>Delivery charge (£)</label><input id="s_uk_delivery_fee" type="number" min="0" step="0.01" placeholder="3.95"></div>
+            <div class="field"><label>Free delivery over (£)</label><input id="s_uk_free_over" type="number" min="0" step="0.01" placeholder="45"></div>
+          </div>
+          <div class="field"><label>Partner's full UK address</label><input id="s_uk_business_address" placeholder="House, street, town, postcode"></div>
+          <div class="field"><label>Returns address</label><input id="s_uk_returns_address" placeholder="Where a UK customer posts things back"></div>
+          <div class="field"><label>UK VAT number</label><input id="s_uk_vat_number" placeholder="Leave empty until HMRC registration is through"></div>
+          <div class="grid2">
+            <div class="field"><label>Account name</label><input id="s_uk_bank_account_name"></div>
+            <div class="field"><label>Bank</label><input id="s_uk_bank_name" placeholder="e.g. Barclays"></div>
+            <div class="field"><label>Sort code</label><input id="s_uk_sort_code" placeholder="00-00-00"></div>
+            <div class="field"><label>Account number</label><input id="s_uk_account_number" placeholder="8 digits"></div>
+          </div>
+          <div class="field"><label>PayPal link</label><input id="s_uk_paypal_link" placeholder="https://paypal.me/yourname — leave empty to hide PayPal"></div>
+          <div class="field"><label>Delivery note shown at checkout</label><input id="s_uk_dispatch_note"></div>
+          <div class="field"><label>Cancellation &amp; returns wording</label><textarea id="s_uk_returns_policy" rows="4"></textarea>
+            <small style="color:var(--muted)">UK law gives the buyer 14 days to change their mind. If you do not tell them, that becomes 12 months — so leave this filled in.</small></div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
           <div class="section-label">Facebook &amp; Instagram ads</div>
           <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your products are published as a catalogue file that Facebook re-reads on its own, so adverts always show the current price and stock. Paste the two links below into Commerce Manager once.</p>
           <div class="grid2">
@@ -994,6 +1017,16 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       <div class="field"><label>SKU</label><div class="input-with-btn"><input id="p_sku" placeholder="e.g. JT-PER-001"><button type="button" class="btn btn-outline btn-sm" id="p_skuGen">Auto</button></div></div>
       <div class="field"><label>Barcode (Code128)</label><div class="input-with-btn"><input id="p_barcode" placeholder="Scan or type a number"><button type="button" class="btn btn-outline btn-sm" id="p_barGen">Generate</button></div></div>
       <div class="field" id="p_stockField"><label>Stock quantity *</label><input id="p_stock" type="number" min="0" step="1" required></div>
+    </div>
+    <div class="section-label">United Kingdom</div>
+    <p style="color:var(--muted);font-size:.84rem;margin:-4px 0 10px">Switch this on only for products that may lawfully be sent to the UK and that your partner is holding there. Anything left off never appears to a UK shopper.</p>
+    <div class="grid2">
+      <div class="field"><label>Sell this in the UK</label>
+        <select id="p_uk_active"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div class="field"><label>Weight (grams)</label><input id="p_weight_g" type="number" min="0" step="1" placeholder="For postage and customs"></div>
+      <div class="field" id="p_ukPriceField"><label>UK price (£)</label><input id="p_uk_price" type="number" min="0" step="0.01" placeholder="e.g. 9.50"></div>
+      <div class="field" id="p_ukSaleField"><label>UK sale price (£)</label><input id="p_uk_sale" type="number" min="0" step="0.01" placeholder="Optional"></div>
+      <div class="field" id="p_ukStockField"><label>UK stock (held by your partner)</label><input id="p_uk_stock" type="number" min="0" step="1" placeholder="0"></div>
       <div class="field" id="p_minstockField"><label>Minimum stock (low-stock alert)</label><input id="p_minstock" type="number" min="0" step="1" placeholder="e.g. 5"></div>
       <div class="field"><label>Batch number</label><input id="p_batch" placeholder="Optional"></div>
       <div class="field"><label>Expiry date</label><input id="p_expiry" type="date"></div>
@@ -2147,6 +2180,11 @@ function openProdModal(p){
   $('#p_id').value=p?p.id:'';
   $('#p_name_en').value=p?p.en.name:'';$('#p_name_ar').value=p?p.ar.name:'';
   $('#p_brand').value=p?(p.brand||''):'';
+  $('#p_uk_active').value=(p&&p.ukActive)?'1':'0';
+  $('#p_uk_price').value=(p&&p.ukPrice)?p.ukPrice:'';
+  $('#p_uk_sale').value=(p&&p.ukSale)?p.ukSale:'';
+  $('#p_uk_stock').value=p?(p.ukStock||0):0;
+  $('#p_weight_g').value=(p&&p.weightG)?p.weightG:'';
   $('#p_cat').value=p?p.cat:(CATS[0]&&CATS[0].slug);$('#p_icon').value=p?p.icon:'grid';
   $('#p_price').value=p?p.price:'';$('#p_discount').value=p&&p.sale?p.sale:'';
   $('#p_cost').value=p?(p.cost||''):'';$('#p_wholesale').value=p?(p.wholesale||''):'';
@@ -2188,6 +2226,9 @@ function renderSizes(){
         <div class="field" style="margin:0"><label>Cost price (GMD)</label><input type="number" min="0" step="1" data-sz="cost" data-i="${i}" value="${s.cost||''}" placeholder="What you paid"></div>
         <div class="field" style="margin:0"><label>Stock *</label><input type="number" min="0" step="1" data-sz="stock" data-i="${i}" value="${s.stock||0}"></div>
         <div class="field" style="margin:0"><label>Low-stock alert at</label><input type="number" min="0" step="1" data-sz="min_stock" data-i="${i}" value="${s.min_stock||''}" placeholder="Shop default" title="Warn when this size drops to this many. Leave empty to use the shop-wide threshold."></div>
+        <div class="field" style="margin:0"><label>UK price (£)</label><input type="number" min="0" step="0.01" data-sz="gbp_price" data-i="${i}" value="${s.gbp_price||''}" placeholder="Leave empty = not sold in UK"></div>
+        <div class="field" style="margin:0"><label>UK sale price (£)</label><input type="number" min="0" step="0.01" data-sz="gbp_sale" data-i="${i}" value="${s.gbp_sale||''}" placeholder="Optional"></div>
+        <div class="field" style="margin:0"><label>UK stock</label><input type="number" min="0" step="1" data-sz="uk_stock" data-i="${i}" value="${s.uk_stock||0}" title="How many your UK partner is holding"></div>
         <div class="field" style="margin:0"><label>SKU</label><input data-sz="sku" data-i="${i}" value="${esc(s.sku||'')}" placeholder="Optional"></div>
         <div class="field" style="margin:0"><label>Barcode</label><div class="input-with-btn"><input data-sz="barcode" data-i="${i}" value="${esc(s.barcode||'')}" placeholder="Own barcode"><button type="button" class="btn btn-outline btn-sm" data-sz-bar="${i}">Generate</button></div></div>
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;justify-content:space-between;padding-top:4px">
@@ -2635,12 +2676,16 @@ $('#prodForm').onsubmit=async e=>{
     use_en:$('#p_use_en').value,use_ar:$('#p_use_ar').value,benefits_en:$('#p_ben_en').value,benefits_ar:$('#p_ben_ar').value,
     ingredients_en:$('#p_ing_en').value,ingredients_ar:$('#p_ing_ar').value,warnings_en:$('#p_warn_en').value,warnings_ar:$('#p_warn_ar').value,
     weight:$('#p_weight').value,dims:$('#p_dims').value,video:$('#p_video').value,
+    ukActive:$('#p_uk_active').value==='1',
+    ukPrice:+$('#p_uk_price').value||0, ukSale:+$('#p_uk_sale').value||0,
+    ukStock:+$('#p_uk_stock').value||0, weightG:+$('#p_weight_g').value||0,
     images:PGALLERY};
   // Sizes are validated here first so a typo is caught before the product itself is written.
   const sizes=PSIZES.map(s=>({id:s.id||0,label_en:String(s.label_en||'').trim(),label_ar:String(s.label_ar||'').trim(),
     price:+s.price||0,discount_price:+s.discount_price||0,cost:+s.cost||0,
     stock:Math.max(0,Math.trunc(+s.stock||0)),min_stock:Math.max(0,Math.trunc(+s.min_stock||0)),
     sku:String(s.sku||'').trim(),barcode:String(s.barcode||'').trim(),
+    gbp_price:+s.gbp_price||0, gbp_sale:+s.gbp_sale||0, uk_stock:Math.max(0,Math.trunc(+s.uk_stock||0)),
     is_active:s.is_active!==false}));
   for(const s of sizes){
     if(!s.label_en){toast('Every size needs a name, e.g. 500g');return;}
@@ -3560,7 +3605,10 @@ $('#expenseForm').onsubmit=async e=>{
 
 /* ---------- Settings ---------- */
 const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_delivery_over','low_stock_threshold','max_staff_discount_pct','announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar','pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar','est_delivery_en','est_delivery_ar','chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload',
-'meta_pixel_id','catalog_currency','site_url'];
+'meta_pixel_id','catalog_currency','site_url',
+'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
+'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
+'uk_dispatch_note','uk_returns_policy'];
 function fillSettings(){
   SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)el.value=SETTINGS[k]||'';});
   if($('#s_catalog_currency')&&!SETTINGS.catalog_currency)$('#s_catalog_currency').value='GMD';
