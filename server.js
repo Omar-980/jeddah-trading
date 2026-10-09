@@ -67,6 +67,21 @@ function publicSettings() {
     // Advert measurement. Blank means no tracking code is loaded for the shopper at all.
     meta_pixel_id: String(getSetting('meta_pixel_id', '') || '').replace(/[^0-9]/g, '').slice(0, 20),
     catalog_currency: feedCurrency(),
+    // The UK side. Everything here is shown to a UK shopper, so it holds nothing private.
+    uk_enabled: getSetting('uk_enabled') === '1' ? 1 : 0,
+    uk_delivery_fee: Number(getSetting('uk_delivery_fee')) || 0,
+    uk_free_over: Number(getSetting('uk_free_over')) || 0,
+    uk_business_name: getSetting('uk_business_name'),
+    uk_business_address: getSetting('uk_business_address'),
+    uk_returns_address: getSetting('uk_returns_address'),
+    uk_vat_number: getSetting('uk_vat_number'),
+    uk_bank_account_name: getSetting('uk_bank_account_name'),
+    uk_bank_name: getSetting('uk_bank_name'),
+    uk_sort_code: getSetting('uk_sort_code'),
+    uk_account_number: getSetting('uk_account_number'),
+    uk_paypal_link: getSetting('uk_paypal_link'),
+    uk_dispatch_note: getSetting('uk_dispatch_note'),
+    uk_returns_policy: getSetting('uk_returns_policy'),
   };
 }
 
@@ -216,11 +231,17 @@ const money0 = n => 'D' + Number(n || 0).toLocaleString('en-US');
 /* ---------- sale lines: one pricing path for the website and the shop counter ----------
    Whatever the browser sends is treated as a hint. Every price, cost and size label below is
    read back out of the database, so a tampered request cannot change what is charged. */
-function resolveSaleItems(raw) {
+/* `market` is 'gm' (the shop in The Gambia, in dalasi) or 'uk' (the partner's stock in Britain,
+   in pounds). A UK line is priced from the product's own UK price, never from a conversion, and
+   a product that has not been switched on for the UK is dropped entirely — so nothing that
+   cannot lawfully be sent there can be bought by accident. */
+function resolveSaleItems(raw, market) {
+  const uk = market === 'uk';
   let subtotal = 0; const items = [];
   for (const it of Array.isArray(raw) ? raw : []) {
     const p = queries.productById(Number(it.id));
     if (!p) continue;
+    if (uk && !p.ukActive) continue;
     const qty = Math.max(1, Math.trunc(Number(it.qty) || 1));
     const vid = Number(it.variant_id || it.variantId) || 0;
     let unit, cost, variantId = null, label = '', labelAr = '';
@@ -228,12 +249,20 @@ function resolveSaleItems(raw) {
       const v = variantById(vid);
       // A size must belong to this product and still be switched on, or the line is dropped.
       if (!v || v.productId !== p.id || !v.active) continue;
-      unit = v.sale || v.price; cost = v.cost; variantId = v.id;
+      if (uk) {
+        if (!(v.ukPrice > 0)) continue;          // this size has no UK price yet
+        unit = v.ukSale || v.ukPrice;
+      } else unit = v.sale || v.price;
+      cost = v.cost; variantId = v.id;
       label = v.label_en; labelAr = v.label_ar;
     } else {
       // A product sold by size cannot be bought without choosing one.
       if (p.hasSizes) continue;
-      unit = p.sale || p.price; cost = p.cost || 0;
+      if (uk) {
+        if (!(p.ukPrice > 0)) continue;
+        unit = p.ukSale || p.ukPrice;
+      } else unit = p.sale || p.price;
+      cost = p.cost || 0;
     }
     const line = r2(unit * qty);
     subtotal = r2(subtotal + line);
@@ -243,12 +272,16 @@ function resolveSaleItems(raw) {
   return { items, subtotal };
 }
 // Takes stock from the chosen size when there is one, from the product itself otherwise.
-function decrementStockForItems(items, reason, ref, byUser) {
-  const decP = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
-  const decV = db.prepare('UPDATE product_variants SET stock = MAX(0, stock - ?) WHERE id=?');
+// A UK order moves the UK count — the partner's shelf in Britain — and never the shop's own.
+function decrementStockForItems(items, reason, ref, byUser, market) {
+  const uk = market === 'uk';
+  const decP = db.prepare(uk ? 'UPDATE products SET uk_stock = MAX(0, uk_stock - ?) WHERE id=?'
+                             : 'UPDATE products SET stock = MAX(0, stock - ?) WHERE id=?');
+  const decV = db.prepare(uk ? 'UPDATE product_variants SET uk_stock = MAX(0, uk_stock - ?) WHERE id=?'
+                             : 'UPDATE product_variants SET stock = MAX(0, stock - ?) WHERE id=?');
   for (const it of items) {
     if (it.variantId) decV.run(it.qty, it.variantId); else decP.run(it.qty, it.id);
-    logMove(it.id, -it.qty, reason, ref, byUser || '', it.variantId || null);
+    logMove(it.id, -it.qty, uk ? (reason + '_uk') : reason, ref, byUser || '', it.variantId || null);
   }
 }
 /* Final discount at the counter.
@@ -659,23 +692,37 @@ async function api(req, res, url) {
     const b = await readBody(req);
     if (!b.customer_name || !b.customer_phone || !Array.isArray(b.items) || !b.items.length)
       return send(res, 400, { error: 'Missing name, phone, or items' });
+    // Which market this order belongs to. A UK order is priced in pounds from the UK fields and
+    // posted by the partner in Britain; it only exists at all once the UK side is switched on.
+    const market = (b.market === 'uk' && getSetting('uk_enabled') === '1') ? 'uk' : 'gm';
+    const currency = market === 'uk' ? 'GBP' : 'GMD';
     // recompute totals server-side from live prices (sizes included); cost is snapshotted so
     // profit stays accurate even if the cost price changes later
-    const resolved = resolveSaleItems(b.items);
+    const resolved = resolveSaleItems(b.items, market);
     const items = resolved.items;
     let subtotal = resolved.subtotal;
     if (!items.length) return send(res, 400, { error: 'No valid items' });
-    const isPickup = b.delivery_method === 'pickup';
+    const isPickup = market === 'gm' && b.delivery_method === 'pickup';
     // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
-    const freeOver = Number(getSetting('free_delivery_over'));
-    let zoneName = '', zoneFee = Number(getSetting('delivery_fee')) || 0;
-    if (!isPickup && b.delivery_zone_id) {
-      const z = queries.zoneById(Number(b.delivery_zone_id));
-      if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; }
+    let freeOver, zoneName = '', zoneFee;
+    if (market === 'uk') {
+      freeOver = Number(getSetting('uk_free_over')) || 0;
+      zoneFee = Number(getSetting('uk_delivery_fee')) || 0;
+      zoneName = 'United Kingdom';
+    } else {
+      freeOver = Number(getSetting('free_delivery_over'));
+      zoneFee = Number(getSetting('delivery_fee')) || 0;
+      if (!isPickup && b.delivery_zone_id) {
+        const z = queries.zoneById(Number(b.delivery_zone_id));
+        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; }
+      }
     }
-    // ---- discounts: coupon + loyalty points (all validated server-side) ----
+    /* ---- discounts: coupon + loyalty points (all validated server-side) ----
+       Coupons and loyalty points are held in dalasi, so they are not offered on a UK order —
+       taking D50 off a £20 basket would be meaningless. A separate UK scheme can come later. */
     let discount = 0, couponCode = '';
-    if (b.coupon) {
+    if (market === 'uk') { /* no coupon or points on a UK order */ }
+    else if (b.coupon) {
       const coupon = queries.couponByCode(String(b.coupon));
       const chk = couponDiscount(coupon, subtotal);
       if (!chk.ok) return send(res, 400, { error: chk.err });
@@ -684,7 +731,7 @@ async function api(req, res, url) {
     }
     const cust = currentCustomer(req);
     let redeemed = 0;
-    if (cust && Number(b.redeem_points) > 0) {
+    if (market === 'gm' && cust && Number(b.redeem_points) > 0) {
       const pv = Number(getSetting('loyalty_point_value')) || 1;
       const maxPct = Number(getSetting('loyalty_max_redeem_pct')) || 30;
       const capPts = Math.floor(subtotal * maxPct / 100 / pv);
@@ -703,16 +750,22 @@ async function api(req, res, url) {
     try { if (b.payment_proof_data) proof = saveImage(b.payment_proof_data) || ''; } catch (e) { return send(res, 400, { error: e.message }); }
     const orderNumber = nextOrderNumber();
     const info = db.prepare(`INSERT INTO orders
-      (order_number,customer_name,customer_phone,delivery_method,delivery_address,delivery_area,delivery_zone,payment_method,payment_proof,subtotal,discount,coupon_code,customer_id,delivery_fee,total,notes,language,items_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      (order_number,customer_name,customer_phone,customer_email,postcode,market,currency,delivery_method,delivery_address,delivery_area,delivery_zone,payment_method,payment_proof,subtotal,discount,coupon_code,customer_id,delivery_fee,total,notes,language,items_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         orderNumber, String(b.customer_name).slice(0,120), String(b.customer_phone).slice(0,40),
+        String(b.customer_email||'').slice(0,160), String(b.postcode||'').slice(0,16).toUpperCase(),
+        market, currency,
         isPickup ? 'pickup' : 'home', String(b.delivery_address||'').slice(0,300),
         String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
         proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items));
     // decrement stock for confirmed inventory + record in the stock ledger
-    decrementStockForItems(items, 'order', orderNumber, '');
-    recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share, at actual prices
-    return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total });
+    decrementStockForItems(items, 'order', orderNumber, '', market);
+    /* Investors funded stock in dalasi at Gambian cost prices. Feeding a pound sale into that
+       same pot would put two currencies in one profit figure and quietly corrupt every
+       investor's balance, so UK orders are deliberately left out until the UK side has a
+       profit model of its own. */
+    if (market === 'gm') recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);
+    return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market });
   }
 
   /* ----- ADMIN AUTH (rate limited) ----- */
@@ -838,7 +891,7 @@ async function api(req, res, url) {
     if (r[1] === 'stats' && method === 'GET') {
       const totalOrders = db.prepare('SELECT COUNT(*) c FROM orders').get().c;
       const newOrders = db.prepare("SELECT COUNT(*) c FROM orders WHERE status='new'").get().c;
-      const revenue = db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE status NOT IN ('cancelled','returned','refunded')").get().s;
+      const revenue = db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded')").get().s;
       const products = db.prepare('SELECT COUNT(*) c FROM products').get().c;
       const threshold = Number(getSetting('low_stock_threshold')) || 5;
       /* Low stock uses each item's own minimum where set, otherwise the shop-wide threshold.
@@ -938,8 +991,8 @@ async function api(req, res, url) {
       const info = db.prepare(`INSERT INTO products
         (category_slug,icon,image,images,sku,barcode,brand,price,discount_price,cost,wholesale_price,stock,min_stock,batch_no,expiry_date,supplier_id,status,
          is_featured,is_bestseller,is_new,is_active,name_en,name_ar,desc_en,desc_ar,use_en,use_ar,benefits_en,benefits_ar,
-         ingredients_en,ingredients_ar,warnings_en,warnings_ar,weight,dimensions,video_url)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+         ingredients_en,ingredients_ar,warnings_en,warnings_ar,weight,dimensions,video_url,uk_active,gbp_price,gbp_sale,uk_stock,weight_g)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         b.cat||'general', b.icon||'grid', image, JSON.stringify(gallery),
         String(b.sku||'').slice(0,40), String(b.barcode||'').slice(0,60), String(b.brand||'').slice(0,80),
         Number(b.price)||0, Number(b.discount)||0, Number(b.cost)||0, Number(b.wholesale)||0,
@@ -950,7 +1003,9 @@ async function api(req, res, url) {
         b.desc_en||'', b.desc_ar||'', b.use_en||'', b.use_ar||'',
         JSON.stringify(splitLines(b.benefits_en)), JSON.stringify(splitLines(b.benefits_ar)),
         b.ingredients_en||'', b.ingredients_ar||'', b.warnings_en||'', b.warnings_ar||'',
-        String(b.weight||'').slice(0,60), String(b.dims||'').slice(0,80), String(b.video||'').slice(0,300));
+        String(b.weight||'').slice(0,60), String(b.dims||'').slice(0,80), String(b.video||'').slice(0,300),
+        b.ukActive?1:0, Number(b.ukPrice)||0, Number(b.ukSale)||0,
+        Math.max(0,Math.trunc(Number(b.ukStock)||0)), Math.max(0,Math.trunc(Number(b.weightG)||0)));
       if ((Number(b.stock)||0) > 0) logMove(info.lastInsertRowid, Number(b.stock), 'manual', 'initial stock', me.username);
       logAct(me.username, 'product_add', b.name_en || '');
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
@@ -1040,7 +1095,8 @@ async function api(req, res, url) {
       db.prepare(`UPDATE products SET category_slug=?,icon=?,image=?,images=?,sku=?,barcode=?,brand=?,price=?,discount_price=?,cost=?,wholesale_price=?,
         stock=?,min_stock=?,batch_no=?,expiry_date=?,supplier_id=?,status=?,is_featured=?,is_bestseller=?,is_new=?,is_active=?,
         name_en=?,name_ar=?,desc_en=?,desc_ar=?,use_en=?,use_ar=?,benefits_en=?,benefits_ar=?,
-        ingredients_en=?,ingredients_ar=?,warnings_en=?,warnings_ar=?,weight=?,dimensions=?,video_url=?,updated_at=datetime('now') WHERE id=?`).run(
+        ingredients_en=?,ingredients_ar=?,warnings_en=?,warnings_ar=?,weight=?,dimensions=?,video_url=?,
+        uk_active=?,gbp_price=?,gbp_sale=?,uk_stock=?,weight_g=?,updated_at=datetime('now') WHERE id=?`).run(
         b.cat??cur.category_slug, b.icon??cur.icon, image, gallery!=null?JSON.stringify(gallery):cur.images,
         b.sku!=null?String(b.sku).slice(0,40):cur.sku, b.barcode!=null?String(b.barcode).slice(0,60):cur.barcode,
         b.brand!=null?String(b.brand).slice(0,80):cur.brand,
@@ -1059,7 +1115,12 @@ async function api(req, res, url) {
         b.ingredients_en??cur.ingredients_en, b.ingredients_ar??cur.ingredients_ar,
         b.warnings_en??cur.warnings_en, b.warnings_ar??cur.warnings_ar,
         b.weight!=null?String(b.weight).slice(0,60):cur.weight, b.dims!=null?String(b.dims).slice(0,80):cur.dimensions,
-        b.video!=null?String(b.video).slice(0,300):cur.video_url, id);
+        b.video!=null?String(b.video).slice(0,300):cur.video_url,
+        b.ukActive!=null?(b.ukActive?1:0):cur.uk_active,
+        b.ukPrice!=null?Number(b.ukPrice):cur.gbp_price,
+        b.ukSale!=null?Number(b.ukSale):cur.gbp_sale,
+        b.ukStock!=null?Math.max(0,Math.trunc(Number(b.ukStock))):cur.uk_stock,
+        b.weightG!=null?Math.max(0,Math.trunc(Number(b.weightG))):cur.weight_g, id);
       if (b.stock != null && Number(b.stock) !== cur.stock)
         logMove(id, Number(b.stock) - cur.stock, 'manual', 'edited in product form', me.username);
       logAct(me.username, 'product_edit', cur.name_en);
@@ -1107,14 +1168,19 @@ async function api(req, res, url) {
             // Goods go back exactly where they came from: to the size if the line had one,
             // to the product otherwise. Restocking the product for a sized line would put the
             // units somewhere nothing reads and quietly lose them.
-            if (it.variantId) db.prepare('UPDATE product_variants SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.variantId);
-            else db.prepare('UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
-            logMove(it.id, it.qty || 0, nextStatus === 'returned' ? 'return' : nextStatus, cur.order_number, me.username, it.variantId || null);
+            // ...and back to the right country: a UK order's goods return to the partner's
+            // shelf in Britain, never to the shop in Banjul.
+            const ukOrder = cur.market === 'uk';
+            if (it.variantId) db.prepare(ukOrder ? 'UPDATE product_variants SET uk_stock = uk_stock + ? WHERE id=?'
+                                                 : 'UPDATE product_variants SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.variantId);
+            else db.prepare(ukOrder ? 'UPDATE products SET uk_stock = uk_stock + ? WHERE id=?'
+                                    : 'UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
+            logMove(it.id, it.qty || 0, (nextStatus === 'returned' ? 'return' : nextStatus) + (ukOrder ? '_uk' : ''), cur.order_number, me.username, it.variantId || null);
           });
         } catch {}
       }
       // Delivered: award loyalty points once, plus the referral bonus on a first delivered order
-      if (nextStatus === 'delivered' && cur.status !== 'delivered' && cur.customer_id && !cur.points_awarded) {
+      if (nextStatus === 'delivered' && cur.status !== 'delivered' && cur.customer_id && !cur.points_awarded && cur.market !== 'uk') {
         const earnPer = Number(getSetting('loyalty_earn_per')) || 100;
         const pts = Math.floor(cur.total / earnPer);
         if (pts > 0) db.prepare('UPDATE customers SET points = points + ? WHERE id=?').run(pts, cur.customer_id);
@@ -1128,7 +1194,7 @@ async function api(req, res, url) {
       }
       if (nextStatus === 'refunded') payStatus = 'refunded';
       // Cancelled / returned / refunded → reverse any investor profit that this order generated
-      if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status))
+      if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status) && cur.market !== 'uk')
         reverseInvestorSalesForOrder(id);
       db.prepare('UPDATE orders SET status=?, payment_status=?, courier_id=?, courier_name=? WHERE id=?').run(
         nextStatus, payStatus, courierId, courierName, id);
@@ -1546,7 +1612,7 @@ async function api(req, res, url) {
       const b = await readBody(req);
       if (!Array.isArray(b.items) || !b.items.length) return send(res, 400, { error: 'Add at least one product to the sale' });
       // Same pricing path as the website: sizes honoured, flash deals honoured, all read from the DB.
-      const resolved = resolveSaleItems(b.items);
+      const resolved = resolveSaleItems(b.items, 'gm');   // the counter in Banjul is always dalasi
       const items = resolved.items;
       const grossSubtotal = resolved.subtotal;
       if (!items.length) return send(res, 400, { error: 'No valid products in the sale' });
@@ -1569,7 +1635,7 @@ async function api(req, res, url) {
           'pickup', payment, 'delivered', 'paid',
           subtotal, 0, subtotal, String(b.notes||'').slice(0,300), 'onsite', seller, JSON.stringify(items),
           staffDiscount, discountReason, staffDiscount > 0 ? seller : '');
-      decrementStockForItems(items, 'sale', orderNumber, me.username);
+      decrementStockForItems(items, 'sale', orderNumber, me.username, 'gm');
       recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);   // investor profit share, at the discounted price actually charged
       if (staffDiscount > 0) logAct(me.username, 'sale_discount', `${orderNumber} −D${staffDiscount} ${discountReason}`.trim());
       const createdAt = (db.prepare('SELECT created_at FROM orders WHERE id=?').get(info.lastInsertRowid) || {}).created_at;
@@ -1590,8 +1656,12 @@ async function api(req, res, url) {
       // the sale date so a Monday order handed over on Wednesday lands in Wednesday's takings.
       const online = unpack(db.prepare(`SELECT id,order_number,customer_name,customer_phone,payment_method,total,created_at,
           COALESCE(NULLIF(delivered_at,''), created_at) AS sold_at, items_json, courier_name, delivery_zone
-        FROM orders WHERE channel!='onsite' AND status='delivered' ORDER BY COALESCE(NULLIF(delivered_at,''), created_at) DESC LIMIT 500`).all());
-      return send(res, 200, { sales: rows, online });
+        FROM orders WHERE channel!='onsite' AND market='gm' AND status='delivered' ORDER BY COALESCE(NULLIF(delivered_at,''), created_at) DESC LIMIT 500`).all());
+      // UK orders are kept in their own list: pounds and dalasi must never be added together.
+      const uk = unpack(db.prepare(`SELECT id,order_number,customer_name,customer_email,postcode,payment_method,total,currency,status,created_at,
+          COALESCE(NULLIF(delivered_at,''), created_at) AS sold_at, items_json
+        FROM orders WHERE market='uk' ORDER BY id DESC LIMIT 500`).all());
+      return send(res, 200, { sales: rows, online, uk });
     }
 
     // ---- EXPENSES ----
@@ -2056,7 +2126,10 @@ async function api(req, res, url) {
       'pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar',
       'est_delivery_en','est_delivery_ar','loyalty_earn_per','loyalty_point_value','loyalty_max_redeem_pct','referral_bonus_points',
       'chat_online','chat_welcome_en','chat_welcome_ar','chat_offline_en','chat_offline_ar','chat_upload','chat_hours',
-      'meta_pixel_id','catalog_currency','site_url'];
+      'meta_pixel_id','catalog_currency','site_url',
+      'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
+      'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
+      'uk_dispatch_note','uk_returns_policy'];
     if (r[1] === 'settings' && method === 'GET') {
       const out = {}; SETTING_KEYS.forEach(k => out[k] = getSetting(k)); return send(res, 200, out);
     }

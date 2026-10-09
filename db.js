@@ -525,6 +525,27 @@ if (!columnExists('orders', 'staff_discount'))   db.exec('ALTER TABLE orders ADD
 if (!columnExists('orders', 'discount_reason'))  db.exec("ALTER TABLE orders ADD COLUMN discount_reason TEXT DEFAULT ''");
 if (!columnExists('orders', 'discounted_by'))    db.exec("ALTER TABLE orders ADD COLUMN discounted_by TEXT DEFAULT ''");
 
+/* ---------- Selling into the United Kingdom ----------
+   The UK is a second market, not a second shop. A product carries its own UK price and its own
+   UK stock, held by the partner in Britain, and sells only if it has been switched on for the
+   UK — so anything that cannot lawfully be sent there simply never appears to a UK shopper.
+   Every column below defaults to "no UK selling", so an existing shop is untouched until
+   somebody fills these in. */
+if (!columnExists('products', 'uk_active'))   db.exec('ALTER TABLE products ADD COLUMN uk_active INTEGER DEFAULT 0');
+if (!columnExists('products', 'gbp_price'))   db.exec('ALTER TABLE products ADD COLUMN gbp_price REAL DEFAULT 0');
+if (!columnExists('products', 'gbp_sale'))    db.exec('ALTER TABLE products ADD COLUMN gbp_sale REAL DEFAULT 0');
+if (!columnExists('products', 'uk_stock'))    db.exec('ALTER TABLE products ADD COLUMN uk_stock INTEGER DEFAULT 0');
+if (!columnExists('products', 'weight_g'))    db.exec('ALTER TABLE products ADD COLUMN weight_g INTEGER DEFAULT 0');
+if (!columnExists('product_variants', 'gbp_price')) db.exec('ALTER TABLE product_variants ADD COLUMN gbp_price REAL DEFAULT 0');
+if (!columnExists('product_variants', 'gbp_sale'))  db.exec('ALTER TABLE product_variants ADD COLUMN gbp_sale REAL DEFAULT 0');
+if (!columnExists('product_variants', 'uk_stock'))  db.exec('ALTER TABLE product_variants ADD COLUMN uk_stock INTEGER DEFAULT 0');
+// An order remembers which market and which money it was taken in, so a pound order is never
+// added to a dalasi total by accident.
+if (!columnExists('orders', 'market'))        db.exec("ALTER TABLE orders ADD COLUMN market TEXT DEFAULT 'gm'");
+if (!columnExists('orders', 'currency'))      db.exec("ALTER TABLE orders ADD COLUMN currency TEXT DEFAULT 'GMD'");
+if (!columnExists('orders', 'customer_email')) db.exec("ALTER TABLE orders ADD COLUMN customer_email TEXT DEFAULT ''");
+if (!columnExists('orders', 'postcode'))      db.exec("ALTER TABLE orders ADD COLUMN postcode TEXT DEFAULT ''");
+
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -580,6 +601,21 @@ const DEFAULT_SETTINGS = {
   meta_pixel_id: '',              // empty = no tracking code is sent to shoppers at all
   catalog_currency: 'GMD',        // the currency written into the product feed
   site_url: '',                   // public address, e.g. https://shopjeddahtrading.com (blank = work it out from the request)
+  // ---- United Kingdom ----
+  uk_enabled: '0',                // the UK side stays invisible until this is switched on
+  uk_delivery_fee: '3.95',        // £ — Royal Mail tracked, paid by the buyer
+  uk_free_over: '45',             // £ — free delivery above this
+  uk_business_name: '',           // the UK partner or importer named on the label and the site
+  uk_business_address: '',        // their full UK postal address — required by UK food labelling law
+  uk_returns_address: '',         // where a UK customer sends something back
+  uk_vat_number: '',              // shown once HMRC registration is through
+  uk_bank_account_name: '',
+  uk_bank_name: '',
+  uk_sort_code: '',
+  uk_account_number: '',
+  uk_paypal_link: '',             // e.g. https://paypal.me/yourname
+  uk_dispatch_note: 'Posted from our UK partner by Royal Mail Tracked — usually 2–3 working days.',
+  uk_returns_policy: 'You may cancel within 14 days of receiving your order, for any reason, and send it back within 14 days of telling us. Return postage is paid by you unless the item arrived damaged or wrong. We refund within 14 days of the goods coming back, including the standard delivery you paid. Sealed food cannot be returned once opened.',
 };
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k, null) === null) setSetting(k, v);
@@ -738,6 +774,13 @@ function rowToProduct(r, includeCost) {
     brand: r.brand || '',
     sale: (dp > 0 && dp < r.price) ? dp : null,   // active discount price ("flash deal")
     weight: r.weight || '', dims: r.dimensions || '', video: r.video_url || '',
+    /* The UK side of the same product. `ukActive` false means it never reaches a UK shopper —
+       which is how honey and anything else that cannot lawfully be sent is kept out. */
+    ukActive: !!r.uk_active,
+    ukPrice: Number(r.gbp_price) || 0,
+    ukSale: (Number(r.gbp_sale) > 0 && Number(r.gbp_sale) < Number(r.gbp_price)) ? Number(r.gbp_sale) : null,
+    ukStock: Number(r.uk_stock) || 0,
+    weightG: Number(r.weight_g) || 0,
     en: { name: r.name_en, desc: r.desc_en, use: r.use_en, benefits: safeArr(r.benefits_en), ingredients: r.ingredients_en || '', warnings: r.warnings_en || '' },
     ar: { name: r.name_ar, desc: r.desc_ar, use: r.use_ar, benefits: safeArr(r.benefits_ar), ingredients: r.ingredients_ar || '', warnings: r.warnings_ar || '' },
   };
@@ -758,6 +801,17 @@ function rowToProduct(r, includeCost) {
       p.price = cheapest.price;                 // list price of the cheapest size
       p.sale = cheapest.sale;                   // its flash-deal price, if it has one
       p.stock = live.reduce((s, v) => s + v.stock, 0);
+      // The same summary again in pounds, from the sizes that actually have a UK price.
+      const ukLive = live.filter(v => v.ukPrice > 0);
+      if (ukLive.length) {
+        const ukEff = ukLive.map(v => v.ukSale || v.ukPrice);
+        p.ukPriceFrom = Math.min(...ukEff);
+        p.ukPriceTo = Math.max(...ukEff);
+        const ukCheapest = ukLive[ukEff.indexOf(p.ukPriceFrom)];
+        p.ukPrice = ukCheapest.ukPrice;
+        p.ukSale = ukCheapest.ukSale;
+      } else { p.ukPrice = 0; p.ukSale = null; }
+      p.ukStock = live.reduce((s, v) => s + v.ukStock, 0);
     }
   }
   if (includeCost) {   // admin-only inventory + costing fields
@@ -791,6 +845,9 @@ function variantRows(productId, includeAll) {
       stock: Number(v.stock) || 0,
       active: !!v.is_active,
       sort: v.sort_order || 0,
+      ukPrice: Number(v.gbp_price) || 0,
+      ukSale: (Number(v.gbp_sale) > 0 && Number(v.gbp_sale) < Number(v.gbp_price)) ? Number(v.gbp_sale) : null,
+      ukStock: Number(v.uk_stock) || 0,
     };
     if (includeAll) { out.cost = Number(v.cost) || 0; out.sku = v.sku || ''; out.barcode = v.barcode || '';
                       out.discount_price = dp; out.minStock = Number(v.min_stock) || 0; }
@@ -806,6 +863,9 @@ function variantById(id) {
   return { id: v.id, productId: v.product_id, label_en: v.label_en || '', label_ar: v.label_ar || '',
            price: Number(v.price) || 0, sale: (dp > 0 && dp < v.price) ? dp : null,
            cost: Number(v.cost) || 0, stock: Number(v.stock) || 0, minStock: Number(v.min_stock) || 0,
+           ukPrice: Number(v.gbp_price) || 0,
+           ukSale: (Number(v.gbp_sale) > 0 && Number(v.gbp_sale) < Number(v.gbp_price)) ? Number(v.gbp_sale) : null,
+           ukStock: Number(v.uk_stock) || 0,
            sku: v.sku || '', barcode: v.barcode || '', active: !!v.is_active };
 }
 function variantByCode(code) {
@@ -967,13 +1027,14 @@ const queries = {
   variantByCode: (code) => variantByCode(code),
   addVariant: (productId, b) => {
     const info = db.prepare(`INSERT INTO product_variants
-      (product_id,label_en,label_ar,price,discount_price,cost,stock,min_stock,sku,barcode,sort_order,is_active)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      (product_id,label_en,label_ar,price,discount_price,cost,stock,min_stock,sku,barcode,sort_order,is_active,gbp_price,gbp_sale,uk_stock)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         Number(productId), String(b.label_en || '').slice(0, 60), String(b.label_ar || '').slice(0, 60),
         Number(b.price) || 0, Number(b.discount_price) || 0, Number(b.cost) || 0,
         Math.max(0, Math.trunc(Number(b.stock) || 0)), Math.max(0, Math.trunc(Number(b.min_stock) || 0)),
         String(b.sku || '').slice(0, 60),
-        String(b.barcode || '').slice(0, 60), Number(b.sort_order) || 0, b.is_active === false ? 0 : 1);
+        String(b.barcode || '').slice(0, 60), Number(b.sort_order) || 0, b.is_active === false ? 0 : 1,
+        Number(b.gbp_price) || 0, Number(b.gbp_sale) || 0, Math.max(0, Math.trunc(Number(b.uk_stock) || 0)));
     return info.lastInsertRowid;
   },
   updateVariant: (id, b) => {
@@ -981,7 +1042,7 @@ const queries = {
     if (!cur) return false;
     const pick = (k, fallback) => (b[k] === undefined ? fallback : b[k]);
     db.prepare(`UPDATE product_variants SET label_en=?,label_ar=?,price=?,discount_price=?,cost=?,stock=?,min_stock=?,
-      sku=?,barcode=?,sort_order=?,is_active=? WHERE id=?`).run(
+      sku=?,barcode=?,sort_order=?,is_active=?,gbp_price=?,gbp_sale=?,uk_stock=? WHERE id=?`).run(
         String(pick('label_en', cur.label_en) || '').slice(0, 60),
         String(pick('label_ar', cur.label_ar) || '').slice(0, 60),
         Number(pick('price', cur.price)) || 0,
@@ -993,6 +1054,9 @@ const queries = {
         String(pick('barcode', cur.barcode) || '').slice(0, 60),
         Number(pick('sort_order', cur.sort_order)) || 0,
         (b.is_active === undefined ? cur.is_active : (b.is_active ? 1 : 0)),
+        Number(pick('gbp_price', cur.gbp_price)) || 0,
+        Number(pick('gbp_sale', cur.gbp_sale)) || 0,
+        Math.max(0, Math.trunc(Number(pick('uk_stock', cur.uk_stock)) || 0)),
         Number(id));
     return true;
   },
@@ -1087,7 +1151,7 @@ const queries = {
   allCustomers: () => {
     const custs = db.prepare('SELECT id,name,phone,email,points,referral_code,referred_by,notes,is_active,created_at FROM customers ORDER BY id DESC').all();
     const agg = {};
-    db.prepare("SELECT customer_id cid, COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE customer_id IS NOT NULL AND status NOT IN ('cancelled','returned','refunded') GROUP BY customer_id").all()
+    db.prepare("SELECT customer_id cid, COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE customer_id IS NOT NULL AND market='gm' AND status NOT IN ('cancelled','returned','refunded') GROUP BY customer_id").all()
       .forEach(r => agg[r.cid] = r);
     const refs = {};
     db.prepare('SELECT referred_by rb, COUNT(*) c FROM customers WHERE referred_by IS NOT NULL GROUP BY referred_by').all().forEach(r => refs[r.rb] = r.c);
@@ -1149,7 +1213,7 @@ const queries = {
       ORDER BY i.id DESC`).all().map(i => queries.investmentMetrics(i)),
   investorLedger: (investorId, limit = 60) => db.prepare(`
     SELECT * FROM (
-      SELECT 'investment' type, i.created_at at, -0.0 amount,
+      SELECT 'investment' type, i.created_at at, -0.0 amount, '' note,
         'Invested D'||i.amount||' — '||p.name_en||COALESCE(' '||pv.label_en,'')||' ×'||i.qty_funded
           ||CASE WHEN (SELECT COUNT(*) FROM investments e WHERE e.investor_id=i.investor_id AND e.product_id=i.product_id
                 AND COALESCE(e.variant_id,0)=COALESCE(i.variant_id,0) AND e.status!='cancelled') > 1
@@ -1160,15 +1224,24 @@ const queries = {
         LEFT JOIN product_variants pv ON pv.id=i.variant_id
         WHERE i.investor_id=? AND i.status!='cancelled'
       UNION ALL
-      SELECT CASE WHEN s.qty>=0 THEN 'sale_profit' ELSE 'reversal' END, s.created_at, s.investor_profit,
+      SELECT CASE WHEN s.qty>=0 THEN 'sale_profit' ELSE 'reversal' END, s.created_at, s.investor_profit, '',
         CASE WHEN s.qty>=0 THEN 'Profit share' ELSE 'Reversal' END||' — '||p.name_en||COALESCE(' '||sv.label_en,'')||' ×'||abs(s.qty)||' @ D'||s.unit_price||CASE WHEN s.order_number!='' THEN ' ('||s.order_number||')' ELSE '' END, s.id
         FROM investor_sales s JOIN products p ON p.id=s.product_id
         LEFT JOIN product_variants sv ON sv.id=s.variant_id
         WHERE s.investor_id=?
       UNION ALL
-      SELECT 'payout', po.paid_at, -po.amount, 'Payout — '||po.method||CASE WHEN po.reference!='' THEN ' ('||po.reference||')' ELSE '' END, po.id
+      SELECT 'payout', po.paid_at, -po.amount, COALESCE(po.notes,''),
+        'Payout — '||po.method||CASE WHEN po.reference!='' THEN ' ('||po.reference||')' ELSE '' END, po.id
         FROM investor_payouts po WHERE po.investor_id=?
-    ) ORDER BY at DESC LIMIT ?`).all(investorId, investorId, investorId, limit),
+      UNION ALL
+      /* Capital paid in, and capital handed back. The investor sees a running figure for this
+         at the top of their page; these rows are where it came from. */
+      SELECT CASE WHEN d.amount>=0 THEN 'deposit' ELSE 'capital_return' END, d.deposited_at, d.amount,
+        COALESCE(d.notes,''),
+        CASE WHEN d.amount>=0 THEN 'Capital received — ' ELSE 'Capital returned to you — ' END||d.method
+          ||CASE WHEN d.reference!='' THEN ' ('||d.reference||')' ELSE '' END, d.id
+        FROM investor_deposits d WHERE d.investor_id=?
+    ) ORDER BY at DESC LIMIT ?`).all(investorId, investorId, investorId, investorId, limit),
   // Loans (credit given to customers/friends, and credit the store takes from suppliers/lenders)
   allLoans: () => db.prepare('SELECT * FROM loans ORDER BY (status=\'active\') DESC, date_due ASC, id DESC').all()
     .map(l => ({ ...l, overdue: l.status === 'active' && l.date_due && l.date_due < new Date().toISOString().slice(0, 10) })),
@@ -1186,12 +1259,12 @@ const queries = {
   // Dashboard metrics (single call feeds the redesigned Overview)
   dashboard: () => {
     const one = (sql, ...a) => db.prepare(sql).get(...a) || {};
-    const today = one("SELECT COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE status NOT IN ('cancelled','returned','refunded') AND date(created_at)=date('now')");
-    const month = one("SELECT COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE status NOT IN ('cancelled','returned','refunded') AND strftime('%Y-%m',created_at)=strftime('%Y-%m','now')");
+    const today = one("SELECT COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND date(created_at)=date('now')");
+    const month = one("SELECT COUNT(*) c, COALESCE(SUM(total),0) s FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND strftime('%Y-%m',created_at)=strftime('%Y-%m','now')");
     const pending = one("SELECT COUNT(*) c FROM orders WHERE status='new'").c;
     // last 30 days sales series
     const series = db.prepare(`SELECT date(created_at) d, COALESCE(SUM(total),0) s, COUNT(*) c FROM orders
-      WHERE status NOT IN ('cancelled','returned','refunded') AND created_at >= datetime('now','-30 days') GROUP BY date(created_at) ORDER BY d ASC`).all();
+      WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND created_at >= datetime('now','-30 days') GROUP BY date(created_at) ORDER BY d ASC`).all();
     // customer growth: first order date per phone
     const firsts = db.prepare("SELECT MIN(date(created_at)) f FROM orders WHERE customer_phone!='' GROUP BY customer_phone").all().map(r => r.f);
     const newThisMonth = firsts.filter(f => f && f.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
@@ -1215,7 +1288,7 @@ const queries = {
     if (type === 'sales') {
       const rows = db.prepare(`SELECT date(created_at) d, COUNT(*) orders, COALESCE(SUM(total),0) revenue,
         SUM(CASE WHEN channel='onsite' THEN 1 ELSE 0 END) shop, SUM(CASE WHEN channel!='onsite' THEN 1 ELSE 0 END) online
-        FROM orders WHERE status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?
+        FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?
         GROUP BY date(created_at) ORDER BY d DESC`).all(F, T);
       return { rows, totals: { orders: rows.reduce((s, r) => s + r.orders, 0), revenue: rows.reduce((s, r) => s + r.revenue, 0) } };
     }
@@ -1259,7 +1332,7 @@ const queries = {
     if (type === 'payments') {
       const rows = db.prepare(`SELECT payment_method method, COUNT(*) orders, COALESCE(SUM(total),0) revenue,
         SUM(CASE WHEN payment_status='paid' THEN 1 ELSE 0 END) paid_count
-        FROM orders WHERE status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?
+        FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?
         GROUP BY payment_method ORDER BY revenue DESC`).all(F, T);
       return { rows, totals: { orders: rows.reduce((s, r) => s + r.orders, 0), revenue: rows.reduce((s, r) => s + r.revenue, 0) } };
     }
