@@ -63,6 +63,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--cream);color:v
 .kv div{font-size:.8rem;color:var(--muted)}
 .kv b{display:block;font-size:.98rem;color:var(--ink);margin-top:2px}
 .empty{color:var(--muted);font-size:.9rem;padding:6px 0}
+/* Opened in full, the statement scrolls inside itself rather than pushing the rest of the page
+   down a screen and a half. */
+#ledger.scrollbox{max-height:430px;overflow-y:auto;padding-inline-end:4px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-top:4px}
+#ledger.scrollbox .mgrp:first-child{padding-top:10px}
 .stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .stat .lbl{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .stat .num{font-family:Georgia,serif;font-size:1.45rem;font-weight:700;color:var(--green-800);margin-top:4px}
@@ -128,7 +133,9 @@ canvas{width:100%;height:180px}
       <p class="note">Profit is shared on <b>profit only</b> (selling price − cost), at your agreed percentage, using the actual selling price of every sale — discounts included. This page is read-only; contact Jeddah Trading for payouts or questions.</p></div>
     <div class="panel"><h3>🧾 Your statement</h3>
       <p class="note" style="margin:-6px 0 12px">Every movement on your account, newest first — capital you paid in, profit as it is earned, and each payment made to you with any note we left with it.</p>
-      <div id="ledger"></div></div>
+      <div class="filters" id="ledgerFilters"></div>
+      <div id="ledger"></div>
+      <div id="ledgerMore" style="margin-top:12px"></div></div>
     <div class="panel"><h3>💬 Messages & enquiries</h3>
       <div id="msgList" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;align-items:flex-end">
@@ -234,13 +241,46 @@ function monthOf(at){
 // The description is assembled in the database, so amounts arrive as plain numbers like
 // "D30000.0". Tidy them into the same money format as the rest of the page.
 const prettyAmounts=str=>String(str).replace(/D(\d+(?:\.\d+)?)/g,(m,n)=>money(Number(n)));
-function renderLedger(rows){
+/* The statement can run to dozens of lines once a few rounds have been through, so it is
+   categorised and short by default: the newest handful, with everything one tap away. The
+   categories offered are only the ones this investor actually has. */
+const LED_CATS=[
+  ['profit',     ['sale_profit','reversal'],    'Profit'],
+  ['payout',     ['payout'],                    'Paid to you'],
+  ['capital',    ['deposit','capital_return'],  'Capital'],
+  ['investment', ['investment'],                'Stock funded'],
+];
+const LED_PAGE=6;
+let LEDGER=[], LED_FILTER='all', LED_OPEN=false;
+function ledCat(type){ const f=LED_CATS.find(c=>c[1].includes(type)); return f?f[0]:'other'; }
+function ledRows(){ return LED_FILTER==='all'?LEDGER:LEDGER.filter(l=>ledCat(l.type)===LED_FILTER); }
+function renderLedgerFilters(){
+  const counts={};
+  LEDGER.forEach(l=>{const c=ledCat(l.type);counts[c]=(counts[c]||0)+1;});
+  const present=LED_CATS.filter(c=>counts[c[0]]);
+  // One category only? Then a filter row would be decoration, not help.
+  const chips=present.length>1?[['all','All',LEDGER.length],...present.map(c=>[c[0],c[2],counts[c[0]]])]:[];
+  if(LED_FILTER!=='all'&&!counts[LED_FILTER])LED_FILTER='all';
+  const fb=$('#ledgerFilters');
+  fb.innerHTML=chips.map(([k,l,n])=>
+    `<button class="chip${LED_FILTER===k?' on':''}" data-led="${k}">${l}<span class="n">${n}</span></button>`).join('');
+  fb.querySelectorAll('[data-led]').forEach(b=>b.onclick=()=>{
+    LED_FILTER=b.dataset.led; LED_OPEN=false;    // a new category starts short again
+    renderLedgerFilters(); renderLedger();
+  });
+}
+function renderLedger(){
+  const rows=ledRows();
   if(!rows.length){
-    $('#ledger').innerHTML='<p class="empty">Nothing has happened on your account yet. Once your stock starts selling, every movement shows here.</p>';
+    $('#ledger').innerHTML=LED_FILTER==='all'
+      ? '<p class="empty">Nothing has happened on your account yet. Once your stock starts selling, every movement shows here.</p>'
+      : '<p class="empty">Nothing of that kind yet.</p>';
+    $('#ledgerMore').innerHTML='';
     return;
   }
+  const shown=LED_OPEN?rows:rows.slice(0,LED_PAGE);
   let out='', lastMonth='';
-  for(const l of rows){
+  for(const l of shown){
     const m=monthOf(l.at);
     if(m!==lastMonth){ out+=`<div class="mgrp">${m}</div>`; lastMonth=m; }
     const look=LED_LOOK[l.type]||{ic:'\u2022',bg:'var(--cream)',amt:'flat'};
@@ -254,7 +294,20 @@ function renderLedger(rows){
       ${note}
     </div>`;
   }
-  $('#ledger').innerHTML=out;
+  const box=$('#ledger');
+  box.innerHTML=out;
+  box.classList.toggle('scrollbox',LED_OPEN&&rows.length>LED_PAGE);
+  const hidden=rows.length-shown.length;
+  $('#ledgerMore').innerHTML = (hidden>0||LED_OPEN)
+    ? `<button class="chip" id="ledToggle" style="width:100%;padding:10px">${
+        LED_OPEN?'Show less':`Show all ${rows.length} \u00b7 ${hidden} more`}</button>`
+    : '';
+  const tg=$('#ledToggle');
+  if(tg)tg.onclick=()=>{
+    LED_OPEN=!LED_OPEN;
+    renderLedger();
+    if(!LED_OPEN)document.querySelector('#ledger').scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
 }
 async function enter(){
   const r=await fetch('/api/investor/dashboard',{headers:{'X-Investor-Token':TOKEN}});
@@ -292,7 +345,7 @@ async function enter(){
   ].map(card).join('');
   INVESTMENTS=d.investments||[];
   renderInvestments();
-  renderLedger(d.ledger||[]);
+  LEDGER=d.ledger||[]; LED_OPEN=false; renderLedgerFilters(); renderLedger();
   // A 30-day chart of a single bar is wasted space; it appears once there is a shape to see.
   const pts=(d.series||[]).filter(x=>Number(x.p)>0);
   $('#chartPanel').style.display=pts.length>1?'':'none';
