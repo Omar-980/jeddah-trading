@@ -32,6 +32,37 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--cream);color:v
 .topbar .who{margin-left:auto;font-size:.85rem;display:flex;gap:12px;align-items:center}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 18px 60px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+/* The two figures an investor actually opens the page for: what they are owed right now, and
+   how much of their money is still out there working. Everything else is supporting detail. */
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:14px}
+.hero .box{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden}
+.hero .box.owed{background:linear-gradient(135deg,#0c3b22,#15603a);border-color:#0c3b22;color:#fff}
+.hero .box .lbl{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hero .box.owed .lbl{color:rgba(255,255,255,.72)}
+.hero .box .big{font-family:Georgia,serif;font-size:2.3rem;font-weight:700;line-height:1.15;margin-top:6px;color:var(--green-800)}
+.hero .box.owed .big{color:#e8c45c}
+.hero .box .sub{font-size:.82rem;color:var(--muted);margin-top:7px;line-height:1.5}
+.hero .box.owed .sub{color:rgba(255,255,255,.8)}
+.sect{font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:22px 0 10px}
+.sect:first-child{margin-top:0}
+/* A statement line: date, what happened, the money, and any note left with it. */
+.ent{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border)}
+.ent:last-child{border-bottom:0}
+.ent .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:.8rem;grid-row:span 2}
+.ent .what{font-size:.89rem;color:var(--ink)}
+.ent .when{font-size:.75rem;color:var(--muted);margin-top:2px}
+.ent .amt{font-weight:700;white-space:nowrap;font-size:.92rem;grid-row:span 2;align-self:center}
+.ent .amt.pos{color:#1c7d4a}.ent .amt.neg{color:#b4472e}.ent .amt.flat{color:var(--muted);font-weight:600}
+.ent .note{grid-column:2;background:var(--cream);border-inline-start:3px solid var(--gold-400,#bd9526);
+  border-radius:0 8px 8px 0;padding:7px 11px;margin-top:6px;font-size:.83rem;color:var(--ink);line-height:1.5}
+.ent .note b{color:var(--green-800);font-weight:700}
+.mgrp{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;
+  padding:14px 0 4px;border-bottom:1px solid var(--border)}
+.mgrp:first-child{padding-top:0}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 16px;margin-top:10px}
+.kv div{font-size:.8rem;color:var(--muted)}
+.kv b{display:block;font-size:.98rem;color:var(--ink);margin-top:2px}
+.empty{color:var(--muted);font-size:.9rem;padding:6px 0}
 .stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .stat .lbl{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .stat .num{font-family:Georgia,serif;font-size:1.45rem;font-weight:700;color:var(--green-800);margin-top:4px}
@@ -85,10 +116,19 @@ canvas{width:100%;height:180px}
     <div class="who"><span id="whoName">—</span><button class="btn btn-outline" id="logout" style="padding:7px 14px">Log out</button></div>
   </div>
   <div class="wrap">
-    <div class="grid" id="stats"></div>
-    <div class="panel"><h3>📈 Your profit — last 30 days</h3><canvas id="chart" width="1040" height="180"></canvas></div>
+    <div class="hero" id="hero"></div>
+    <div class="panel" id="figuresPanel">
+      <div class="sect">Your capital</div>
+      <div class="grid" id="statsCapital" style="margin-bottom:0"></div>
+      <div class="sect">Your returns</div>
+      <div class="grid" id="statsReturns" style="margin-bottom:0"></div>
+    </div>
+    <div class="panel" id="chartPanel"><h3>📈 Your profit — last 30 days</h3><canvas id="chart" width="1040" height="150"></canvas></div>
     <div class="panel"><h3>📦 Your investments</h3><div class="filters" id="invFilters"></div><div id="invList"></div>
       <p class="note">Profit is shared on <b>profit only</b> (selling price − cost), at your agreed percentage, using the actual selling price of every sale — discounts included. This page is read-only; contact Jeddah Trading for payouts or questions.</p></div>
+    <div class="panel"><h3>🧾 Your statement</h3>
+      <p class="note" style="margin:-6px 0 12px">Every movement on your account, newest first — capital you paid in, profit as it is earned, and each payment made to you with any note we left with it.</p>
+      <div id="ledger"></div></div>
     <div class="panel"><h3>💬 Messages & enquiries</h3>
       <div id="msgList" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;align-items:flex-end">
@@ -97,7 +137,6 @@ canvas{width:100%;height:180px}
       </div>
       <p class="note">Your message goes straight to the Jeddah Trading team — replies appear here.</p>
     </div>
-    <div class="panel"><h3>🧾 Transaction history</h3><div id="ledger"></div></div>
   </div>
 </div>
 
@@ -151,15 +190,17 @@ function renderInvestments(){
     return `<div class="inv">
       <div class="top"><b>${esc(i.product_name)}${i.rounds_total>1?` <span style="font-weight:600;opacity:.75">\u00b7 Round ${i.round_no}</span>`:''}</b><span class="tag ${i.status}">${i.status}</span></div>
       <div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div>
-      <div class="meta">
-        <span>Sold <b>${i.qty_sold}/${i.qty_funded}</b> (${pct}%)</span>
-        <span>Remaining <b>${i.qty_remaining}</b></span>
-        <span>Invested <b>${money(i.amount)}</b></span>
-        <span>Sales <b>${money(i.revenue)}</b></span>
-        <span>Your profit <b style="color:#9a7b1f">${money(i.investor_profit)}</b> (${i.investor_pct}%)</span>
-        ${i.batch_no?`<span>Batch <b>${esc(i.batch_no)}</b></span>`:''}
-        <span>Since <b>${i.invested_at}</b></span>
-        <button class="btn btn-outline" data-ask="${esc(i.product_name)}" style="padding:4px 12px;font-size:.78rem;margin-inline-start:auto">\ud83d\udcac Ask about this</button>
+      <div style="font-size:.82rem;color:var(--muted)">${i.qty_sold} of ${i.qty_funded} sold${i.qty_remaining>0?` \u00b7 <b style="color:var(--ink)">${i.qty_remaining}</b> still on the shelf`:' \u00b7 all sold'}</div>
+      <div class="kv">
+        <div>You put in<b>${money(i.amount)}</b></div>
+        <div>Sold for<b>${money(i.revenue)}</b></div>
+        <div>Your profit<b style="color:#9a7b1f">${money(i.investor_profit)}</b></div>
+        <div>Your share<b>${i.investor_pct}%</b></div>
+        <div>Started<b>${i.invested_at}</b></div>
+        ${i.batch_no?`<div>Batch<b>${esc(i.batch_no)}</b></div>`:''}
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-outline" data-ask="${esc(i.product_name)}" style="padding:5px 13px;font-size:.78rem;width:auto">\ud83d\udcac Ask about this</button>
       </div>
     </div>`;
   }).join('')||`<p style="color:var(--muted);font-size:.9rem">${INV_FILTER==='all'?'No investments yet.':'No '+STATUS_LABEL[INV_FILTER].toLowerCase()+' investments.'}</p>`;
@@ -168,6 +209,53 @@ function renderInvestments(){
     t.scrollIntoView({behavior:'smooth',block:'center'});
   });
 }
+/* ---- The statement ----
+   One line per movement, grouped by month so a long history stays readable. A payout shows the
+   note that was written with it, because "why was this D2,000 paid?" is the question an investor
+   most often has to ring up and ask. */
+const LED_LOOK={
+  deposit:        {ic:'\u2b07\ufe0f', bg:'rgba(47,109,176,.12)', amt:'flat'},
+  capital_return: {ic:'\u2b06\ufe0f', bg:'rgba(47,109,176,.12)', amt:'flat'},
+  investment:     {ic:'\ud83d\udce6', bg:'rgba(189,149,38,.14)', amt:'none'},
+  sale_profit:    {ic:'\ud83d\udcc8', bg:'rgba(28,125,74,.13)',  amt:'pos'},
+  reversal:       {ic:'\u21a9\ufe0f', bg:'rgba(180,71,46,.12)',  amt:'neg'},
+  payout:         {ic:'\ud83d\udcb0', bg:'rgba(28,125,74,.13)',  amt:'neg'},
+};
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function prettyDate(at){
+  const d=new Date(String(at).replace(' ','T'));
+  if(isNaN(d))return String(at).slice(0,10);
+  return d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+' '+d.getFullYear();
+}
+function monthOf(at){
+  const d=new Date(String(at).replace(' ','T'));
+  return isNaN(d)?String(at).slice(0,7):MONTHS[d.getMonth()]+' '+d.getFullYear();
+}
+// The description is assembled in the database, so amounts arrive as plain numbers like
+// "D30000.0". Tidy them into the same money format as the rest of the page.
+const prettyAmounts=str=>String(str).replace(/D(\d+(?:\.\d+)?)/g,(m,n)=>money(Number(n)));
+function renderLedger(rows){
+  if(!rows.length){
+    $('#ledger').innerHTML='<p class="empty">Nothing has happened on your account yet. Once your stock starts selling, every movement shows here.</p>';
+    return;
+  }
+  let out='', lastMonth='';
+  for(const l of rows){
+    const m=monthOf(l.at);
+    if(m!==lastMonth){ out+=`<div class="mgrp">${m}</div>`; lastMonth=m; }
+    const look=LED_LOOK[l.type]||{ic:'\u2022',bg:'var(--cream)',amt:'flat'};
+    const amt=look.amt==='none'?''
+      :`<span class="amt ${look.amt}">${look.amt==='pos'?'+':(look.amt==='neg'?'\u2212':'')}${money(Math.abs(l.amount))}</span>`;
+    const note=l.note?`<div class="note"><b>Note:</b> ${esc(l.note)}</div>`:'';
+    out+=`<div class="ent">
+      <span class="ic" style="background:${look.bg}">${look.ic}</span>
+      <div><div class="what">${prettyAmounts(esc(l.descr))}</div><div class="when">${prettyDate(l.at)}</div></div>
+      ${amt||'<span class="amt flat"></span>'}
+      ${note}
+    </div>`;
+  }
+  $('#ledger').innerHTML=out;
+}
 async function enter(){
   const r=await fetch('/api/investor/dashboard',{headers:{'X-Investor-Token':TOKEN}});
   if(!r.ok){TOKEN='';sessionStorage.removeItem('jt_inv');return;}
@@ -175,25 +263,40 @@ async function enter(){
   $('#loginWrap').style.display='none';$('#app').style.display='block';
   $('#whoName').textContent=d.investor.name;
   const t=d.totals;
-  $('#stats').innerHTML=[
-    // "Capital at work" is the money still sitting in unsold stock — the real current exposure.
-    // "Total invested" is everything ever put in, so capital put back to work counts again.
-    // The investor's own starting figure, first and unmissable: what they actually paid in.
-    ['Capital deposited',money(t.capital_deposited||0),'gold','The capital you have paid in, less any capital returned to you'],
-    ['Capital at work',money(t.capital_at_work||0),'',"Your money still sitting in stock that hasn't sold yet"],
-    ['Total invested (all time)',money(t.invested),'','Everything you have ever put in, including money reinvested after a batch sold out'],
-    ['Sales generated',money(t.revenue)],
-    ['Your profit earned',money(t.profit),'gold'],['Paid to you',money(t.paid)],
-    ['Balance owed to you',money(t.balance),'gold']
-  ].map(([l,n,c,tip])=>`<div class="stat ${c||''}"${tip?` title="${esc(tip)}"`:''}><div class="lbl">${l}</div><div class="num">${n}</div></div>`).join('');
+  /* Two figures lead the page: what we owe you right now, and how much of your money is still
+     out there in stock. The rest is supporting detail, grouped so it is obvious which numbers
+     are about your capital and which are about what it has earned. */
+  const owedNote = t.balance > 0
+    ? 'Yours to ask for whenever you want it \u2014 message us below.'
+    : (t.profit > 0 ? 'Everything earned so far has been paid to you.' : 'Nothing owed yet \u2014 profit appears here as your stock sells.');
+  $('#hero').innerHTML = `
+    <div class="box owed">
+      <div class="lbl">Balance owed to you</div>
+      <div class="big">${money(t.balance)}</div>
+      <div class="sub">${owedNote}</div>
+    </div>
+    <div class="box">
+      <div class="lbl">Capital at work</div>
+      <div class="big">${money(t.capital_at_work||0)}</div>
+      <div class="sub">Your money sitting in stock that has not sold yet. It falls as goods sell and rises when you fund a new batch.</div>
+    </div>`;
+  const card = ([l,n,c,tip]) => `<div class="stat ${c||''}"${tip?` title="${esc(tip)}"`:''}><div class="lbl">${l}</div><div class="num">${n}</div></div>`;
+  $('#statsCapital').innerHTML = [
+    ['Capital deposited', money(t.capital_deposited||0), 'gold', 'The capital you have paid in, less any capital returned to you'],
+    ['Total invested (all time)', money(t.invested), '', 'Everything you have ever put in, counting money put back to work after a batch sold out'],
+  ].map(card).join('');
+  $('#statsReturns').innerHTML = [
+    ['Your profit earned', money(t.profit), 'gold', 'Your share of the profit on everything that has sold'],
+    ['Paid to you', money(t.paid), '', 'Profit already paid out to you'],
+    ['Sales generated', money(t.revenue), '', 'What your goods have sold for in total'],
+  ].map(card).join('');
   INVESTMENTS=d.investments||[];
   renderInvestments();
-  $('#ledger').innerHTML=(d.ledger||[]).map(l=>{
-    const isPay=l.type==='payout', isRev=l.type==='reversal', isInv=l.type==='investment';
-    const amt=isInv?'':`<span class="amt ${l.amount>=0&&!isPay?'pos':'neg'}">${l.amount>=0&&!isPay?'+':''}${money(Math.abs(l.amount))}</span>`;
-    return `<div class="led"><span>${l.at.slice(0,16).replace('T',' ')} — ${esc(l.descr)}</span>${amt}</div>`;
-  }).join('')||'<p style="color:var(--muted);font-size:.9rem">Nothing yet.</p>';
-  drawChart(d.series||[]);
+  renderLedger(d.ledger||[]);
+  // A 30-day chart of a single bar is wasted space; it appears once there is a shape to see.
+  const pts=(d.series||[]).filter(x=>Number(x.p)>0);
+  $('#chartPanel').style.display=pts.length>1?'':'none';
+  if(pts.length>1)drawChart(d.series||[]);
   loadMsgs();
   // the "Ask about this" buttons are bound inside renderInvestments(), so they survive filtering
   setTimeout(refresh,60000);   // live: refresh every minute

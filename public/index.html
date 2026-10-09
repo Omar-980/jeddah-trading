@@ -797,6 +797,15 @@ html[dir="rtl"] .drawer-start{transform:translateX(110%)}
 .receipt-card .rc-info{font-size:.84rem;color:var(--ink-soft);line-height:1.7}
 .receipt-card .rc-info b{color:var(--green-800)}
 /* customer account + banners */
+.mkt-toggle{gap:6px}
+.uk-band{background:var(--green-800);color:var(--cream);text-align:center;font-size:.82rem;padding:7px 14px}
+.uk-band b{color:var(--gold-l,#c9a23a)}
+.uk-note{background:var(--cream-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:.84rem;color:var(--ink);line-height:1.55}
+.uk-note h4{font-size:.86rem;margin-bottom:5px;color:var(--green-800)}
+.uk-pay{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:.88rem}
+.uk-pay dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:7px 0 0}
+.uk-pay dt{color:var(--muted)}
+.uk-pay dd{font-weight:600;font-family:ui-monospace,Menlo,monospace}
 .acct-dot{position:absolute;top:6px;inset-inline-end:6px;width:9px;height:9px;border-radius:50%;background:#3ddc84;border:2px solid var(--cream)}
 #accountPage{display:none}
 body.viewing-account main{display:none}
@@ -1096,9 +1105,10 @@ body.viewing-product .pp-sticky{display:none}
 </style>
 </head>
 <body>
+<div class="uk-band" id="ukBand" style="display:none">🇬🇧 <b>UK store</b> — posted from our UK partner · prices in pounds, everything included</div>
 
 <!-- ============ ANNOUNCEMENT ============ -->
-<div class="announce">
+<div class="announce" id="announceBar">
   <span data-i18n="announce">🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime</span>
 </div>
 
@@ -1120,6 +1130,9 @@ body.viewing-product .pp-sticky{display:none}
       <a href="#contact" data-i18n="nav_contact">Contact</a>
     </nav>
     <div class="nav-actions">
+      <button class="lang-toggle mkt-toggle" id="mktToggle" aria-label="Change country" style="display:none">
+        <span id="mktFlag">🇬🇲</span><span id="mktLabel">Gambia</span>
+      </button>
       <button class="lang-toggle" id="langToggle" aria-label="Switch language">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg>
         <span id="langLabel">العربية</span>
@@ -1504,6 +1517,31 @@ body.viewing-product .pp-sticky{display:none}
 let WHATSAPP_NUMBER = "2207093900"; // +220 709 3900
 let STORE_NAME = "Jeddah Trading";
 const CURRENCY = "D"; // Gambian Dalasi (GMD)
+/* ---------- Two markets ----------
+   The shop sells in The Gambia in dalasi and, where a product has been cleared and priced for
+   it, in the United Kingdom in pounds from stock held by our partner there. Everything below
+   funnels through these few helpers, so switching market changes the money, the stock and what
+   is on the shelf all at once. A product that has not been switched on for the UK is simply not
+   there for a UK shopper. */
+let MARKET = 'gm';
+try{ if(localStorage.getItem('jt_market')==='uk') MARKET='uk'; }catch(e){}
+const isUK=()=>MARKET==='uk';
+function setMarket(m){
+  MARKET = (m==='uk') ? 'uk' : 'gm';
+  try{ localStorage.setItem('jt_market',MARKET); }catch(e){}
+  if(isUK()&&LANG!=='en')setLang('en');     // the UK side is English
+  cart=[];updateCart();
+  renderChips();renderProducts();renderFeatures();applyLang();
+  if(document.body.classList.contains('viewing-product'))handleRoute();
+  paintMarket();
+}
+function ukReady(p){
+  if(!p||!p.ukActive)return false;
+  if(hasSizes(p))return sizesOf(p).some(v=>Number(v.ukPrice)>0);
+  return Number(p.ukPrice)>0;
+}
+// Everything a UK shopper may see. In Gambia it is the whole catalogue, exactly as before.
+function marketProducts(){ return isUK()?PRODUCTS.filter(ukReady):PRODUCTS; }
 let FREE_DELIVERY_OVER = 2500;
 let DELIVERY_FEE = 150;
 let ZONES = [];        // delivery zones with per-location fees (from backend)
@@ -1941,7 +1979,7 @@ let activeCat='all';
 let search='';
 let cart=[]; // {id, qty}
 // Effective unit price — the flash-deal price when one is active. The server recomputes this too.
-function unitPrice(p){return (p&&p.sale)?p.sale:(p?p.price:0)}
+function unitPrice(p){ if(!p)return 0; return isUK()?(p.ukSale||p.ukPrice||0):(p.sale||p.price||0); }
 /* ---------- Sizes ----------
    A product may be sold in several sizes (500g, 1000g), each with its own price and stock.
    A cart line is therefore identified by product AND size; a product with no sizes uses vid 0
@@ -1950,13 +1988,22 @@ function hasSizes(p){return !!(p&&p.hasSizes&&Array.isArray(p.variants)&&p.varia
 function sizesOf(p){return (p&&Array.isArray(p.variants))?p.variants.filter(v=>v.active):[]}
 function sizeOf(p,vid){return vid?sizesOf(p).find(v=>v.id===+vid)||null:null}
 function sizeLabel(v){return (LANG==='ar'&&v.label_ar)?v.label_ar:v.label_en}
-function linePrice(p,vid){const v=sizeOf(p,vid);return v?(v.sale||v.price):unitPrice(p)}
-function lineWas(p,vid){const v=sizeOf(p,vid);return v?(v.sale?v.price:0):(p&&p.sale?p.price:0)}
-function lineStock(p,vid){const v=sizeOf(p,vid);return v?v.stock:(p?p.stock:0)}
+function linePrice(p,vid){const v=sizeOf(p,vid);
+  if(v)return isUK()?(v.ukSale||v.ukPrice||0):(v.sale||v.price);
+  return unitPrice(p);}
+function lineWas(p,vid){const v=sizeOf(p,vid);
+  if(v)return isUK()?(v.ukSale?v.ukPrice:0):(v.sale?v.price:0);
+  return isUK()?(p&&p.ukSale?p.ukPrice:0):(p&&p.sale?p.price:0);}
+function lineStock(p,vid){const v=sizeOf(p,vid);
+  if(v)return isUK()?(Number(v.ukStock)||0):v.stock;
+  return p?(isUK()?(Number(p.ukStock)||0):p.stock):0;}
 function lineName(p,vid){const v=sizeOf(p,vid);const base=p[LANG].name;return v?base+' · '+sizeLabel(v):base}
 function ckey(id,vid){return id+':'+(vid||0)}
 // Cheapest live size, used for the "from D…" on a product card.
-function fromPrice(p){const s=sizesOf(p);if(!s.length)return unitPrice(p);return Math.min(...s.map(v=>v.sale||v.price))}
+function fromPrice(p){const s=sizesOf(p);
+  if(!s.length)return unitPrice(p);
+  const eff=s.map(v=>isUK()?(v.ukSale||v.ukPrice||0):(v.sale||v.price)).filter(n=>n>0);
+  return eff.length?Math.min(...eff):unitPrice(p);}
 /* Wishlist + recently viewed (persisted on this device) */
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
@@ -1980,25 +2027,33 @@ function toggleFav(id){id=+id;const on=!FAVS.has(id);if(on)FAVS.add(id);else FAV
 function pushRecent(id){id=+id;let r=lsGet('jt_recent').filter(x=>x!==id);r.unshift(id);lsSet('jt_recent',r.slice(0,10))}
 // Stars for a card: real customer rating when it exists, a stable placeholder otherwise.
 function displayRating(p){if(p.rating&&p.rating.count>0)return{val:p.rating.avg.toFixed(1),full:Math.round(p.rating.avg),count:p.rating.count,real:true};const f=ratingFor(p.id);return{val:f.val,full:f.full,count:f.count,real:false}}
+// The currency word under a price. One helper, so no price tag can say GMD in pounds.
+const CUR_LABEL=()=>isUK()?'GBP':'GMD';
 // Price block with sale support (used on cards and strips)
 function priceHTML(p){
   // A product sold in sizes shows the cheapest one as "from D250" — the exact price depends on
   // which size the shopper picks on the product page.
   if(hasSizes(p)){
-    const lo=fromPrice(p), hi=Math.max(...sizesOf(p).map(v=>v.sale||v.price));
-    if(lo!==hi)return `<span class="price"><span class="prod-from">${t('from_price')}</span>${money(lo)} <small>GMD</small></span>`;
-    return `<span class="price">${money(lo)} <small>GMD</small></span>`;
+    const eff=sizesOf(p).map(v=>isUK()?(v.ukSale||v.ukPrice||0):(v.sale||v.price)).filter(n=>n>0);
+    const lo=fromPrice(p), hi=eff.length?Math.max(...eff):lo;
+    if(lo!==hi)return `<span class="price"><span class="prod-from">${t('from_price')}</span>${money(lo)} <small>${CUR_LABEL()}</small></span>`;
+    return `<span class="price">${money(lo)} <small>${CUR_LABEL()}</small></span>`;
   }
-  if(p.sale)return `<span class="price sale">${money(p.sale)} <small>GMD</small></span> <span class="price-was">${money(p.price)}</span>`;
-  return `<span class="price">${money(p.price)} <small>GMD</small></span>`;
+  const now=unitPrice(p), was=isUK()?(p.ukSale?p.ukPrice:0):(p.sale?p.price:0);
+  if(was)return `<span class="price sale">${money(now)} <small>${CUR_LABEL()}</small></span> <span class="price-was">${money(was)}</span>`;
+  return `<span class="price">${money(now)} <small>${CUR_LABEL()}</small></span>`;
 }
-function offPct(p){return p.sale?Math.round((1-p.sale/p.price)*100):0}
+function offPct(p){
+  const now=isUK()?p.ukSale:p.sale, was=isUK()?p.ukPrice:p.price;
+  return (now&&was)?Math.round((1-now/was)*100):0;}
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 const t=k=>(I18N[LANG][k]!==undefined?I18N[LANG][k]:k);
-const money=n=>CURRENCY+Number(n).toLocaleString('en-US');
+const money=n=>isUK()
+  ?'£'+Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})
+  :CURRENCY+Number(n).toLocaleString('en-US');
 const prod=id=>PRODUCTS.find(p=>p.id===id);
-function stockState(p){return p.stock<=0?'out':(p.stock<=5?'low':'in')}
+function stockState(p){const n=isUK()?(Number(p.ukStock)||0):p.stock;return n<=0?'out':(n<=5?'low':'in')}
 const CHAT_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
 /* social proof: "128 sold" instead of exposing remaining stock */
 function soldTxt(p){
@@ -2029,9 +2084,10 @@ function waGeneral(){openWa(LANG==='ar'?`السلام عليكم ${STORE_NAME}،
 /* ---------- Animated premium product showcase in hero ---------- */
 let hsTimer=null, hsIdx=0, hsList=[];
 function bestThenFeatured(){
-  let l=PRODUCTS.filter(p=>p.bestseller&&stockState(p)!=='out');
-  l=l.concat(PRODUCTS.filter(p=>p.feat&&!l.includes(p)&&stockState(p)!=='out'));
-  if(l.length<3) l=l.concat(PRODUCTS.filter(p=>!l.includes(p)&&stockState(p)!=='out'));
+  const MP=marketProducts();
+  let l=MP.filter(p=>p.bestseller&&stockState(p)!=='out');
+  l=l.concat(MP.filter(p=>p.feat&&!l.includes(p)&&stockState(p)!=='out'));
+  if(l.length<3) l=l.concat(MP.filter(p=>!l.includes(p)&&stockState(p)!=='out'));
   return l.slice(0,6);
 }
 const REDUCE_MOTION=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2040,7 +2096,7 @@ function showcasePicks(){
   const wanted=['herbs','perfumes','islamic','dates','electronics','men','women'];
   const out=[];
   for(const c of wanted){
-    const p=PRODUCTS.filter(x=>x.cat===c&&stockState(x)!=='out').sort((a,b)=>(b.bestseller-a.bestseller)||(b.feat-a.feat))[0];
+    const p=marketProducts().filter(x=>x.cat===c&&stockState(x)!=='out').sort((a,b)=>(b.bestseller-a.bestseller)||(b.feat-a.feat))[0];
     if(p&&!out.includes(p))out.push(p);
     if(out.length>=6)break;
   }
@@ -2065,11 +2121,11 @@ function renderHeroShowcase(){
       <div class="jc-info">
         <div class="jc-cat">${(catMap[p.cat]&&catMap[p.cat][LANG])||''}</div>
         <h4>${p[LANG].name}</h4>
-        <div class="jc-row"><span class="jc-price">${p.sale?`${money(p.sale)}<s>${money(p.price)}</s>`:money(p.price)} <small style="font-size:.66em;opacity:.6">GMD</small></span>${jcBadge(p)}</div>
+        <div class="jc-row"><span class="jc-price">${offPct(p)?`${money(unitPrice(p))}<s>${money(isUK()?p.ukPrice:p.price)}</s>`:money(unitPrice(p))} <small style="font-size:.66em;opacity:.6">${CUR_LABEL()}</small></span>${jcBadge(p)}</div>
       </div></div>`;
   }).join('')+`<div class="jh-dots">${hsList.map((_,i)=>`<i class="${i===0?'on':''}" data-hsdot="${i}"></i>`).join('')}</div>`;
   hsIdx=0; showHs(0); startHs();
-  const sp=$('#jhStatProducts'); if(sp)sp.dataset.count=PRODUCTS.length;
+  const sp=$('#jhStatProducts'); if(sp)sp.dataset.count=marketProducts().length;
   renderDealTicker(); jhHeadlineFx();
 }
 // 3-position depth carousel: front, right-behind, left-behind; the rest hidden.
@@ -2095,7 +2151,7 @@ function startHs(){
 let jhDealTimer=null,jhDealIdx=0;
 function renderDealTicker(){
   const el=$('#jhDeal'); if(!el)return;
-  const deals=PRODUCTS.filter(p=>p.sale&&stockState(p)!=='out');
+  const deals=marketProducts().filter(p=>(isUK()?p.ukSale:p.sale)&&stockState(p)!=='out');
   if(jhDealTimer){clearInterval(jhDealTimer);jhDealTimer=null;}
   if(!deals.length){el.innerHTML='';return;}
   const show=i=>{
@@ -2199,7 +2255,7 @@ function jhInit(){
 }
 function renderCategories(){
   $('#catGrid').innerHTML=CATEGORIES.map((c,i)=>{
-    const n=PRODUCTS.filter(p=>p.cat===c.id).length;
+    const n=marketProducts().filter(p=>p.cat===c.id).length;
     const bg=c.image?`background:${c.grad};` : `background:${c.grad};`;
     const imgLayer=c.image?`<span class="cat-img" style="background-image:url('${c.image}')"></span>`:'';
     return `<button class="cat-card" style="${bg}" data-cat="${c.id}">
@@ -2211,13 +2267,13 @@ function renderCategories(){
   $('#footCats').innerHTML=CATEGORIES.slice(0,6).map(c=>`<li><a href="#shop" data-cat="${c.id}" class="foot-cat">${c[LANG]}</a></li>`).join('');
   // header dropdown menu
   const cm=$('#catsMenu');
-  if(cm)cm.innerHTML=CATEGORIES.map(c=>{const n=PRODUCTS.filter(p=>p.cat===c.id).length;return `<a href="#shop" data-cat="${c.id}"><span class="cm-ic" style="background:${c.grad}">${svg(c.icon)}</span><span><b>${c[LANG]}</b><small>${n} ${LANG==='ar'?'منتج':'items'}</small></span></a>`;}).join('');
+  if(cm)cm.innerHTML=CATEGORIES.map(c=>{const n=marketProducts().filter(p=>p.cat===c.id).length;return `<a href="#shop" data-cat="${c.id}"><span class="cm-ic" style="background:${c.grad}">${svg(c.icon)}</span><span><b>${c[LANG]}</b><small>${n} ${LANG==='ar'?'منتج':'items'}</small></span></a>`;}).join('');
 }
 function updateCatBanner(){
   const b=$('#catBanner');if(!b)return;
   if(activeCat==='all'){b.classList.remove('show');b.innerHTML='';return;}
   const c=catMap[activeCat];if(!c){b.classList.remove('show');return;}
-  const n=PRODUCTS.filter(p=>p.cat===activeCat).length;
+  const n=marketProducts().filter(p=>p.cat===activeCat).length;
   b.innerHTML=`<span class="cb-ic" style="background:${c.grad}">${svg(c.icon)}</span>
     <div><h3 class="display">${c[LANG]}</h3><div class="cb-count">${n} ${LANG==='ar'?'منتج':'products'}</div></div>
     <button class="cb-clear" data-cat="all">${LANG==='ar'?'كل المنتجات ✕':'All products ✕'}</button>`;
@@ -2278,8 +2334,8 @@ function productCard(p){
 }
 /* Advanced shop filters (sort · brand · availability · price cap · saved) */
 let FILTERS={sort:'featured',brand:'',inStock:false,maxPrice:0,savedOnly:false,dealsOnly:false};
-function brandList(){return [...new Set(PRODUCTS.map(p=>p.brand).filter(Boolean))].sort();}
-function maxProductPrice(){return PRODUCTS.reduce((m,p)=>Math.max(m,unitPrice(p)),0);}
+function brandList(){return [...new Set(marketProducts().map(p=>p.brand).filter(Boolean))].sort();}
+function maxProductPrice(){return marketProducts().reduce((m,p)=>Math.max(m,unitPrice(p)),0);}
 function renderFilterBar(){
   const bar=$('#filterBar'); if(!bar)return;
   const brands=brandList();
@@ -2308,7 +2364,7 @@ function renderFilterBar(){
   $('#fPrice').onchange=()=>renderProducts();
 }
 function renderProducts(){
-  let list=PRODUCTS.slice();
+  let list=marketProducts().slice();   // a UK shopper only ever sees UK-cleared products
   if(activeCat!=='all') list=list.filter(p=>p.cat===activeCat);
   if(search){const q=search.toLowerCase();list=list.filter(p=>(p.en.name+p.ar.name+p.en.desc+(p.brand||'')+((catMap[p.cat]&&catMap[p.cat].en)||'')).toLowerCase().includes(q));}
   if(FILTERS.brand) list=list.filter(p=>p.brand===FILTERS.brand);
@@ -2351,7 +2407,7 @@ function heroSlideFor(p,kind){
     <div>
       <span class="hsl-eyebrow">${eyebrow}</span>
       <h2>${d.name}</h2>
-      <div class="hsl-price">${price} <small style="font-size:.5em;color:rgba(255,255,255,.6)">GMD</small></div>
+      <div class="hsl-price">${price} <small style="font-size:.5em;color:rgba(255,255,255,.6)">${CUR_LABEL()}</small></div>
       <div class="hero-cta">
         <button class="btn btn-gold" data-view="${p.id}">${t('sl_view')}</button>
         <a href="#shop" class="btn btn-outline-light" style="border:1.5px solid rgba(255,255,255,.4);color:#fff">${t('sl_shop')}</a>
@@ -2475,7 +2531,7 @@ function openProduct(id){
       <div class="pd-info">
         <span class="prod-cat">${catLabel}</span>
         <h3 class="pd-title">${d.name}</h3>
-        <div class="pd-price">${money(p.price)} <small style="font-size:.5em;color:var(--muted)">GMD</small></div>
+        <div class="pd-price">${money(unitPrice(p))} <small style="font-size:.5em;color:var(--muted)">${CUR_LABEL()}</small></div>
         <div style="margin-bottom:6px">${avail}</div>
         <div class="pd-section"><h5>${svg('book')}${t('description')}</h5><p>${d.desc}</p></div>
         <div class="pd-section"><h5><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>${t('how_use')}</h5><p>${d.use}</p></div>
@@ -2499,15 +2555,15 @@ let ppVid=0;   // the size currently chosen on the product page (0 = product has
    so the shopper sees exactly what they will pay before adding anything to the basket. */
 function selectSize(vid){
   const p=prod(CURRENT_PID); if(!p)return;
-  const v=sizeOf(p,vid); if(!v||v.stock<=0)return;
+  const v=sizeOf(p,vid); if(!v||lineStock(p,vid)<=0)return;   // the right country's stock
   ppVid=v.id;
   document.querySelectorAll('[data-psize]').forEach(b=>b.classList.toggle('on',+b.dataset.psize===ppVid));
   const price=$('#ppPrice');
   if(price){
     const was=lineWas(p,ppVid);
     price.innerHTML=was
-      ? `<span style="color:#c0392b">${money(v.sale)}</span> <small>GMD</small> <s class="pp-was">${money(was)}</s> <span class="pp-off">-${Math.round((was-v.sale)/was*100)}%</span>`
-      : `${money(v.price)} <small>GMD</small>`;
+      ? `<span style="color:#c0392b">${money(isUK()?v.ukSale:v.sale)}</span> <small>${CUR_LABEL()}</small> <s class="pp-was">${money(was)}</s> <span class="pp-off">-${Math.round((was-(isUK()?v.ukSale:v.sale))/was*100)}%</span>`
+      : `${money(isUK()?v.ukPrice:v.price)} <small>${CUR_LABEL()}</small>`;
   }
   const bar=$('#ppsPrice');
   if(bar){
@@ -2543,6 +2599,7 @@ function relatedFor(p){
 }
 function renderProductPage(id){
   const p=prod(id); if(!p){location.hash='';return;}
+  if(isUK()&&!ukReady(p)){location.hash='';toast('That item is not available in the UK');return;}
   track('ViewContent',{content_type:'product', content_ids:[feedId(p.id,0)],
     content_name:p.en.name, value:unitPrice(p), currency:fbCurrency()});
   const d=p[LANG], ss=stockState(p), out=ss==='out';
@@ -2603,7 +2660,7 @@ function renderProductPage(id){
         <span class="prod-cat">${catLabel}${p.brand?` · <b style="color:var(--green-700)">${p.brand}</b>`:''}</span>
         <h1 class="pp-title">${d.name}</h1>
         <div class="prod-rating" style="margin-bottom:8px"><span class="stars" style="font-size:1rem">${'★'.repeat(rt.full)}${'☆'.repeat(5-rt.full)}</span><span>${rt.val} · ${rt.count} ${LANG==='ar'?'تقييم':'reviews'}</span></div>
-        <div class="pp-price" id="ppPrice">${p.sale?`<span style="color:#c0392b">${money(p.sale)}</span> <small>GMD</small> <s class="pp-was">${money(p.price)}</s> <span class="pp-off">-${offPct(p)}%</span>`:`${money(p.price)} <small>GMD</small>`}</div>
+        <div class="pp-price" id="ppPrice">${offPct(p)?`<span style="color:#c0392b">${money(unitPrice(p))}</span> <small>${CUR_LABEL()}</small> <s class="pp-was">${money(isUK()?p.ukPrice:p.price)}</s> <span class="pp-off">-${offPct(p)}%</span>`:`${money(unitPrice(p))} <small>${CUR_LABEL()}</small>`}</div>
         <div><span id="ppAvail">${avail}</span>${p.sku?` <span style="color:var(--muted);font-size:.8rem">· SKU ${p.sku}</span>`:''}</div>
         ${(!out&&(p.bestseller||p.sale||p.wishers>=3))?`<div class="pp-notes">
           ${p.bestseller?`<span class="trend">🔥 ${t('pp_trending')}</span>`:''}
@@ -2815,7 +2872,7 @@ const PAYMENTS=[
   {id:'cod',label:'cod',color:'#bd9526',sub:'cod_s',icon:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>'},
   {id:'wachat',label:'WhatsApp',color:'#25D366',sub:'wachat_s',icon:'<path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/>'},
 ];
-let coStep=1, coData={deliv:'home',pay:'wave',zoneId:null,proof:null};
+let coStep=1, coData={deliv:'home',pay:isUK()?'uk_bank':'wave',zoneId:null,proof:null};
 let CO_COUPON=null;   // {code, discount} validated by the server
 let CO_REDEEM=0;      // loyalty points the customer chose to spend
 function coDiscountTotal(){
@@ -2830,8 +2887,13 @@ function coMaxRedeem(){
 }
 function payLabel(id){const m={wave:'WAVE',afri:'AfriMoney',qmoney:'QMoney',bank:(LANG==='ar'?'تحويل بنكي':'Bank Transfer'),cod:(LANG==='ar'?'الدفع عند الاستلام':'Cash on Delivery'),wachat:(LANG==='ar'?'تأكيد عبر واتساب':'WhatsApp Order')};return m[id]}
 function deliveryFee(){
-  if(coData.deliv==='pickup')return 0;
   const sub=cartSubtotal()-coDiscountTotal();   // free-delivery threshold applies to the discounted amount
+  if(isUK()){   // one flat Royal Mail rate, free above the threshold
+    const over=Number(PAYINFO&&PAYINFO.uk_free_over)||0;
+    if(over&&sub>=over)return 0;
+    return Number(PAYINFO&&PAYINFO.uk_delivery_fee)||0;
+  }
+  if(coData.deliv==='pickup')return 0;
   if(FREE_DELIVERY_OVER && sub>=FREE_DELIVERY_OVER)return 0;
   const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));
   return z?Number(z.fee):DELIVERY_FEE;
@@ -2859,6 +2921,47 @@ function openCheckout(){
     num_items:cart.reduce((s,i)=>s+i.qty,0), value:cartSubtotal(), currency:fbCurrency()});
   coStep=1; closeAll(); renderCheckout(); showModal('#checkoutModal');
 }
+/* The UK side takes payment by bank transfer to our partner's account or by PayPal. Both are
+   shown in full at checkout so the buyer can pay from their banking app while the order is
+   still on screen; the order number is the payment reference. */
+function paintMarket(){
+  const on=!!(PAYINFO&&PAYINFO.uk_enabled);          // hidden entirely until the UK side is live
+  const btn=$('#mktToggle'), band=$('#ukBand');
+  if(btn){
+    btn.style.display=on?'':'none';
+    $('#mktFlag').textContent=isUK()?'🇬🇧':'🇬🇲';
+    $('#mktLabel').textContent=isUK()?'United Kingdom':'Gambia';
+  }
+  if(band)band.style.display=(on&&isUK())?'':'none';
+  // the Gambian delivery notice is meaningless to a UK shopper
+  const ann=$('#announceBar'); if(ann)ann.style.display=isUK()?'none':'';
+  if(!on&&isUK())setMarket('gm');                    // switched off while someone was shopping
+}
+function ukPayHtml(){
+  const S=PAYINFO||{};
+  const bank=`<div class="pay-opt ${coData.pay==='uk_bank'?'sel':''}" data-pay="uk_bank">
+      <div class="po-logo" style="background:var(--green-700)">UK</div>
+      <div class="po-main"><b>Bank transfer</b><small>Faster Payments — usually instant</small></div>
+      <div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>`;
+  const pp=S.uk_paypal_link?`<div class="pay-opt ${coData.pay==='uk_paypal'?'sel':''}" data-pay="uk_paypal">
+      <div class="po-logo" style="background:#003087">PP</div>
+      <div class="po-main"><b>PayPal</b><small>Pay with your PayPal account or card</small></div>
+      <div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>`:'';
+  let detail='';
+  if(coData.pay==='uk_bank'&&S.uk_account_number){
+    detail=`<div class="uk-pay"><b>Pay to</b>
+      <dl><dt>Name</dt><dd>${S.uk_bank_account_name||S.uk_business_name||''}</dd>
+      ${S.uk_bank_name?`<dt>Bank</dt><dd>${S.uk_bank_name}</dd>`:''}
+      <dt>Sort code</dt><dd>${S.uk_sort_code||''}</dd>
+      <dt>Account</dt><dd>${S.uk_account_number}</dd></dl>
+      <p style="margin-top:9px;color:var(--muted);font-size:.82rem">Use your order number as the payment reference. We post as soon as it lands.</p></div>`;
+  } else if(coData.pay==='uk_paypal'&&S.uk_paypal_link){
+    detail=`<div class="uk-pay"><b>PayPal</b>
+      <p style="margin:7px 0 0"><a href="${S.uk_paypal_link}" target="_blank" rel="noopener" style="color:var(--green-700);font-weight:600;text-decoration:underline">${S.uk_paypal_link}</a></p>
+      <p style="margin-top:7px;color:var(--muted);font-size:.82rem">Send the total shown, and put your order number in the note.</p></div>`;
+  }
+  return bank+pp+detail;
+}
 function renderCheckout(){
   const sub=cartSubtotal();const fee=deliveryFee();
   const steps=[['1','co_step1'],['2','co_step2'],['3','co_step3'],['4','co_step4']];
@@ -2877,11 +2980,18 @@ function renderCheckout(){
       <div class="checkout-pane ${coStep===1?'active':''}" data-pane="1">
         <h4 class="display" style="color:var(--green-800);margin-bottom:14px">${t('co_yourdetails')}</h4>
         <div class="field"><label>${t('co_fullname')} *</label><input type="text" id="coName" value="${coData.name||''}" placeholder="${t('co_fullname')}"></div>
-        <div class="field"><label>${t('co_phone')} *</label><input type="tel" id="coPhone" dir="ltr" value="${coData.phone||''}" placeholder="+220 …"></div>
+        <div class="field"><label>${t('co_phone')} *</label><input type="tel" id="coPhone" dir="ltr" value="${coData.phone||''}" placeholder="${isUK()?'+44 …':'+220 …'}"></div>
+        ${isUK()?`<div class="field"><label>Email address *</label><input type="email" id="coEmail" dir="ltr" value="${coData.email||''}" placeholder="you@example.co.uk"><div class="hint" style="font-size:.78rem;color:var(--muted);margin-top:4px">We send your order confirmation and tracking here.</div></div>`:''}
       </div>
       <!-- Step 2 -->
       <div class="checkout-pane ${coStep===2?'active':''}" data-pane="2">
         <h4 class="display" style="color:var(--green-800);margin-bottom:14px">${t('co_deliv_method')}</h4>
+        ${isUK()?`
+        <div class="field"><label>Address *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="House number and street"></div>
+        <div class="field"><label>Town or city *</label><input type="text" id="coArea" value="${coData.area||''}" placeholder="e.g. Birmingham"></div>
+        <div class="field"><label>Postcode *</label><input type="text" id="coPostcode" dir="ltr" value="${coData.postcode||''}" placeholder="e.g. B12 9QR" style="text-transform:uppercase"></div>
+        <div class="uk-note" style="margin-bottom:12px"><h4>Delivery</h4>${PAYINFO&&PAYINFO.uk_dispatch_note?PAYINFO.uk_dispatch_note:''} ${Number(PAYINFO&&PAYINFO.uk_free_over)>0?`Free over ${money(Number(PAYINFO.uk_free_over))}.`:''}</div>
+        `:`
         <div class="pay-opt ${coData.deliv==='home'?'sel':''}" data-deliv="home"><div class="po-logo" style="background:var(--green-700)">${svg('home')}</div><div class="po-main"><b>${t('co_home')}</b><small>${t('co_home_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
         <div class="pay-opt ${coData.deliv==='pickup'?'sel':''}" data-deliv="pickup"><div class="po-logo" style="background:var(--gold-600)">${svg('box')}</div><div class="po-main"><b>${t('co_pickup')}</b><small>${t('co_pickup_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
         <div id="addrFields" style="${coData.deliv==='home'?'':'display:none'}">
@@ -2894,17 +3004,19 @@ function renderCheckout(){
           <div class="field"><label>${t('co_address')} *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="${t('co_address')}"></div>
           <div class="field"><label>${t('co_area')}</label><input type="text" id="coArea" value="${coData.area||''}" placeholder="${t('co_area')}"></div>
         </div>
+
+        `}
         <div class="field"><label>${t('co_notes')}</label><textarea id="coNotes" placeholder="${t('co_notes_ph')}">${coData.notes||''}</textarea></div>
       </div>
       <!-- Step 3 -->
       <div class="checkout-pane ${coStep===3?'active':''}" data-pane="3">
         <h4 class="display" style="color:var(--green-800);margin-bottom:6px">${t('co_choose_pay')}</h4>
         <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">${t('pay_confirm_wa')}</p>
-        ${PAYMENTS.map(pm=>{
+        ${isUK()?ukPayHtml():`${PAYMENTS.map(pm=>{
           const logo=pm.icon?`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'}"><svg viewBox="0 0 24 24" fill="${pm.id==='wachat'?'currentColor':'none'}" stroke="${pm.id==='wachat'?'none':'currentColor'}" stroke-width="2" style="width:24px;height:24px">${pm.icon}</svg></div>`
             :`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'};white-space:pre-line">${pm.short}</div>`;
           return `<div class="pay-opt ${coData.pay===pm.id?'sel':''}" data-pay="${pm.id}">${logo}<div class="po-main"><b>${payLabel(pm.id)}</b><small>${t(pm.sub)}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>`;
-        }).join('')}
+        }).join('')}`}
         <div id="payDetailBox"></div>
       </div>
       <!-- Step 4 -->
@@ -2916,10 +3028,18 @@ function renderCheckout(){
           <div class="summary-row"><span>${t('co_deliv_l')}</span><b id="rvDeliv">—</b></div>
           <div class="summary-row"><span>${t('co_pay_l')}</span><b id="rvPay">—</b></div>
         </div>
-        ${!CUST?`<p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">💡 ${t('co_signin_hint')} <a href="#" id="coGoAcct" style="color:var(--green-700);font-weight:600;text-decoration:underline">${t('ac_login')}</a></p>`:''}
-        ${CO_COUPON?`<div class="co-coupon-ok"><span>🎟️ <b>${CO_COUPON.code}</b> — ${t('co_coupon_ok').replace('{d}',money(CO_COUPON.discount))}</span><button type="button" id="coCouponOff" style="background:none;color:var(--danger);font-weight:700">${t('co_coupon_off')}</button></div>`
+        ${isUK()?`<div class="uk-note" style="margin-bottom:12px">
+          <h4>Before you order</h4>
+          The price shown is everything — UK VAT and delivery included. There is nothing to pay when it arrives.<br><br>
+          <b>Changed your mind?</b> ${PAYINFO&&PAYINFO.uk_returns_policy?PAYINFO.uk_returns_policy:''}<br><br>
+          ${PAYINFO&&PAYINFO.uk_returns_address?`<b>Returns address:</b> ${PAYINFO.uk_returns_address}<br><br>`:''}
+          <b>Food items:</b> allergen and ingredient information is on every product page and on the pack itself. If you are unsure, message us before ordering.
+          ${PAYINFO&&PAYINFO.uk_business_name?`<br><br><b>Sold by:</b> ${PAYINFO.uk_business_name}${PAYINFO.uk_business_address?', '+PAYINFO.uk_business_address:''}${PAYINFO.uk_vat_number?' · VAT '+PAYINFO.uk_vat_number:''}`:''}
+        </div>`:''}
+        ${(!CUST&&!isUK())?`<p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">💡 ${t('co_signin_hint')} <a href="#" id="coGoAcct" style="color:var(--green-700);font-weight:600;text-decoration:underline">${t('ac_login')}</a></p>`:''}
+        ${isUK()?'':CO_COUPON?`<div class="co-coupon-ok"><span>🎟️ <b>${CO_COUPON.code}</b> — ${t('co_coupon_ok').replace('{d}',money(CO_COUPON.discount))}</span><button type="button" id="coCouponOff" style="background:none;color:var(--danger);font-weight:700">${t('co_coupon_off')}</button></div>`
           :`<div class="co-coupon-row"><input id="coCoupon" placeholder="${t('co_coupon_ph')}" aria-label="${t('co_coupon')}"><button type="button" class="btn btn-outline" id="coCouponGo" style="flex:0 0 auto">${t('co_apply')}</button></div>`}
-        ${(CUST&&coMaxRedeem()>0)?`<div class="co-points-row"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="coPtsOn" ${CO_REDEEM>0?'checked':''} style="width:17px;height:17px"> ${t('co_points_use').replace('{n}',CUST.points)}</label><input type="number" id="coPtsN" min="1" max="${coMaxRedeem()}" value="${CO_REDEEM||coMaxRedeem()}" ${CO_REDEEM>0?'':'style="display:none"'}><span style="color:var(--muted);font-size:.78rem">${t('co_points_max').replace('{n}',coMaxRedeem())}</span></div>`:''}
+        ${(!isUK()&&CUST&&coMaxRedeem()>0)?`<div class="co-points-row"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="coPtsOn" ${CO_REDEEM>0?'checked':''} style="width:17px;height:17px"> ${t('co_points_use').replace('{n}',CUST.points)}</label><input type="number" id="coPtsN" min="1" max="${coMaxRedeem()}" value="${CO_REDEEM||coMaxRedeem()}" ${CO_REDEEM>0?'':'style="display:none"'}><span style="color:var(--muted);font-size:.78rem">${t('co_points_max').replace('{n}',coMaxRedeem())}</span></div>`:''}
         <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
           <div style="font-weight:600;color:var(--green-800);margin-bottom:10px">${t('co_items')}</div>
           ${cart.map(i=>{const p=prod(i.id);return `<div class="summary-row"><span>${lineName(p,i.vid)} ×${i.qty}</span><span>${money(linePrice(p,i.vid)*i.qty)}</span></div>`}).join('')}
@@ -2987,7 +3107,9 @@ function renderPayDetail(){
 }
 function captureStep(){
   if(coStep===1){coData.name=$('#coName').value.trim();coData.phone=$('#coPhone').value.trim();}
-  if(coStep===2){if($('#coZone'))coData.zoneId=$('#coZone').value||null;coData.addr=$('#coAddr')?.value.trim();coData.area=$('#coArea')?.value.trim();coData.notes=$('#coNotes').value.trim();}
+  if(coStep===1&&$('#coEmail'))coData.email=$('#coEmail').value.trim();
+  if(coStep===2){if($('#coZone'))coData.zoneId=$('#coZone').value||null;coData.addr=$('#coAddr')?.value.trim();coData.area=$('#coArea')?.value.trim();coData.notes=$('#coNotes').value.trim();
+    if($('#coPostcode'))coData.postcode=$('#coPostcode').value.trim().toUpperCase();}
 }
 function coNext(){
   captureStep();
@@ -2997,8 +3119,23 @@ function coNext(){
     if(ne)ne.classList.toggle('invalid',!nameOk);
     if(pe)pe.classList.toggle('invalid',!phoneOk);
     if(!nameOk||!phoneOk){toast(phoneOk?t('toast_fill'):(LANG==='ar'?'أدخل رقم هاتف صحيح':'Enter a valid phone number'));return;}
+    if(isUK()){   // an email address is how a UK buyer gets their confirmation and tracking
+      const ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(coData.email||'');
+      const ee=$('#coEmail'); if(ee)ee.classList.toggle('invalid',!ok);
+      if(!ok){toast('Enter a valid email address');return;}
+    }
   }
-  if(coStep===2&&coData.deliv==='home'){
+  if(coStep===2&&isUK()){
+    // Royal Mail needs a real postcode; this is the standard UK format.
+    const pc=(coData.postcode||'').replace(/\s+/g,'');
+    const pcOk=/^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(pc);
+    const ae=$('#coAddr'), te=$('#coArea'), pe2=$('#coPostcode');
+    if(ae)ae.classList.toggle('invalid',!coData.addr);
+    if(te)te.classList.toggle('invalid',!coData.area);
+    if(pe2)pe2.classList.toggle('invalid',!pcOk);
+    if(!coData.addr||!coData.area||!pcOk){toast(pcOk?'Enter your address and town':'Enter a valid UK postcode');return;}
+  }
+  else if(coStep===2&&coData.deliv==='home'){
     if(!coData.zoneId){const ze=$('#coZone');if(ze)ze.classList.add('invalid');toast(LANG==='ar'?'اختر منطقة التوصيل':'Choose your delivery location');return;}
     if(!coData.addr){const ae=$('#coAddr');if(ae)ae.classList.add('invalid');toast(LANG==='ar'?'أدخل عنوان التوصيل':'Enter your delivery address');return;}
   }
@@ -3044,8 +3181,10 @@ async function placeOrder(){
     const hdrs={'Content-Type':'application/json'};
     if(CUST&&custToken())hdrs['X-Customer-Token']=custToken();
     const d=await fetch(API+'/api/orders',{method:'POST',headers:hdrs,body:JSON.stringify({
-      customer_name:coData.name, customer_phone:coData.phone, delivery_method:coData.deliv,
-      delivery_address:coData.addr||'', delivery_area:coData.area||'', delivery_zone_id:coData.zoneId||null,
+      market:MARKET,
+      customer_name:coData.name, customer_phone:coData.phone, delivery_method:isUK()?'home':coData.deliv,
+      customer_email:coData.email||'', postcode:coData.postcode||'',
+      delivery_address:coData.addr||'', delivery_area:coData.area||'', delivery_zone_id:isUK()?null:(coData.zoneId||null),
       payment_method:coData.pay, payment_proof_data:coData.proof||null,
       coupon:CO_COUPON?CO_COUPON.code:null, redeem_points:CO_REDEEM||0,
       notes:coData.notes||'', language:LANG, items:cart.map(i=>({id:i.id, variant_id:i.vid||0, qty:i.qty}))
@@ -3081,7 +3220,7 @@ async function placeOrder(){
   $('#coPrint').onclick=()=>printReceipt(receipt);
   $('#coShareImg').onclick=()=>shareReceiptImage(receipt);
   if($('#coTrack'))$('#coTrack').onclick=()=>{hideModal('#checkoutModal');openTrack(receipt.ref, receipt.phone);};
-  $('#coDone').onclick=()=>{hideModal('#checkoutModal');coData={deliv:'home',pay:'wave',zoneId:null,proof:null};CO_COUPON=null;CO_REDEEM=0;};
+  $('#coDone').onclick=()=>{hideModal('#checkoutModal');coData={deliv:'home',pay:isUK()?'uk_bank':'wave',zoneId:null,proof:null};CO_COUPON=null;CO_REDEEM=0;};
 }
 let LAST_RECEIPT=null;
 // A compact receipt card (used in the confirmation + tracking views)
@@ -4083,6 +4222,9 @@ async function init(){
   };
   // esc
   addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+  if($('#mktToggle'))$('#mktToggle').onclick=()=>setMarket(isUK()?'gm':'uk');
+  paintMarket();
+  if(isUK()&&!/^uk_/.test(coData.pay||''))coData.pay='uk_bank';
   // product page routing
   addEventListener('hashchange',handleRoute);
   // Someone arriving from a shared /p/<id> link lands on the product it names.
