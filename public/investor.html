@@ -68,6 +68,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--cream);color:v
 #ledger.scrollbox{max-height:430px;overflow-y:auto;padding-inline-end:4px;
   border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-top:4px}
 #ledger.scrollbox .mgrp:first-child{padding-top:10px}
+/* Same again for the investments: a few rounds in, the finished batches should not push
+   the statement a screen and a half further down the page. */
+#invList.scrollbox{max-height:520px;overflow-y:auto;padding-top:10px;padding-inline-end:4px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-top:4px}
 .stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .stat .lbl{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .stat .num{font-family:Georgia,serif;font-size:1.45rem;font-weight:700;color:var(--green-800);margin-top:4px}
@@ -130,6 +134,7 @@ canvas{width:100%;height:180px}
     </div>
     <div class="panel" id="chartPanel"><h3>📈 Your profit — last 30 days</h3><canvas id="chart" width="1040" height="150"></canvas></div>
     <div class="panel"><h3>📦 Your investments</h3><div class="filters" id="invFilters"></div><div id="invList"></div>
+      <div id="invMore" style="margin-top:4px"></div>
       <p class="note">Profit is shared on <b>profit only</b> (selling price − cost), at your agreed percentage, using the actual selling price of every sale — discounts included. This page is read-only; contact Jeddah Trading for payouts or questions.</p></div>
     <div class="panel"><h3>🧾 Your statement</h3>
       <p class="note" style="margin:-6px 0 12px">Every movement on your account, newest first — capital you paid in, profit as it is earned, and each payment made to you with any note we left with it.</p>
@@ -174,8 +179,11 @@ $('#logout').onclick=async()=>{try{await fetch('/api/investor/logout',{method:'P
 /* ---- Investments list with its own status filter ----
    Once an investor has funded a few rounds the finished ones bury the live ones, so the list
    can be narrowed to Active or Completed. The totals above stay whole-account on purpose —
-   filtering the list should not change what the investor is owed. */
-let INVESTMENTS=[], INV_FILTER='all';
+   filtering the list should not change what the investor is owed.
+   Only a few rounds are shown to begin with; the rest are one tap away and, once opened,
+   scroll inside the panel instead of pushing the statement off the bottom of the page. */
+let INVESTMENTS=[], INV_FILTER='all', INV_OPEN=false;
+const INV_PAGE=3;
 const STATUS_LABEL={active:'Active',completed:'Completed',settled:'Settled'};
 function renderInvestments(){
   const counts={};
@@ -189,10 +197,14 @@ function renderInvestments(){
   const fb=$('#invFilters');
   fb.innerHTML=chips.map(([k,l,n])=>
     `<button class="chip${INV_FILTER===k?' on':''}" data-filter="${k}">${l}<span class="n">${n}</span></button>`).join('');
-  fb.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{INV_FILTER=b.dataset.filter;renderInvestments();});
+  fb.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{
+    INV_FILTER=b.dataset.filter; INV_OPEN=false;   // a new status starts short again
+    renderInvestments();
+  });
 
   const list=INV_FILTER==='all'?INVESTMENTS:INVESTMENTS.filter(i=>i.status===INV_FILTER);
-  $('#invList').innerHTML=list.map(i=>{
+  const shown=INV_OPEN?list:list.slice(0,INV_PAGE);
+  $('#invList').innerHTML=shown.map(i=>{
     const pct=i.qty_funded?Math.round(i.qty_sold/i.qty_funded*100):0;
     return `<div class="inv">
       <div class="top"><b>${esc(i.product_name)}${i.rounds_total>1?` <span style="font-weight:600;opacity:.75">\u00b7 Round ${i.round_no}</span>`:''}</b><span class="tag ${i.status}">${i.status}</span></div>
@@ -211,6 +223,19 @@ function renderInvestments(){
       </div>
     </div>`;
   }).join('')||`<p style="color:var(--muted);font-size:.9rem">${INV_FILTER==='all'?'No investments yet.':'No '+STATUS_LABEL[INV_FILTER].toLowerCase()+' investments.'}</p>`;
+  const box=$('#invList');
+  box.classList.toggle('scrollbox',INV_OPEN&&list.length>INV_PAGE);
+  const hidden=list.length-shown.length;
+  $('#invMore').innerHTML = (hidden>0||(INV_OPEN&&list.length>INV_PAGE))
+    ? `<button class="chip" id="invToggle" style="width:100%;padding:10px">${
+        INV_OPEN?'Show less':`Show all ${list.length} · ${hidden} more`}</button>`
+    : '';
+  const tg=$('#invToggle');
+  if(tg)tg.onclick=()=>{
+    INV_OPEN=!INV_OPEN;
+    renderInvestments();
+    if(!INV_OPEN)$('#invList').scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
   document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{
     const t=$('#msgText');t.value=`Regarding my investment in ${b.dataset.ask}: `;t.focus();
     t.scrollIntoView({behavior:'smooth',block:'center'});
@@ -298,7 +323,7 @@ function renderLedger(){
   box.innerHTML=out;
   box.classList.toggle('scrollbox',LED_OPEN&&rows.length>LED_PAGE);
   const hidden=rows.length-shown.length;
-  $('#ledgerMore').innerHTML = (hidden>0||LED_OPEN)
+  $('#ledgerMore').innerHTML = (hidden>0||(LED_OPEN&&rows.length>LED_PAGE))
     ? `<button class="chip" id="ledToggle" style="width:100%;padding:10px">${
         LED_OPEN?'Show less':`Show all ${rows.length} \u00b7 ${hidden} more`}</button>`
     : '';
@@ -345,7 +370,9 @@ async function enter(){
   ].map(card).join('');
   INVESTMENTS=d.investments||[];
   renderInvestments();
-  LEDGER=d.ledger||[]; LED_OPEN=false; renderLedgerFilters(); renderLedger();
+  // the minute-by-minute refresh comes back through here, so whatever the investor has
+  // opened or filtered stays open — it is their reading position, not ours to reset
+  LEDGER=d.ledger||[]; renderLedgerFilters(); renderLedger();
   // A 30-day chart of a single bar is wasted space; it appears once there is a shape to see.
   const pts=(d.series||[]).filter(x=>Number(x.p)>0);
   $('#chartPanel').style.display=pts.length>1?'':'none';

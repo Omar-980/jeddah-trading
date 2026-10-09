@@ -1273,6 +1273,7 @@ body.viewing-product .pp-sticky{display:none}
     <div id="catBanner" class="cat-banner"></div>
     <div style="height:20px"></div>
     <div class="prod-grid" id="prodGrid"></div>
+    <div id="gridMore"></div>
     <div id="noResults" style="display:none;text-align:center;padding:50px;color:var(--muted)"><p data-i18n="no_results">No products match your search.</p></div>
   </div>
 </section>
@@ -2363,7 +2364,12 @@ function renderFilterBar(){
   $('#fPrice').oninput=()=>{FILTERS.maxPrice=+$('#fPrice').value;$('#fPriceLbl').textContent=money(FILTERS.maxPrice);};
   $('#fPrice').onchange=()=>renderProducts();
 }
-function renderProducts(){
+/* The shelf fills a page at a time. A shopper on a phone used to scroll past the whole
+   catalogue to reach the rest of the site; now twelve show, and the next twelve are one tap
+   away. Any change of category, search or filter starts again at the first twelve. */
+let GRID_SHOWN=12;
+const GRID_STEP=12;
+function renderProducts(keepShown){
   let list=marketProducts().slice();   // a UK shopper only ever sees UK-cleared products
   if(activeCat!=='all') list=list.filter(p=>p.cat===activeCat);
   if(search){const q=search.toLowerCase();list=list.filter(p=>(p.en.name+p.ar.name+p.en.desc+(p.brand||'')+((catMap[p.cat]&&catMap[p.cat].en)||'')).toLowerCase().includes(q));}
@@ -2380,7 +2386,19 @@ function renderProducts(){
     price_desc:(a,b)=>unitPrice(b)-unitPrice(a),
   };
   list.sort(sorters[FILTERS.sort]||sorters.featured);
-  $('#prodGrid').innerHTML=list.map(productCard).join('');
+  if(!keepShown)GRID_SHOWN=GRID_STEP;
+  const shown=list.slice(0,GRID_SHOWN);
+  $('#prodGrid').innerHTML=shown.map(productCard).join('');
+  const hidden=list.length-shown.length;
+  const mb=$('#gridMore');
+  if(mb){
+    mb.innerHTML=hidden>0
+      ? `<button class="btn btn-outline btn-block" id="gridMoreBtn" style="max-width:320px;margin:24px auto 0">${
+          t('ac_wl_more').replace('{n}',Math.min(hidden,GRID_STEP))} ▾ <span style="opacity:.55;font-weight:500" dir="ltr">${shown.length}/${list.length}</span></button>`
+      : '';
+    const b=$('#gridMoreBtn');
+    if(b)b.onclick=()=>{GRID_SHOWN+=GRID_STEP;renderProducts(true);};
+  }
   $('#noResults').style.display=list.length?'none':'block';
   updateCatBanner();
   observeReveals();
@@ -2500,9 +2518,11 @@ function renderFeatures(){
 let REVIEW_LIVE=null, FAQ_LIVE=null;   // populated from the backend
 function renderTestimonials(){
   // live reviews (English, customer-submitted) or fallback demo testimonials
-  const list = REVIEW_LIVE && REVIEW_LIVE.length
+  // Six is a full, tidy block on any screen. Every review is still readable on its own
+  // product page, so the homepage does not need to carry the lot.
+  const list = (REVIEW_LIVE && REVIEW_LIVE.length
     ? REVIEW_LIVE.map(r=>({text:r.text_en, name:r.name, loc:r.location||'', rating:r.rating||5}))
-    : TESTIMONIALS.map(tt=>({text:tt[LANG][0], name:tt[LANG][1], loc:tt[LANG][2], rating:5}));
+    : TESTIMONIALS.map(tt=>({text:tt[LANG][0], name:tt[LANG][1], loc:tt[LANG][2], rating:5}))).slice(0,6);
   $('#testiGrid').innerHTML=list.map((r,i)=>`<div class="testi reveal" data-d="${(i%3)+1}"><span class="quote-mark">”</span><div class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div><p>${r.text}</p><div class="testi-who"><span class="testi-av">${(r.name||'?').charAt(0)}</span><div><b>${r.name}</b><small>${r.loc}</small></div></div></div>`).join('');
 }
 function renderFaq(){
@@ -2699,6 +2719,7 @@ function renderProductPage(id){
     <div class="pp-reviews" id="ppReviews">
       <h3 class="display">${t('rv_title')}</h3>
       <div id="ppReviewList"><p style="color:var(--muted);font-size:.9rem">…</p></div>
+      <div id="ppReviewMore"></div>
       <div class="rv-form">
         <h4>${t('rv_write')}</h4>
         <div class="rv-grid">
@@ -2752,15 +2773,39 @@ function closeLightbox(){
   if(!lb)return;
   lb.classList.remove('open'); document.body.style.overflow='';
 }
-/* per-product reviews */
+/* per-product reviews — a well-reviewed product can carry dozens, and they sit between the
+   product and the "write a review" box, so only the first few are shown by default. */
+let PR_LIST=[], PR_OPEN=false;
+const PR_LIMIT=3;
+function renderProductReviews(){
+  const box=$('#ppReviewList'); if(!box)return;
+  if(!PR_LIST.length){
+    box.innerHTML=`<p style="color:var(--muted);font-size:.9rem">${t('rv_none')}</p>`;
+    const m=$('#ppReviewMore'); if(m)m.innerHTML='';
+    return;
+  }
+  const shown=PR_OPEN?PR_LIST:PR_LIST.slice(0,PR_LIMIT);
+  const item=r=>`<div class="rv-item"><div class="rv-head"><b>${esc(r.name)}</b>${r.location?` <span>· ${esc(r.location)}</span>`:''}<span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span></div><p>${esc(r.text_en)}</p></div>`;
+  box.innerHTML=`<div style="${PR_OPEN&&PR_LIST.length>PR_LIMIT?'max-height:420px;overflow-y:auto;padding-inline-end:4px':''}">${shown.map(item).join('')}</div>`;
+  const more=$('#ppReviewMore');
+  if(more){
+    const hidden=PR_LIST.length-shown.length;
+    more.innerHTML=(PR_LIST.length>PR_LIMIT)
+      ? `<button class="btn btn-outline btn-sm btn-block" id="prMore" style="margin-top:10px">${
+          PR_OPEN?t('ac_wl_less')+' ▴':t('ac_wl_more').replace('{n}',hidden)+' ▾'}</button>`
+      : '';
+    const b=$('#prMore');
+    if(b)b.onclick=()=>{PR_OPEN=!PR_OPEN;renderProductReviews();};
+  }
+}
 async function loadProductReviews(pid){
   const box=$('#ppReviewList'); if(!box)return;
+  PR_LIST=[]; PR_OPEN=false;
   try{
     const d=await fetch(API+'/api/reviews?product='+pid).then(r=>r.json());
-    const list=d.reviews||[];
-    box.innerHTML=list.length?list.map(r=>`<div class="rv-item"><div class="rv-head"><b>${r.name}</b>${r.location?` <span>· ${r.location}</span>`:''}<span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span></div><p>${r.text_en}</p></div>`).join('')
-      :`<p style="color:var(--muted);font-size:.9rem">${t('rv_none')}</p>`;
-  }catch{box.innerHTML=`<p style="color:var(--muted);font-size:.9rem">${t('rv_none')}</p>`;}
+    PR_LIST=(d.reviews||[]).filter(r=>r&&r.text_en);
+  }catch{PR_LIST=[];}
+  renderProductReviews();
 }
 async function submitProductReview(){
   const pid=+$('#rvSubmit').dataset.pid;
@@ -3739,14 +3784,29 @@ function renderAccountPage(){
   $('#acWlShop').onclick=()=>{FILTERS.savedOnly=true;location.hash='';setTimeout(()=>{renderFilterBar();renderProducts();const s=$('#shop');if(s)s.scrollIntoView();},60);};
   renderAcWishlist();
   custApi('/api/customer/orders').then(d=>{
-    $('#acOrders').innerHTML=(d.orders||[]).map(o=>`<div class="ac-order">
+    AC_ORDERS=d.orders||[]; AC_ORD_OPEN=false; renderAcOrders();
+  }).catch(()=>{});
+}
+/* A regular customer builds up a long order history, and it sits at the very bottom of the
+   account page. Show the latest handful; the rest open into a box that scrolls on its own. */
+let AC_ORDERS=[], AC_ORD_OPEN=false;
+const AC_ORD_LIMIT=4;
+function renderAcOrders(){
+  const box=$('#acOrders'); if(!box)return;
+  if(!AC_ORDERS.length){box.innerHTML=`<p style="color:var(--muted);font-size:.9rem">${t('ac_no_orders')}</p>`;return;}
+  const shown=AC_ORD_OPEN?AC_ORDERS:AC_ORDERS.slice(0,AC_ORD_LIMIT);
+  const row=o=>`<div class="ac-order">
       <div><b style="color:var(--green-800)">${o.order_number}</b><div style="font-size:.76rem;color:var(--muted)">${(o.created_at||'').slice(0,10)}</div></div>
       <span class="tag ${o.status==='delivered'?'green':o.status==='cancelled'?'red':'gold'}" style="font-size:.7rem;font-weight:700;border-radius:999px;padding:3px 10px;background:${o.status==='delivered'?'rgba(28,125,74,.12)':o.status==='cancelled'?'rgba(192,57,43,.12)':'rgba(189,149,38,.15)'};color:${o.status==='delivered'?'var(--green-700)':o.status==='cancelled'?'#c0392b':'#8a6d12'}">${statusLabel(o.status)}</span>
       <b>${money(o.total)}</b>
       <button class="btn btn-outline btn-sm" data-ac-track="${o.order_number}">${t('ac_track')}</button>
-    </div>`).join('')||`<p style="color:var(--muted);font-size:.9rem">${t('ac_no_orders')}</p>`;
-    $$('#acOrders [data-ac-track]').forEach(bt=>bt.onclick=()=>openTrack(bt.dataset.acTrack,CUST.phone));
-  }).catch(()=>{});
+    </div>`;
+  box.innerHTML=`<div style="${AC_ORD_OPEN&&AC_ORDERS.length>AC_ORD_LIMIT?'max-height:340px;overflow-y:auto;padding-inline-end:4px':''}">${shown.map(row).join('')}</div>
+    ${AC_ORDERS.length>AC_ORD_LIMIT?`<button class="btn btn-outline btn-sm btn-block" id="acOrdMore" style="margin-top:10px">${
+      AC_ORD_OPEN?t('ac_wl_less')+' ▴':t('ac_wl_more').replace('{n}',AC_ORDERS.length-AC_ORD_LIMIT)+' ▾'}</button>`:''}`;
+  $$('#acOrders [data-ac-track]').forEach(bt=>bt.onclick=()=>openTrack(bt.dataset.acTrack,CUST&&CUST.phone));
+  const more=$('#acOrdMore');
+  if(more)more.onclick=()=>{AC_ORD_OPEN=!AC_ORD_OPEN;renderAcOrders();};
 }
 /* homepage promo banners */
 function renderBannersStrip(){
