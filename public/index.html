@@ -60,6 +60,9 @@
   --muted:#6b7a70;
   --white:#ffffff;
   --card:#ffffff;
+  /* One tile behind every product photo, everywhere on the site */
+  --photo-tile:#ffffff;
+  --photo-edge:#ece6d8;
   --danger:#c0392b;
   --success:#1c7d4a;
   /* Semantic */
@@ -252,9 +255,12 @@ html[dir="rtl"] .search-box input{padding:13px 44px 13px 16px}
 .prod-media .pm-icon{width:64px;height:64px;color:rgba(255,255,255,.92);transition:transform .4s var(--ease)}
 .prod-card:hover .pm-icon{transform:scale(1.12) rotate(-3deg)}
 /* Photos are shown whole rather than cropped to fill the frame: these are real products in
-   hand-labelled bags, and cropping cut the labels off. A soft neutral backdrop sits behind
-   any letterboxing, and the coloured gradient is kept for products with no photo yet. */
-.prod-media.has-photo{background:var(--cream-2)}
+   hand-labelled bags, and cropping cut the labels off. The tile behind them is white, because
+   most photos are shot on a white sheet and a cream tile turned every one of them into a
+   visible white box; cut-out photos sit just as cleanly on it. The hairline keeps a white
+   product (an abaya, a sugar bag) from dissolving into the tile. The coloured gradient is
+   kept for products with no photo yet, so an empty one is easy to spot. */
+.prod-media.has-photo{background:var(--photo-tile);box-shadow:inset 0 0 0 1px var(--photo-edge)}
 /* Pinned to the frame with inset:0. A plain height:100% does not resolve inside this centred
    grid, so the image used to grow past the frame and the overflow:hidden above did the cropping. */
 .prod-media .pm-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:8px;transition:transform .4s var(--ease)}
@@ -550,13 +556,16 @@ body.viewing-track #trackPage{display:block;animation:fadeUp .4s var(--ease)}
 .pp-back svg{width:17px;height:17px}
 .pp-top{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:start}
 .pp-media{border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:1;display:grid;place-items:center;position:relative;box-shadow:var(--shadow-md)}
-.pp-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* The big photo is shown whole, on the same white tile as the shelf. It used to be cropped to
+   fill the square, which cut the top and bottom off a tall bag — exactly where the label is. */
+.pp-media.has-photo{background:var(--photo-tile);box-shadow:var(--shadow-md),inset 0 0 0 1px var(--photo-edge)}
+.pp-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:14px}
 .pp-media .pp-ic{width:150px;height:150px;color:rgba(255,255,255,.95)}
 .pp-media .pp-flag{position:static}
 .pp-media .badge-stack{top:16px;inset-inline-start:16px}
 .pp-thumbs{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 .pp-thumb{width:66px;height:66px;border-radius:12px;overflow:hidden;border:2px solid var(--border);background:#fff;cursor:pointer;padding:0;transition:border-color .15s}
-.pp-thumb img{width:100%;height:100%;object-fit:cover}
+.pp-thumb img{width:100%;height:100%;object-fit:contain;padding:3px}
 .pp-thumb.active{border-color:var(--green-600)}
 .pp-thumb:hover{border-color:var(--gold-500)}
 .pp-media.zoomable{cursor:zoom-in}
@@ -737,6 +746,7 @@ html[dir="rtl"] .drawer-start{transform:translateX(110%)}
 .modal-card.narrow{max-width:560px}
 .pd-grid{display:grid;grid-template-columns:1fr 1fr}
 .pd-media{aspect-ratio:1;display:grid;place-items:center;position:relative;min-height:280px}
+.pd-media.has-photo{background:var(--photo-tile);box-shadow:inset 0 0 0 1px var(--photo-edge)}
 .pd-media .pd-icon{width:110px;height:110px;color:rgba(255,255,255,.95)}
 .pd-info{padding:30px}
 .pd-info .prod-cat{font-size:.78rem}
@@ -2541,10 +2551,10 @@ function openProduct(id){
   else avail=`<span class="in-stock" style="font-weight:600">${t('in_stock')}${p.sold?' · '+soldTxt(p):''}</span>`;
   const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
   const catLabel=(catMap[p.cat]&&catMap[p.cat][LANG])||'';
-  const pdMedia=p.image?`<img src="${p.image}" alt="${d.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:svg(p.icon,'pd-icon');
+  const pdMedia=p.image?`<img src="${p.image}" alt="${d.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:12px">`:svg(p.icon,'pd-icon');
   $('#prodModalCard').innerHTML=`
     <div class="pd-grid">
-      <div class="pd-media" style="background:${grad}">
+      <div class="pd-media${p.image?' has-photo':''}"${p.image?'':` style="background:${grad}"`}>
         <button class="close-x" id="pdClose" style="position:absolute;top:12px;inset-inline-end:12px;background:rgba(255,255,255,.85);z-index:2" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         ${pdMedia}
       </div>
@@ -2673,7 +2683,7 @@ function renderProductPage(id){
     </div>
     <div class="pp-top">
       <div class="pp-gallery-col">
-        <div class="pp-media" style="background:${grad}">${flag}${media}</div>
+        <div class="pp-media${imgs.length?' has-photo':''}"${imgs.length?'':` style="background:${grad}"`}>${flag}${media}</div>
         ${thumbs}
       </div>
       <div class="pp-info">
@@ -2888,7 +2898,7 @@ function updateCart(){
     const k=ckey(i.id,i.vid), u=linePrice(p,i.vid);
     return `
     <div class="cart-item">
-      <div class="ci-img" style="background:${(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)'}">${p.image?`<img src="${p.image}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:svg(p.icon)}</div>
+      <div class="ci-img" style="background:${p.image?'var(--photo-tile)':((catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)')}${p.image?';box-shadow:inset 0 0 0 1px var(--photo-edge)':''}">${p.image?`<img src="${p.image}" alt="" style="width:100%;height:100%;object-fit:contain;padding:4px;border-radius:12px">`:svg(p.icon)}</div>
       <div class="ci-main">
         <div class="ci-name">${lineName(p,i.vid)}</div>
         <div class="ci-price">${money(u)} × ${i.qty} = ${money(u*i.qty)}</div>
