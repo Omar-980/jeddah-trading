@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <title>Investor Portal — Jeddah Trading</title>
+<meta name="theme-color" content="#0b3b2e">
+<link rel="manifest" href="/manifest-investor.webmanifest">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JT Investor">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--green-800:#0b3b2e;--green-700:#10502f;--green-600:#16653c;--gold-400:#d4af37;--gold-200:#e8cf7a;
   --cream:#faf6ee;--border:#e7e0d2;--muted:#7d8a80;--ink:#1d2a22;--danger:#c0392b;--radius:14px}
@@ -431,6 +439,9 @@ function drawChart(series){
   ctx.fillText('max '+money(max),W/2-30,12);
 }
 if(TOKEN)enter();
+/* The portal can live on an investor's home screen. Nothing from this page is ever stored
+   offline — the service worker is here only so it can be installed and open full screen. */
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 </script>
 </body>
 </html>

@@ -30,6 +30,17 @@
 </script>
 <title>Jeddah Trading — Quality Goods for Every Home | The Gambia</title>
 <!--/SOCIAL-->
+<!-- Installable app: a phone that reads these can keep Jeddah Trading on its home screen and
+     open it full screen, with no browser bar. Everything here is additive — a browser that
+     ignores it simply shows the ordinary website. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="application-name" content="Jeddah Trading">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jeddah Trading">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -870,6 +881,22 @@ body.viewing-account #accountPage{display:block;animation:fadeUp .4s var(--ease)
 @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
 
 /* ---------- Toast ---------- */
+/* ---------- Install the app ----------
+   A quiet strip above the bottom of the screen, shown once. Dismissing it is remembered, and
+   it never appears at all once the shop is already running from the home screen. */
+#installBar{position:fixed;inset-inline:12px;bottom:12px;z-index:290;display:flex;align-items:center;gap:12px;
+  background:#fff;border:1px solid var(--border);border-radius:16px;padding:11px 12px;box-shadow:var(--shadow-lg);
+  transform:translateY(130%);transition:transform .45s var(--ease);max-width:520px;margin-inline:auto}
+#installBar.show{transform:none}
+#installBar img{width:44px;height:44px;border-radius:11px;border:1px solid var(--border);flex-shrink:0}
+#installBar .ib-text{flex:1;min-width:0;line-height:1.35}
+#installBar .ib-text b{display:block;font-size:.9rem;color:var(--green-800)}
+#installBar .ib-text span{display:block;font-size:.78rem;color:var(--muted)}
+#installBar .ib-x{background:none;border:0;font-size:1.5rem;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+/* Shown when the shop is running from its own cupboard because the network is gone. */
+#offlineBar{position:fixed;inset-inline:0;top:0;z-index:295;background:#8a6d12;color:#fff;text-align:center;
+  font-size:.82rem;font-weight:600;padding:7px 14px;transform:translateY(-100%);transition:transform .35s var(--ease)}
+#offlineBar.show{transform:none}
 .toast-wrap{position:fixed;bottom:24px;inset-inline:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:300;pointer-events:none;padding:0 16px}
 .toast{background:var(--green-800);color:#fff;padding:13px 20px;border-radius:999px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:.9rem;font-weight:500;transform:translateY(20px);opacity:0;transition:all .35s var(--ease);max-width:100%}
 .toast.show{transform:none;opacity:1}
@@ -4186,7 +4213,9 @@ document.addEventListener('click',e=>{
 async function loadLiveData(){
   try{
     const [pr,ca,se,fq,rv,zn,bn]=await Promise.all([
-      fetch(API+'/api/products').then(r=>r.json()),
+      // The installed app can answer this from its own store when there is no signal. When it
+      // does, it says so in a header, and the shopper is told the shelf may be out of date.
+      fetch(API+'/api/products').then(r=>{if(r.headers.get('X-JT-Offline'))showOfflineBar();return r.json()}),
       fetch(API+'/api/categories').then(r=>r.json()),
       fetch(API+'/api/settings').then(r=>r.json()).catch(()=>null),
       fetch(API+'/api/faqs').then(r=>r.json()).catch(()=>null),
@@ -4213,7 +4242,12 @@ async function loadLiveData(){
       if(se.contact_hours_en)I18N.en.ci_hours_s=se.contact_hours_en;
       if(se.contact_hours_ar)I18N.ar.ci_hours_s=se.contact_hours_ar;
     }
-  }catch(e){ /* offline / no backend → keep built-in fallback catalog */ }
+  }catch(e){
+    /* Opened as a bare file with no backend behind it (a demo on a laptop) → keep the
+       built-in sample catalogue. On the real shop, a shopper must never be shown goods and
+       prices that are not ours, so if we cannot reach the shelf we empty it and say why. */
+    if(location.protocol!=='file:'){ PRODUCTS=[]; showOfflineBar(); }
+  }
 }
 
 /* ---------- Init ---------- */
@@ -4310,6 +4344,64 @@ async function init(){
   if(sharedProduct&&sharedSize&&document.body.classList.contains('viewing-product')){
     try{selectSize(sharedSize);}catch(e){}
   }
+}
+/* ---------- The app on the home screen ----------
+   The shop registers a service worker so it opens instantly, survives a weak signal, and can
+   be kept on a phone's home screen like any other app. Chrome on Android offers to install
+   it; iPhone has no such prompt, so there we show the one-line instruction instead.
+   None of this changes how the shop works for a browser that does not support it. */
+function showOfflineBar(){
+  if($('#offlineBar'))return;
+  const L=LANG==='ar';
+  const bar=document.createElement('div');
+  bar.id='offlineBar';
+  bar.textContent=L?'أنت غير متصل — تعرض الأسعار والتوفر آخر نسخة محفوظة.'
+                   :'You are offline — prices and stock shown are the last we saved.';
+  document.body.appendChild(bar);
+  requestAnimationFrame(()=>bar.classList.add('show'));
+  addEventListener('online',()=>location.reload(),{once:true});
+}
+const STANDALONE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+let INSTALL_EVT=null;
+function installDismissed(){try{return localStorage.getItem('jt_install_x')==='1'}catch{return false}}
+function dismissInstall(){try{localStorage.setItem('jt_install_x','1')}catch{}
+  const b=$('#installBar'); if(b)b.remove();}
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent)}
+function showInstallBar(kind){
+  if(STANDALONE()||installDismissed()||$('#installBar'))return;
+  const L=LANG==='ar';
+  const title=L?'ثبّت تطبيق جدة للتجارة':'Install the Jeddah Trading app';
+  const line=kind==='ios'
+    ? (L?'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».':'Tap Share, then “Add to Home Screen”.')
+    : (L?'افتح المتجر من شاشة هاتفك — بدون متصفح.':'Open it from your phone, with no browser.');
+  const bar=document.createElement('div');
+  bar.id='installBar';
+  bar.innerHTML=`<img src="/icons/icon-192.png" alt="">
+    <div class="ib-text"><b>${title}</b><span>${line}</span></div>
+    ${kind==='ios'?'':`<button class="btn btn-primary btn-sm" id="ibGo">${L?'تثبيت':'Install'}</button>`}
+    <button class="ib-x" id="ibX" aria-label="${L?'إغلاق':'Close'}">&times;</button>`;
+  document.body.appendChild(bar);
+  requestAnimationFrame(()=>bar.classList.add('show'));
+  const x=$('#ibX'); if(x)x.onclick=dismissInstall;
+  const go=$('#ibGo');
+  if(go)go.onclick=async()=>{
+    if(!INSTALL_EVT)return dismissInstall();
+    go.disabled=true;
+    INSTALL_EVT.prompt();
+    try{await INSTALL_EVT.userChoice;}catch{}
+    INSTALL_EVT=null; dismissInstall();
+  };
+}
+addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); INSTALL_EVT=e;
+  setTimeout(()=>showInstallBar('chrome'),2500);   // let the shopper see the shop first
+});
+addEventListener('appinstalled',()=>{dismissInstall();try{track('CompleteRegistration',{content_name:'app_install'})}catch{}});
+if('serviceWorker' in navigator){
+  addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('offline support unavailable',e));
+    if(isIOS())setTimeout(()=>showInstallBar('ios'),4000);
+  });
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
