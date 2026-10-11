@@ -4,6 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeddah Trading — Admin Dashboard</title>
+<meta name="theme-color" content="#0b3b2e">
+<link rel="manifest" href="/manifest-admin.webmanifest">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JT Manager">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <!-- Barcode (Code128) + QR generation — fully self-contained, no internet required. -->
 <script src="/admin/jt-codes.js"></script>
@@ -3754,6 +3762,9 @@ document.addEventListener('click',async e=>{
 
 /* ---------- Boot ---------- */
 if(TOKEN){api('/admin/me').then(enterApp).catch(()=>logout());}
+/* Keeping the manager on the home screen. The service worker never stores an admin page or
+   any admin answer — it is here so the dashboard can be installed and open full screen. */
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
