@@ -22,7 +22,9 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8',
   '.json':'application/json', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.gif':'image/gif',
-  '.webp':'image/webp', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
+  '.webp':'image/webp', '.svg':'image/svg+xml', '.ico':'image/x-icon',
+  // the installable-app files: a browser ignores a manifest served as anything else
+  '.webmanifest':'application/manifest+json', '.txt':'text/plain; charset=utf-8' };
 
 // Guard so two clicks (or two owners) can never build two database snapshots at once and
 // double the temporary disk usage on a small persistent volume.
