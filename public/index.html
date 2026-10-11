@@ -1489,6 +1489,9 @@ body.viewing-product .pp-sticky{display:none}
       <a class="mm-link" href="#testimonials" data-i18n="nav_testi">Reviews</a>
       <a class="mm-link" href="#faq" data-i18n="nav_faq">FAQ</a>
       <a class="mm-link" href="#contact" data-i18n="nav_contact">Contact</a>
+      <!-- Always here, because Chrome only offers to install on its own once it decides a
+           visitor is "engaged" — which may be never. Hidden once the app is installed. -->
+      <a class="mm-link" href="#" id="menuInstall" style="display:none">📲 <span data-i18n="install_app">Install app</span></a>
     </nav>
   </div>
 </aside>
@@ -1841,6 +1844,9 @@ const I18N = {
     chat_ask_product:'Ask about this product', chat_ask_order:'Ask about this order', chat_make_acct:'Create my free account →', chat_signin_btn:'Sign in to my account →',
     ac_edit_profile:'Edit profile', ac_wishlist:'My wishlist', ac_wl_empty:'Nothing saved yet — tap the ♥ on any product to keep it here.', ac_wl_browse:'Browse shop',
     ac_wl_more:'Show {n} more', ac_wl_less:'Show less', chat_btn:'Chat', lb_hint:'Tap anywhere to close',
+    install_app:'Install app', install_title:'Keep Jeddah Trading on your phone',
+    install_lead:'It opens from your home screen like any other app — faster, full screen, and it still works when the signal drops.',
+    install_close:'Got it',
     ac_messages:'My messages', ac_messages_note:'Your conversation with us — it follows your account on any device.',
     benefits:'Benefits', how_use:'How to use', description:'Description', availability:'Availability',
     cart_empty:'Your cart is empty', cart_empty_sub:'Start adding products to see them here.', browse:'Browse products',
@@ -1929,6 +1935,9 @@ const I18N = {
     chat_ask_product:'اسأل عن هذا المنتج', chat_ask_order:'اسأل عن هذا الطلب', chat_make_acct:'أنشئ حسابي المجاني ←', chat_signin_btn:'تسجيل الدخول إلى حسابي ←',
     ac_edit_profile:'تعديل الملف', ac_wishlist:'مفضلتي', ac_wl_empty:'لا شيء محفوظ بعد — اضغط ♥ على أي منتج لحفظه هنا.', ac_wl_browse:'تصفح المتجر',
     ac_wl_more:'عرض {n} أخرى', ac_wl_less:'عرض أقل', chat_btn:'محادثة', lb_hint:'انقر في أي مكان للإغلاق',
+    install_app:'تثبيت التطبيق', install_title:'احتفظ بجدة للتجارة على هاتفك',
+    install_lead:'يفتح من شاشتك الرئيسية مثل أي تطبيق — أسرع، بملء الشاشة، ويعمل حتى عند ضعف الشبكة.',
+    install_close:'تمام',
     ac_messages:'رسائلي', ac_messages_note:'محادثتك معنا — تتابعك على حسابك من أي جهاز.',
     benefits:'الفوائد', how_use:'طريقة الاستخدام', description:'الوصف', availability:'التوفر',
     cart_empty:'سلتك فارغة', cart_empty_sub:'ابدأ بإضافة المنتجات لتظهر هنا.', browse:'تصفّح المنتجات',
@@ -4271,7 +4280,10 @@ async function init(){
   // menu
   $('#menuBtn').onclick=()=>openDrawer('#menuDrawer');
   $('#closeMenu').onclick=()=>hideModal('#menuDrawer');
-  $$('.mm-link').forEach(l=>l.onclick=()=>closeAll());
+  // the Install entry keeps its own handler — this line runs after `load`, so a plain
+  // forEach over every .mm-link would quietly overwrite it
+  $$('.mm-link:not(#menuInstall)').forEach(l=>l.onclick=()=>closeAll());
+  refreshInstallEntry();
   // customer account
   if($('#acctBtn'))$('#acctBtn').onclick=openAccount;
   if($('#menuAcct'))$('#menuAcct').onclick=e=>{e.preventDefault();openAccount();};
@@ -4392,17 +4404,73 @@ function showInstallBar(kind){
     INSTALL_EVT=null; dismissInstall();
   };
 }
+/* Chrome only hands us a prompt once it decides a visitor is "engaged", which for a quick
+   look round may be never, and Safari never does at all. So the menu always carries an
+   "Install app" entry: it uses Chrome's prompt when there is one, and otherwise shows the
+   two taps for whichever browser this is. */
+function browserSteps(){
+  const ua=navigator.userAgent, L=LANG==='ar';
+  const ios=/iphone|ipad|ipod/i.test(ua);
+  const android=/android/i.test(ua);
+  const samsung=/samsungbrowser/i.test(ua);
+  const firefox=/firefox|fxios/i.test(ua);
+  const phone=ios||android;
+  if(ios)return L?['افتح هذه الصفحة في Safari.','اضغط زر المشاركة في الأسفل.','اختر «إضافة إلى الشاشة الرئيسية».']
+                 :['Open this page in Safari.','Tap the Share button at the bottom.','Choose “Add to Home Screen”.'];
+  if(samsung)return L?['اضغط ☰ في الأسفل.','اختر «إضافة الصفحة إلى».','ثم «الشاشة الرئيسية».']
+                     :['Tap ☰ at the bottom.','Choose “Add page to”.','Then “Home screen”.'];
+  if(firefox)return L?['اضغط ⋮ في المتصفح.','اختر «تثبيت» أو «إضافة إلى الشاشة الرئيسية».']
+                     :['Tap ⋮ in the browser.','Choose “Install” or “Add to Home screen”.'];
+  if(android)return L?['اضغط ⋮ أعلى يمين المتصفح.','اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».']
+                     :['Tap ⋮ at the top right of Chrome.','Choose “Install app” or “Add to Home screen”.'];
+  return L?['ابحث عن أيقونة التثبيت ⊕ في شريط العنوان.','أو افتح ⋮ ثم «تثبيت».']
+          :['Look for the install icon ⊕ in the address bar.','Or open ⋮ and choose “Install”.'];
+}
+async function openInstall(){
+  if(INSTALL_EVT){
+    const e=INSTALL_EVT; INSTALL_EVT=null;
+    e.prompt();
+    try{await e.userChoice;}catch{}
+    refreshInstallEntry();
+    return;
+  }
+  const L=LANG==='ar';
+  const steps=browserSteps().map((s,i)=>`<li>${esc(s)}</li>`).join('');
+  const box=$('#profileModalCard');
+  if(!box){alert(browserSteps().join('\n'));return;}
+  box.innerHTML=`
+    <div class="drawer-head" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+      <h3 class="display">📲 ${t('install_title')}</h3>
+      <button class="close-x" id="ipClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div style="padding:18px 22px 24px;text-align:center">
+      <img src="/icons/icon-192.png" alt="" style="width:76px;height:76px;border-radius:18px;border:1px solid var(--border);margin-bottom:12px">
+      <p style="font-size:.92rem;color:var(--muted);line-height:1.6;margin-bottom:16px">${t('install_lead')}</p>
+      <ol style="text-align:${L?'right':'left'};font-size:.94rem;line-height:1.9;padding-inline-start:22px;color:var(--ink)">${steps}</ol>
+      <button class="btn btn-primary btn-block" id="ipOk" style="margin-top:18px">${t('install_close')}</button>
+    </div>`;
+  showModal('#profileModal');
+  $('#ipClose').onclick=()=>hideModal('#profileModal');
+  $('#ipOk').onclick=()=>hideModal('#profileModal');
+}
+function refreshInstallEntry(){
+  const el=$('#menuInstall'); if(!el)return;
+  el.style.display=STANDALONE()?'none':'';
+  el.onclick=e=>{e.preventDefault();closeAll();setTimeout(openInstall,220);};
+}
 addEventListener('beforeinstallprompt',e=>{
   e.preventDefault(); INSTALL_EVT=e;
+  refreshInstallEntry();
   setTimeout(()=>showInstallBar('chrome'),2500);   // let the shopper see the shop first
 });
-addEventListener('appinstalled',()=>{dismissInstall();try{track('CompleteRegistration',{content_name:'app_install'})}catch{}});
-if('serviceWorker' in navigator){
-  addEventListener('load',()=>{
+addEventListener('appinstalled',()=>{dismissInstall();refreshInstallEntry();try{track('CompleteRegistration',{content_name:'app_install'})}catch{}});
+addEventListener('load',()=>{
+  refreshInstallEntry();   // the menu entry is there from the start, prompt or no prompt
+  if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('offline support unavailable',e));
     if(isIOS())setTimeout(()=>showInstallBar('ios'),4000);
-  });
-}
+  }
+});
 document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
