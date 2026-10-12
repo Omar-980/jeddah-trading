@@ -545,6 +545,10 @@ if (!columnExists('orders', 'market'))        db.exec("ALTER TABLE orders ADD CO
 if (!columnExists('orders', 'currency'))      db.exec("ALTER TABLE orders ADD COLUMN currency TEXT DEFAULT 'GMD'");
 if (!columnExists('orders', 'customer_email')) db.exec("ALTER TABLE orders ADD COLUMN customer_email TEXT DEFAULT ''");
 if (!columnExists('orders', 'postcode'))      db.exec("ALTER TABLE orders ADD COLUMN postcode TEXT DEFAULT ''");
+// A signed-in shopper's basket, so it follows them from the phone to the laptop. Ids, sizes
+// and quantities only — never a price; those are always read fresh from the catalogue.
+if (!columnExists('customers', 'cart_json'))  db.exec("ALTER TABLE customers ADD COLUMN cart_json TEXT DEFAULT ''");
+if (!columnExists('customers', 'cart_at'))    db.exec("ALTER TABLE customers ADD COLUMN cart_at TEXT DEFAULT ''");
 
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {

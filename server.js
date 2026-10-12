@@ -425,6 +425,30 @@ async function api(req, res, url) {
     db.prepare('UPDATE conversations SET customer_id=? WHERE customer_id IS NULL AND customer_phone=?').run(c.id, c.phone);
     return send(res, 200, { ok: true, token, customer: customerPublic(c) });
   }
+  /* The signed-in shopper's basket, so it follows them between a phone and a laptop.
+     Only product ids, sizes and quantities are kept — never a price. Whatever comes back is
+     priced from the live catalogue, and the server prices the order again when it is placed,
+     so nothing here can be used to buy at yesterday's price. */
+  if (r[0] === 'customer' && r[1] === 'cart' && method === 'GET') {
+    const c = currentCustomer(req);
+    if (!c) return send(res, 401, { error: 'unauthorized' });
+    let items = [];
+    try { items = JSON.parse(c.cart_json || '[]'); } catch { items = []; }
+    return send(res, 200, { items: Array.isArray(items) ? items : [], at: c.cart_at || '' });
+  }
+  if (r[0] === 'customer' && r[1] === 'cart' && (method === 'PUT' || method === 'POST')) {
+    const c = currentCustomer(req);
+    if (!c) return send(res, 401, { error: 'unauthorized' });
+    const b = await readBody(req);
+    const items = (Array.isArray(b.items) ? b.items : []).slice(0, 60).map(i => ({
+      id: Number(i && i.id) || 0,
+      vid: Number(i && i.vid) || 0,
+      qty: Math.max(1, Math.min(99, Number(i && i.qty) || 1)),
+    })).filter(i => i.id > 0);
+    db.prepare("UPDATE customers SET cart_json=?, cart_at=datetime('now') WHERE id=?")
+      .run(JSON.stringify(items), c.id);
+    return send(res, 200, { ok: true, items });
+  }
   if (r[0] === 'customer' && r[1] === 'logout' && method === 'POST') {
     const t = req.headers['x-customer-token'] || '';
     db.prepare('DELETE FROM customer_sessions WHERE token=?').run(t);
