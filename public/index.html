@@ -881,18 +881,31 @@ body.viewing-account #accountPage{display:block;animation:fadeUp .4s var(--ease)
 @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
 
 /* ---------- Toast ---------- */
+/* The account offer on the order confirmation — an invitation, never a gate. */
+.pin-offer{background:var(--cream-2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-top:14px}
+.pin-offer .po-t{font-weight:700;color:var(--green-800);font-size:.95rem}
+.pin-offer .po-l{font-size:.83rem;color:var(--muted);line-height:1.55;margin:5px 0 11px}
+.pin-offer .po-row{display:flex;gap:9px}
+.pin-offer input{width:108px;text-align:center;letter-spacing:.5em;font-size:1.1rem;font-weight:700;
+  padding:10px 8px;border:1.5px solid var(--border);border-radius:11px;font-family:inherit;background:#fff}
+.pin-offer input:focus{outline:none;border-color:var(--green-600)}
+.pin-offer .po-row .btn{flex:1}
+.po-msg{font-size:.84rem;margin-top:9px;min-height:1px}
+.po-msg.bad{color:#c0392b}
+.po-msg.good{color:var(--green-700);font-weight:600}
 /* ---------- Install the app ----------
    A quiet strip above the bottom of the screen, shown once. Dismissing it is remembered, and
    it never appears at all once the shop is already running from the home screen. */
-#installBar{position:fixed;inset-inline:12px;bottom:12px;z-index:290;display:flex;align-items:center;gap:12px;
-  background:#fff;border:1px solid var(--border);border-radius:16px;padding:11px 12px;box-shadow:var(--shadow-lg);
-  transform:translateY(130%);transition:transform .45s var(--ease);max-width:520px;margin-inline:auto}
-#installBar.show{transform:none}
-#installBar img{width:44px;height:44px;border-radius:11px;border:1px solid var(--border);flex-shrink:0}
-#installBar .ib-text{flex:1;min-width:0;line-height:1.35}
-#installBar .ib-text b{display:block;font-size:.9rem;color:var(--green-800)}
-#installBar .ib-text span{display:block;font-size:.78rem;color:var(--muted)}
-#installBar .ib-x{background:none;border:0;font-size:1.5rem;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+#installTop{background:linear-gradient(135deg,#0b3b2e,#16653c);color:#fff}
+#installTop .it-in{max-width:1180px;margin:0 auto;padding:9px 14px;display:flex;align-items:center;gap:11px}
+#installTop img{width:38px;height:38px;border-radius:10px;background:#fff;padding:2px;flex-shrink:0}
+#installTop .it-text{flex:1;min-width:0;line-height:1.3}
+#installTop .it-text b{display:block;font-size:.88rem}
+#installTop .it-text span{display:block;font-size:.75rem;color:rgba(255,255,255,.75)}
+#installTop .it-go{background:var(--gold-500,#bd9526);color:#15200f;border:0;border-radius:9px;padding:8px 15px;
+  font-weight:700;font-size:.85rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+#installTop .it-x{background:none;border:0;font-size:1.45rem;line-height:1;color:rgba(255,255,255,.7);cursor:pointer;padding:0 2px}
+@media(max-width:420px){#installTop .it-text span{display:none}#installTop .it-in{gap:9px;padding:8px 11px}}
 /* Shown when the shop is running from its own cupboard because the network is gone. */
 #offlineBar{position:fixed;inset-inline:0;top:0;z-index:295;background:#8a6d12;color:#fff;text-align:center;
   font-size:.82rem;font-weight:600;padding:7px 14px;transform:translateY(-100%);transition:transform .35s var(--ease)}
@@ -1143,6 +1156,11 @@ body.viewing-product .pp-sticky{display:none}
 </head>
 <body>
 <div class="uk-band" id="ukBand" style="display:none">🇬🇧 <b>UK store</b> — posted from our UK partner · prices in pounds, everything included</div>
+
+<!-- Shown the moment the shop opens, above everything, so nobody has to find it in a menu.
+     In the page's own flow rather than floating over it: it scrolls away with the rest and
+     never sits on top of the header. -->
+<div id="installTop" hidden></div>
 
 <!-- ============ ANNOUNCEMENT ============ -->
 <div class="announce" id="announceBar">
@@ -1844,6 +1862,11 @@ const I18N = {
     chat_ask_product:'Ask about this product', chat_ask_order:'Ask about this order', chat_make_acct:'Create my free account →', chat_signin_btn:'Sign in to my account →',
     ac_edit_profile:'Edit profile', ac_wishlist:'My wishlist', ac_wl_empty:'Nothing saved yet — tap the ♥ on any product to keep it here.', ac_wl_browse:'Browse shop',
     ac_wl_more:'Show {n} more', ac_wl_less:'Show less', chat_btn:'Chat', lb_hint:'Tap anywhere to close',
+    pin_title:'Keep this order', pin_label:'4-digit PIN',
+    pin_lead:'Pick 4 digits and your phone number becomes your account — your orders, your points and your saved items, on any phone.',
+    pin_btn:'Save', pin_done:'✓ All set. Sign in any time with your phone number and this PIN.',
+    pin_short:'Please choose 4 digits.',
+    pin_have:'You already have an account with this number — sign in from the menu.',
     install_app:'Install app', install_title:'Keep Jeddah Trading on your phone',
     install_lead:'It opens from your home screen like any other app — faster, full screen, and it still works when the signal drops.',
     install_close:'Got it',
@@ -1935,6 +1958,11 @@ const I18N = {
     chat_ask_product:'اسأل عن هذا المنتج', chat_ask_order:'اسأل عن هذا الطلب', chat_make_acct:'أنشئ حسابي المجاني ←', chat_signin_btn:'تسجيل الدخول إلى حسابي ←',
     ac_edit_profile:'تعديل الملف', ac_wishlist:'مفضلتي', ac_wl_empty:'لا شيء محفوظ بعد — اضغط ♥ على أي منتج لحفظه هنا.', ac_wl_browse:'تصفح المتجر',
     ac_wl_more:'عرض {n} أخرى', ac_wl_less:'عرض أقل', chat_btn:'محادثة', lb_hint:'انقر في أي مكان للإغلاق',
+    pin_title:'احفظ هذا الطلب', pin_label:'رمز من ٤ أرقام',
+    pin_lead:'اختر ٤ أرقام ويصبح رقم هاتفك حسابك — طلباتك ونقاطك ومحفوظاتك على أي هاتف.',
+    pin_btn:'حفظ', pin_done:'✓ تم. سجّل الدخول في أي وقت برقم هاتفك وهذا الرمز.',
+    pin_short:'الرجاء اختيار ٤ أرقام.',
+    pin_have:'لديك حساب بهذا الرقم — سجّل الدخول من القائمة.',
     install_app:'تثبيت التطبيق', install_title:'احتفظ بجدة للتجارة على هاتفك',
     install_lead:'يفتح من شاشتك الرئيسية مثل أي تطبيق — أسرع، بملء الشاشة، ويعمل حتى عند ضعف الشبكة.',
     install_close:'تمام',
@@ -2054,6 +2082,73 @@ function fromPrice(p){const s=sizesOf(p);
 /* Wishlist + recently viewed (persisted on this device) */
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+/* ---------- The cart is kept on the phone ----------
+   It used to live only in the page's memory, so a refresh, a phone that slept, or a tap on a
+   WhatsApp link and back emptied it — and the shopper usually did not start again. It is now
+   written down on every change and read back on arrival. Only ids, sizes and quantities are
+   stored: every price is still worked out from the live catalogue, and the server prices the
+   order again when it is placed, so an old basket can never carry an old price. */
+const CART_KEY='jt_cart';
+const CART_TTL=21*24*3600*1000;    // three weeks; older than that is not a basket any more
+function saveCart(){
+  try{localStorage.setItem(CART_KEY,JSON.stringify({m:MARKET,at:Date.now(),items:cart}));}catch{}
+  pushCartToAccount();
+}
+/* A signed-in shopper's basket also goes up to their account, so it is there on their other
+   phone or on a laptop. Pushes are held back a moment: tapping + four times should send one
+   basket, not four. Nothing is sent until the two baskets have been merged (below), or
+   signing in on a new phone would wipe the basket waiting on the account. */
+let CART_SYNCED=false, CART_PUSH_T=null;
+function pushCartToAccount(){
+  if(!CUST||!CART_SYNCED||isUK())return;
+  clearTimeout(CART_PUSH_T);
+  CART_PUSH_T=setTimeout(()=>{
+    custApi('/api/customer/cart',{method:'PUT',body:JSON.stringify({items:cart})}).catch(()=>{});
+  },900);
+}
+/* On signing in, the basket on this phone and the one on the account are combined rather
+   than one replacing the other — whichever has more of a line wins. Someone who put two
+   bags of dates in on their phone and one on the laptop ends up with two, never none. */
+async function mergeCart(){
+  if(!CUST||isUK()){CART_SYNCED=false;return;}
+  try{
+    const d=await custApi('/api/customer/cart');
+    const mine=new Map(cart.map(i=>[ckey(i.id,i.vid),i]));
+    for(const i of (d.items||[])){
+      const id=+i.id, vid=+i.vid||0, qty=Math.max(1,Math.min(99,+i.qty||1));
+      if(!id)continue;
+      const k=ckey(id,vid), e=mine.get(k);
+      if(e)e.qty=Math.max(e.qty,qty); else mine.set(k,{id,vid,qty});
+    }
+    cart=[...mine.values()].slice(0,60);
+  }catch{}
+  CART_SYNCED=true;
+  updateCart();           // prunes, saves on the phone, and sends the merged basket up
+}
+function loadCart(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CART_KEY)||'null');
+    if(!raw||!Array.isArray(raw.items))return;
+    if(raw.m&&raw.m!==MARKET)return;                  // a basket in pounds is not one in dalasi
+    if(raw.at&&Date.now()-raw.at>CART_TTL)return;
+    cart=raw.items.filter(i=>i&&+i.id>0)
+      .map(i=>({id:+i.id,vid:+i.vid||0,qty:Math.max(1,Math.min(99,+i.qty||1))}))
+      .slice(0,60);
+  }catch{}
+}
+/* Drop anything that has since been taken off the shelf and bring quantities back inside
+   what is actually in stock. Only once the catalogue has arrived — before that we know
+   nothing, and clearing the cart on a slow connection would be the very bug we are fixing. */
+function reconcileCart(){
+  if(!PRODUCTS.length||!cart.length)return;
+  cart=cart.filter(i=>{
+    const p=prod(i.id); if(!p)return false;
+    const max=lineStock(p,i.vid);
+    if(max<=0)return false;
+    if(i.qty>max)i.qty=max;
+    return true;
+  });
+}
 let FAVS=new Set(lsGet('jt_favs'));
 /* wishlist works logged-out (saved on this device); signing in syncs it to the account */
 function syncWish(add,remove){
@@ -2919,6 +3014,8 @@ function removeItem(key){cart=cart.filter(i=>ckey(i.id,i.vid)!==key);updateCart(
 function clearCart(){cart=[];updateCart();toast(t('toast_cleared'))}
 function bump(){const c=$('#cartCount');c.style.transform='scale(1.4)';setTimeout(()=>c.style.transform='',180)}
 function updateCart(){
+  reconcileCart();
+  saveCart();            // every change to the cart funnels through here
   const q=cartQty();
   const cc=$('#cartCount');cc.textContent=q;cc.classList.toggle('show',q>0);
   const mb=$('#mnBadge');mb.textContent=q;mb.style.display=q>0?'grid':'none';
@@ -3301,6 +3398,7 @@ async function placeOrder(){
     <p style="color:var(--muted);font-size:.85rem;text-align:center;margin:14px 0 16px">${t('co_placed_sub')}</p>
     <a href="${waLink(msg)}" target="_blank" class="btn btn-wa btn-block co-wa"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_open_wa')}</a>
     ${ref?`<button class="btn btn-primary btn-block" id="coTrack" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${t('track_order')}</button>`:''}
+    ${pinOfferHTML()}
     <button class="btn btn-gold btn-block" id="coShareImg" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> ${t('co_share_img')}</button>
     <button class="btn btn-outline btn-block" id="coPrint" style="margin-top:10px">🧾 ${t('co_print')}</button>
     <button class="btn btn-outline btn-block" id="coDone" style="margin-top:10px">${t('co_done')}</button>
@@ -3308,6 +3406,7 @@ async function placeOrder(){
   window.open(waLink(msg),'_blank');
   toast(t('toast_msg_sent'));
   cart=[];updateCart();
+  wirePinOffer();
   $('#coPrint').onclick=()=>printReceipt(receipt);
   $('#coShareImg').onclick=()=>shareReceiptImage(receipt);
   if($('#coTrack'))$('#coTrack').onclick=()=>{hideModal('#checkoutModal');openTrack(receipt.ref, receipt.phone);};
@@ -3639,6 +3738,46 @@ function printReceipt(r){
   w.document.close();
 }
 
+/* ---------- The account, offered after the order rather than before it ----------
+   Nobody is stopped from buying. But the moment an order is placed is the one moment a
+   shopper actually wants an account — they want to watch the delivery — and their name and
+   phone are already typed, so all that is left is four digits. */
+function pinOfferHTML(){
+  if(CUST||isUK()||!coData.phone)return '';
+  return `<div class="pin-offer" id="pinOffer">
+    <div class="po-t">🔐 ${t('pin_title')}</div>
+    <p class="po-l">${t('pin_lead')}</p>
+    <div class="po-row">
+      <input id="poPin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+             placeholder="••••" aria-label="${t('pin_label')}" autocomplete="off">
+      <button class="btn btn-primary" id="poGo">${t('pin_btn')}</button>
+    </div>
+    <div class="po-msg" id="poMsg"></div>
+  </div>`;
+}
+function wirePinOffer(){
+  const go=$('#poGo'); if(!go)return;
+  const run=async()=>{
+    const pin=($('#poPin').value||'').replace(/\D/g,'');
+    const msg=$('#poMsg');
+    if(pin.length!==4){msg.textContent=t('pin_short');msg.className='po-msg bad';return;}
+    go.disabled=true;
+    try{
+      const d=await custApi('/api/customer/register',{method:'POST',
+        body:JSON.stringify({name:coData.name,phone:coData.phone,password:pin})});
+      setCustToken(d.token); CUST=d.customer; updateAcctDot();
+      $('#pinOffer').innerHTML=`<div class="po-msg good">${t('pin_done')}</div>`;
+      mergeWishlist();
+    }catch(err){
+      // The usual case: they have ordered before and already have an account.
+      msg.textContent=/exists/i.test(err.message)?t('pin_have'):err.message;
+      msg.className='po-msg bad'; go.disabled=false;
+    }
+  };
+  go.onclick=run;
+  $('#poPin').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();run();}};
+}
+
 /* ---------- Customer account (CRM) ---------- */
 let CUST=null, BANNERS=[];
 function custToken(){try{return localStorage.getItem('jt_cust')||''}catch{return ''}}
@@ -3753,11 +3892,11 @@ function renderAccountPage(){
     });
     $('#alGo').onclick=async()=>{
       try{const d=await custApi('/api/customer/login',{method:'POST',body:JSON.stringify({phone:$('#alPhone').value,password:$('#alPass').value})});
-        setCustToken(d.token);CUST=d.customer;updateAcctDot();renderAccountPage();mergeWishlist();toast('✓ '+t('ac_welcome'));}catch(err){toast(err.message);}
+        setCustToken(d.token);CUST=d.customer;updateAcctDot();renderAccountPage();mergeWishlist();mergeCart();toast('✓ '+t('ac_welcome'));}catch(err){toast(err.message);}
     };
     $('#arGo').onclick=async()=>{
       try{const d=await custApi('/api/customer/register',{method:'POST',body:JSON.stringify({name:$('#arName').value,phone:$('#arPhone').value,password:$('#arPass').value,email:$('#arEmail').value,referral:$('#arRef').value})});
-        setCustToken(d.token);CUST=d.customer;updateAcctDot();renderAccountPage();mergeWishlist();toast('✓ '+t('ac_welcome'));}catch(err){toast(err.message);}
+        setCustToken(d.token);CUST=d.customer;updateAcctDot();renderAccountPage();mergeWishlist();mergeCart();toast('✓ '+t('ac_welcome'));}catch(err){toast(err.message);}
     };
     addEye('alPass');addEye('arPass');
     $('#alForgot').onclick=e=>{e.preventDefault();
@@ -3824,7 +3963,7 @@ function renderAccountPage(){
     </div></div></div>`;
   $('[data-ac-back]').onclick=e=>{e.preventDefault();location.hash='';};
   $('#acCopyRef').onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(CUST.referral_code):Promise.reject()).then(()=>toast(t('ac_copied'))).catch(()=>prompt('Copy:',CUST.referral_code));};
-  $('#acLogout').onclick=async()=>{try{await custApi('/api/customer/logout',{method:'POST'});}catch{}setCustToken('');CUST=null;updateAcctDot();renderAccountPage();};
+  $('#acLogout').onclick=async()=>{try{await custApi('/api/customer/logout',{method:'POST'});}catch{}setCustToken('');CUST=null;CART_SYNCED=false;updateAcctDot();renderAccountPage();};
   $('#apEdit').onclick=()=>openProfileModal(zoneOpts);
   $('#acOpenChat').onclick=()=>openChat();
   $('#acWlShop').onclick=()=>{FILTERS.savedOnly=true;location.hash='';setTimeout(()=>{renderFilterBar();renderProducts();const s=$('#shop');if(s)s.scrollIntoView();},60);};
@@ -4266,6 +4405,7 @@ function renderSkeletons(){
 }
 async function init(){
   $('#yr').textContent='2026';
+  loadCart();          // whatever was in the basket last time, before anything else paints
   renderSkeletons();
   await loadLiveData();
   initPixel();        // silent unless a Pixel ID is set in Settings
@@ -4288,7 +4428,7 @@ async function init(){
   if($('#acctBtn'))$('#acctBtn').onclick=openAccount;
   if($('#menuAcct'))$('#menuAcct').onclick=e=>{e.preventDefault();openAccount();};
   await loadCustomer();
-  if(CUST)mergeWishlist();   // pull the account wishlist onto this device (and push local hearts up)
+  if(CUST){mergeWishlist();await mergeCart();}   // pull the account wishlist and basket onto this device
   initChat();
   renderBannersStrip();
   // order tracking entry points (override the generic mm-link close for the track link)
@@ -4377,32 +4517,30 @@ const STANDALONE=()=>matchMedia('(display-mode: standalone)').matches||navigator
 let INSTALL_EVT=null;
 function installDismissed(){try{return localStorage.getItem('jt_install_x')==='1'}catch{return false}}
 function dismissInstall(){try{localStorage.setItem('jt_install_x','1')}catch{}
-  const b=$('#installBar'); if(b)b.remove();}
+  const b=$('#installTop'); if(b){b.hidden=true;b.innerHTML='';}}
 function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent)}
-function showInstallBar(kind){
-  if(STANDALONE()||installDismissed()||$('#installBar'))return;
+/* The strip at the very top, shown as soon as the shop opens.
+   Chrome will not hand a site a one-tap install until the visitor has tapped the page once
+   AND spent thirty seconds on it — a browser rule, to stop sites nagging. So the strip is
+   ours, not Chrome's: it appears straight away, and the moment Chrome does offer a prompt
+   the button silently becomes a real one-tap install. Until then it opens the two steps for
+   whichever browser this is. Dismissing it is remembered, and it never appears at all once
+   the shop is already running from the home screen. */
+function showInstallBar(){
+  const host=$('#installTop');
+  if(!host||STANDALONE()||installDismissed())return;
   const L=LANG==='ar';
-  const title=L?'ثبّت تطبيق جدة للتجارة':'Install the Jeddah Trading app';
-  const line=kind==='ios'
-    ? (L?'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».':'Tap Share, then “Add to Home Screen”.')
-    : (L?'افتح المتجر من شاشة هاتفك — بدون متصفح.':'Open it from your phone, with no browser.');
-  const bar=document.createElement('div');
-  bar.id='installBar';
-  bar.innerHTML=`<img src="/icons/icon-192.png" alt="">
-    <div class="ib-text"><b>${title}</b><span>${line}</span></div>
-    ${kind==='ios'?'':`<button class="btn btn-primary btn-sm" id="ibGo">${L?'تثبيت':'Install'}</button>`}
-    <button class="ib-x" id="ibX" aria-label="${L?'إغلاق':'Close'}">&times;</button>`;
-  document.body.appendChild(bar);
-  requestAnimationFrame(()=>bar.classList.add('show'));
-  const x=$('#ibX'); if(x)x.onclick=dismissInstall;
-  const go=$('#ibGo');
-  if(go)go.onclick=async()=>{
-    if(!INSTALL_EVT)return dismissInstall();
-    go.disabled=true;
-    INSTALL_EVT.prompt();
-    try{await INSTALL_EVT.userChoice;}catch{}
-    INSTALL_EVT=null; dismissInstall();
-  };
+  const title=L?'ثبّت تطبيقنا':'Install our app';
+  const line=L?'جدة للتجارة على شاشتك الرئيسية — بدون متصفح.':'Jeddah Trading on your home screen, no browser.';
+  host.innerHTML=`<div class="it-in">
+    <img src="/icons/icon-192.png" alt="">
+    <div class="it-text"><b>${title}</b><span>${line}</span></div>
+    <button class="it-go" id="itGo">${L?'تثبيت':'Install'}</button>
+    <button class="it-x" id="itX" aria-label="${L?'إغلاق':'Close'}">&times;</button>
+  </div>`;
+  host.hidden=false;
+  $('#itX').onclick=dismissInstall;
+  $('#itGo').onclick=openInstall;
 }
 /* Chrome only hands us a prompt once it decides a visitor is "engaged", which for a quick
    look round may be never, and Safari never does at all. So the menu always carries an
@@ -4459,16 +4597,17 @@ function refreshInstallEntry(){
   el.onclick=e=>{e.preventDefault();closeAll();setTimeout(openInstall,220);};
 }
 addEventListener('beforeinstallprompt',e=>{
+  // Chrome has decided this visitor may be offered the real thing. The strip is already on
+  // screen; from here its button installs in one tap instead of explaining how.
   e.preventDefault(); INSTALL_EVT=e;
-  refreshInstallEntry();
-  setTimeout(()=>showInstallBar('chrome'),2500);   // let the shopper see the shop first
+  refreshInstallEntry(); showInstallBar();
 });
 addEventListener('appinstalled',()=>{dismissInstall();refreshInstallEntry();try{track('CompleteRegistration',{content_name:'app_install'})}catch{}});
 addEventListener('load',()=>{
   refreshInstallEntry();   // the menu entry is there from the start, prompt or no prompt
+  showInstallBar();        // and so is the strip at the top — no waiting on the browser
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('offline support unavailable',e));
-    if(isIOS())setTimeout(()=>showInstallBar('ios'),4000);
   }
 });
 document.addEventListener('DOMContentLoaded',init);
