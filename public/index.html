@@ -1463,6 +1463,7 @@ body.viewing-product .pp-sticky{display:none}
         <li><a href="#why" data-i18n="nav_why">Why Us</a></li>
         <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
         <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+        <li><a href="/privacy" data-i18n="foot_privacy">Privacy policy</a></li>
         <li><a href="/admin" target="_blank" data-i18n="foot_admin">Admin Login</a></li>
       </ul></div>
       <div><h4 data-i18n="foot_pay">We Accept</h4>
@@ -1862,6 +1863,11 @@ const I18N = {
     chat_ask_product:'Ask about this product', chat_ask_order:'Ask about this order', chat_make_acct:'Create my free account →', chat_signin_btn:'Sign in to my account →',
     ac_edit_profile:'Edit profile', ac_wishlist:'My wishlist', ac_wl_empty:'Nothing saved yet — tap the ♥ on any product to keep it here.', ac_wl_browse:'Browse shop',
     ac_wl_more:'Show {n} more', ac_wl_less:'Show less', chat_btn:'Chat', lb_hint:'Tap anywhere to close',
+    foot_privacy:'Privacy policy',
+    ac_delete:'Delete my account', ac_del_title:'Delete your account?',
+    ac_del_lead:'This erases your name, phone, address, PIN, points, saved items and your messages with us. Past orders stay in our accounts with your details removed. It cannot be undone.',
+    ac_del_pin:'Enter your PIN to confirm', ac_del_go:'Yes, delete it', ac_del_cancel:'Keep my account',
+    ac_del_done:'Your account and personal details have been deleted.',
     pin_title:'Keep this order', pin_label:'4-digit PIN',
     pin_lead:'Pick 4 digits and your phone number becomes your account — your orders, your points and your saved items, on any phone.',
     pin_btn:'Save', pin_done:'✓ All set. Sign in any time with your phone number and this PIN.',
@@ -1958,6 +1964,11 @@ const I18N = {
     chat_ask_product:'اسأل عن هذا المنتج', chat_ask_order:'اسأل عن هذا الطلب', chat_make_acct:'أنشئ حسابي المجاني ←', chat_signin_btn:'تسجيل الدخول إلى حسابي ←',
     ac_edit_profile:'تعديل الملف', ac_wishlist:'مفضلتي', ac_wl_empty:'لا شيء محفوظ بعد — اضغط ♥ على أي منتج لحفظه هنا.', ac_wl_browse:'تصفح المتجر',
     ac_wl_more:'عرض {n} أخرى', ac_wl_less:'عرض أقل', chat_btn:'محادثة', lb_hint:'انقر في أي مكان للإغلاق',
+    foot_privacy:'سياسة الخصوصية',
+    ac_delete:'حذف حسابي', ac_del_title:'حذف حسابك؟',
+    ac_del_lead:'سيُمحى اسمك ورقمك وعنوانك ورمزك ونقاطك ومحفوظاتك ورسائلك معنا. تبقى الطلبات السابقة في دفاترنا بدون بياناتك. لا يمكن التراجع.',
+    ac_del_pin:'أدخل رمزك للتأكيد', ac_del_go:'نعم، احذفه', ac_del_cancel:'الاحتفاظ بحسابي',
+    ac_del_done:'تم حذف حسابك وبياناتك الشخصية.',
     pin_title:'احفظ هذا الطلب', pin_label:'رمز من ٤ أرقام',
     pin_lead:'اختر ٤ أرقام ويصبح رقم هاتفك حسابك — طلباتك ونقاطك ومحفوظاتك على أي هاتف.',
     pin_btn:'حفظ', pin_done:'✓ تم. سجّل الدخول في أي وقت برقم هاتفك وهذا الرمز.',
@@ -3073,6 +3084,46 @@ function coMaxRedeem(){
   const pv=CUST.point_value||1,pct=CUST.max_redeem_pct||30;
   return Math.min(CUST.points||0,Math.floor(cartSubtotal()*pct/100/pv));
 }
+/* "Pay now" — Modem Pay's hosted page, where the customer can use Wave, AfriMoney,
+   QMoney, APS, Yonna or a card. It appears above the manual methods only when the shop has
+   been given working keys, and it never replaces them: cash on delivery and sending a
+   transfer yourself both stay exactly where they were. */
+function payOnlineReady(){ return String((PAYINFO&&PAYINFO.pay_online)||'0')==='1' && !isUK(); }
+/* Which of the manual methods the shop is offering today. Switched from the admin rather
+   than removed from the code, so turning Wave back on after an outage is one click and not
+   a new release. A blank setting means all of them — an older shop keeps working untouched. */
+function payMethodsOn(){
+  const raw=String((PAYINFO&&PAYINFO.pay_methods)!=null?PAYINFO.pay_methods:'');
+  if(!raw.trim())return PAYMENTS.map(p=>p.id);
+  return raw.split(',').map(x=>x.trim()).filter(Boolean);
+}
+function activePayments(){
+  const on=payMethodsOn();
+  const list=PAYMENTS.filter(p=>on.includes(p.id));
+  // A checkout with no way at all to pay is never shown. If every manual method is off and
+  // Pay now is not ready, cash on delivery comes back rather than leaving a dead end.
+  if(list.length||payOnlineReady())return list;
+  return PAYMENTS.filter(p=>p.id==='cod');
+}
+/* Keep the chosen method honest: if it has since been switched off, move to Pay now, or to
+   the first method still offered. */
+function ensurePayChoice(){
+  if(isUK())return;
+  const ids=activePayments().map(p=>p.id);
+  if(payOnlineReady())ids.unshift('online');
+  if(!ids.includes(coData.pay))coData.pay=ids[0]||'cod';
+}
+function payNowHtml(){
+  if(!payOnlineReady())return '';
+  const L=LANG==='ar';
+  return `<div class="pay-opt pay-now ${coData.pay==='online'?'sel':''}" data-pay="online">
+    <div class="po-logo" style="background:linear-gradient(135deg,#0b3b2e,#1c7d4a);color:#fff">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg></div>
+    <div class="po-main"><b>${L?'ادفع الآن':'Pay now'}</b>
+      <small>${L?'ويف · أفريموني · كيو موني · بطاقة — دفع آمن':'Wave · AfriMoney · QMoney · card — paid securely now'}</small></div>
+    <div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+  </div>`;
+}
 function payLabel(id){const m={wave:'WAVE',afri:'AfriMoney',qmoney:'QMoney',bank:(LANG==='ar'?'تحويل بنكي':'Bank Transfer'),cod:(LANG==='ar'?'الدفع عند الاستلام':'Cash on Delivery'),wachat:(LANG==='ar'?'تأكيد عبر واتساب':'WhatsApp Order')};return m[id]}
 function deliveryFee(){
   const sub=cartSubtotal()-coDiscountTotal();   // free-delivery threshold applies to the discounted amount
@@ -3107,7 +3158,7 @@ function openCheckout(){
   }
   track('InitiateCheckout',{content_type:'product', contents:cartContents(),
     num_items:cart.reduce((s,i)=>s+i.qty,0), value:cartSubtotal(), currency:fbCurrency()});
-  coStep=1; closeAll(); renderCheckout(); showModal('#checkoutModal');
+  coStep=1; ensurePayChoice(); closeAll(); renderCheckout(); showModal('#checkoutModal');
 }
 /* The UK side takes payment by bank transfer to our partner's account or by PayPal. Both are
    shown in full at checkout so the buyer can pay from their banking app while the order is
@@ -3200,7 +3251,7 @@ function renderCheckout(){
       <div class="checkout-pane ${coStep===3?'active':''}" data-pane="3">
         <h4 class="display" style="color:var(--green-800);margin-bottom:6px">${t('co_choose_pay')}</h4>
         <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">${t('pay_confirm_wa')}</p>
-        ${isUK()?ukPayHtml():`${PAYMENTS.map(pm=>{
+        ${isUK()?ukPayHtml():`${payNowHtml()}${activePayments().map(pm=>{
           const logo=pm.icon?`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'}"><svg viewBox="0 0 24 24" fill="${pm.id==='wachat'?'currentColor':'none'}" stroke="${pm.id==='wachat'?'none':'currentColor'}" stroke-width="2" style="width:24px;height:24px">${pm.icon}</svg></div>`
             :`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'};white-space:pre-line">${pm.short}</div>`;
           return `<div class="pay-opt ${coData.pay===pm.id?'sel':''}" data-pay="${pm.id}">${logo}<div class="po-main"><b>${payLabel(pm.id)}</b><small>${t(pm.sub)}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>`;
@@ -3378,6 +3429,16 @@ async function placeOrder(){
       notes:coData.notes||'', language:LANG, items:cart.map(i=>({id:i.id, variant_id:i.vid||0, qty:i.qty}))
     })}).then(r=>r.json());
     if(d&&d.order_number){ref=d.order_number;sub=d.subtotal;fee=d.delivery_fee;disc=d.discount||0;}
+    /* Paying online: the order exists and is priced; now hand the customer to the payment
+       page. The basket is cleared first, so coming back cannot place it a second time. The
+       order itself is only marked paid when the provider tells our server so. */
+    if(d&&d.payment_link){
+      try{cart=[];updateCart();}catch{}
+      try{sessionStorage.setItem('jt_paying',d.order_number);}catch{}
+      location.href=d.payment_link;
+      return;
+    }
+    if(d&&d.payment_error)toast(d.payment_error);
     if(CUST&&CO_REDEEM>0)loadCustomer();   // refresh the visible points balance
   }catch{}
   const msg=buildWaMessage(ref,disc);
@@ -3929,6 +3990,7 @@ function renderAccountPage(){
           </div>
         </div>
         <button class="btn btn-outline btn-block" id="acLogout">${t('ac_logout')}</button>
+        <button class="btn btn-outline btn-block" id="acDelete" style="margin-top:8px;color:#c0392b;border-color:#f0cfca">${t('ac_delete')}</button>
       </div>
       <div>
         <div class="ac-card">
@@ -3964,6 +4026,41 @@ function renderAccountPage(){
   $('[data-ac-back]').onclick=e=>{e.preventDefault();location.hash='';};
   $('#acCopyRef').onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(CUST.referral_code):Promise.reject()).then(()=>toast(t('ac_copied'))).catch(()=>prompt('Copy:',CUST.referral_code));};
   $('#acLogout').onclick=async()=>{try{await custApi('/api/customer/logout',{method:'POST'});}catch{}setCustToken('');CUST=null;CART_SYNCED=false;updateAcctDot();renderAccountPage();};
+  /* Deleting the account from inside the shop. Both app stores require this to be reachable
+     without leaving the app, and the PIN is asked for again so a phone left on a counter
+     cannot wipe someone's account in two taps. */
+  if($('#acDelete'))$('#acDelete').onclick=()=>{
+    const box=$('#profileModalCard'); if(!box)return;
+    box.innerHTML=`
+      <div class="drawer-head" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <h3 class="display" style="color:#c0392b">${t('ac_del_title')}</h3>
+        <button class="close-x" id="adClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div style="padding:18px 22px 24px">
+        <p style="font-size:.9rem;line-height:1.6;color:var(--ink);margin-bottom:14px">${t('ac_del_lead')}</p>
+        <div class="field"><label>${t('ac_del_pin')}</label>
+          <input id="adPin" type="password" inputmode="numeric" maxlength="24" autocomplete="current-password"></div>
+        <div class="po-msg" id="adMsg"></div>
+        <button class="btn btn-block" id="adGo" style="background:#c0392b;color:#fff;margin-top:12px">${t('ac_del_go')}</button>
+        <button class="btn btn-outline btn-block" id="adNo" style="margin-top:9px">${t('ac_del_cancel')}</button>
+      </div>`;
+    showModal('#profileModal');
+    $('#adClose').onclick=()=>hideModal('#profileModal');
+    $('#adNo').onclick=()=>hideModal('#profileModal');
+    $('#adGo').onclick=async()=>{
+      const pin=$('#adPin').value, m=$('#adMsg');
+      if(!pin){m.className='po-msg bad';m.textContent=t('ac_del_pin');return;}
+      $('#adGo').disabled=true;
+      try{
+        await custApi('/api/customer/me',{method:'DELETE',body:JSON.stringify({password:pin})});
+        setCustToken('');CUST=null;CART_SYNCED=false;cart=[];updateCart();
+        try{localStorage.removeItem('jt_favs');}catch{}
+        FAVS=new Set();
+        hideModal('#profileModal');updateAcctDot();renderAccountPage();
+        toast(t('ac_del_done'));
+      }catch(err){m.className='po-msg bad';m.textContent=err.message;$('#adGo').disabled=false;}
+    };
+  };
   $('#apEdit').onclick=()=>openProfileModal(zoneOpts);
   $('#acOpenChat').onclick=()=>openChat();
   $('#acWlShop').onclick=()=>{FILTERS.savedOnly=true;location.hash='';setTimeout(()=>{renderFilterBar();renderProducts();const s=$('#shop');if(s)s.scrollIntoView();},60);};
