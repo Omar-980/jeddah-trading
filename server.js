@@ -68,24 +68,38 @@ function modemKey()     { return process.env.MODEMPAY_SECRET_KEY || getSetting('
 function modemHookKey() { return process.env.MODEMPAY_WEBHOOK_SECRET || getSetting('modempay_webhook_secret') || ''; }
 function modemOn()      { return getSetting('modempay_enabled') === '1' && !!modemKey(); }
 
+async function modemPost(payload) {
+  const r = await fetch(`${MODEM_API}/v1/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${modemKey()}` },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await r.text();
+  let d = {}; try { d = JSON.parse(text); } catch {}
+  return { ok: r.ok, status: r.status, d, text };
+}
+
 async function modemCreatePayment({ amount, orderId, orderNumber, title, base }) {
-  const body = {
+  const fields = {
     amount: Number(amount),
     currency: 'GMD',
     title: title || 'Jeddah Trading order',
     return_url: `${base}/payment/done?ref=${encodeURIComponent(orderNumber)}`,
     cancel_url: `${base}/payment/done?ref=${encodeURIComponent(orderNumber)}&cancelled=1`,
     metadata: { order_id: String(orderId), order_number: orderNumber },
+    from_sdk: false,
   };
-  const r = await fetch(`${MODEM_API}/v1/payments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${modemKey()}` },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(20000),
-  });
-  const text = await r.text();
-  let d = {}; try { d = JSON.parse(text); } catch {}
-  if (!r.ok) throw new Error((d && (d.message || d.error)) || `Modem Pay refused the payment (${r.status})`);
+  /* Their REST examples wrap everything in a top-level "data" object, while their SDKs pass
+     the fields flat. Sending the documented shape first and falling back to the other costs
+     one extra call on a failure and saves the shop from going quiet if they ever change it. */
+  let res = await modemPost({ data: fields });
+  if (!res.ok) {
+    const flat = await modemPost(fields);
+    if (flat.ok) res = flat;
+  }
+  const { ok, status, d } = res;
+  if (!ok) throw new Error((d && (d.message || d.error)) || `Modem Pay refused the payment (${status})`);
   const link = d && d.data && d.data.payment_link;
   if (!link) throw new Error('Modem Pay did not return a payment link');
   return { link, ref: String((d.data.intent_secret || d.data.id || '')) };
@@ -2343,6 +2357,26 @@ async function api(req, res, url) {
       'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
       'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
       'uk_dispatch_note','uk_returns_policy'];
+    /* "Test the connection" in Settings. Asks Modem Pay for a real payment link for the
+       smallest amount they accept, and hands back whatever they actually said. Nothing is
+       charged — the link is thrown away — but it turns "it did not work" into the provider's
+       own words, which is the difference between a minute and an afternoon. */
+    if (r[1] === 'modempay-test' && method === 'POST') {
+      if (!requirePerm(req, res, 'settings')) return;
+      if (!modemKey()) return send(res, 200, { ok: false, error: 'No secret key saved yet.' });
+      try {
+        const pay = await modemCreatePayment({
+          amount: 10, orderId: 0, orderNumber: 'TEST-' + Date.now(),
+          title: 'Connection test — nothing is charged', base: siteBase(req),
+        });
+        const hook = modemHookKey();
+        return send(res, 200, { ok: true, link: pay.link,
+          webhook_secret_set: !!hook,
+          webhook_url: siteBase(req) + '/api/webhooks/modempay' });
+      } catch (e) {
+        return send(res, 200, { ok: false, error: String(e.message || e) });
+      }
+    }
     if (r[1] === 'settings' && method === 'GET') {
       /* The payment secrets are write-only from here on. The admin is shown whether one is
          set, never the value, so a borrowed laptop or a stolen session cannot read the key
