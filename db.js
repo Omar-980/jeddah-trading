@@ -556,6 +556,10 @@ if (!columnExists('customers', 'cart_at'))    db.exec("ALTER TABLE customers ADD
    browser: the order is priced here, and only Modem Pay's signed webhook may mark it paid. */
 if (!columnExists('orders', 'payment_ref'))   db.exec("ALTER TABLE orders ADD COLUMN payment_ref TEXT DEFAULT ''");
 if (!columnExists('orders', 'paid_at'))       db.exec("ALTER TABLE orders ADD COLUMN paid_at TEXT DEFAULT ''");
+// Modem Pay's own id for the payment, which is what its webhook names — the order number we
+// attach as metadata is not always echoed back. payment_ref keeps the intent secret, which is
+// what their verify call takes.
+if (!columnExists('orders', 'payment_intent_id')) db.exec("ALTER TABLE orders ADD COLUMN payment_intent_id TEXT DEFAULT ''");
 /* Every webhook that arrives, kept by the provider's own event id. A payment provider may
    deliver the same event more than once — on a retry, or if our reply was slow — and without
    this an order could be marked paid, or a notification sent, twice over. The raw body is

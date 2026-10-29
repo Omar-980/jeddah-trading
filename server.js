@@ -102,7 +102,44 @@ async function modemCreatePayment({ amount, orderId, orderNumber, title, base })
   if (!ok) throw new Error((d && (d.message || d.error)) || `Modem Pay refused the payment (${status})`);
   const link = d && d.data && d.data.payment_link;
   if (!link) throw new Error('Modem Pay did not return a payment link');
-  return { link, ref: String((d.data.intent_secret || d.data.id || '')) };
+  /* Two ids come back and both matter. The intent secret is what their verify call takes.
+     The intent's own id is what their webhook names as payment_intent_id — it is not in the
+     create response, but it is the last part of the payment link. */
+  const tail = String(link).split(/[/?#]/).filter(Boolean).pop() || '';
+  const intentId = String(d.data.id || (/^[0-9a-f-]{20,}$/i.test(tail) ? tail : ''));
+  return { link, ref: String(d.data.intent_secret || ''), intentId };
+}
+
+/* Ask Modem Pay directly whether a payment went through. This is our server asking with our
+   own secret key — not anything the customer's browser says — so it is as trustworthy as the
+   webhook, and it does not depend on when the webhook happens to arrive. */
+async function modemVerify(intentSecret) {
+  const r = await fetch(`${MODEM_API}/v1/payments/verify?intent_secret=${encodeURIComponent(intentSecret)}`, {
+    headers: { Authorization: `Bearer ${modemKey()}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await r.text();
+  let d = {}; try { d = JSON.parse(text); } catch {}
+  if (!r.ok) throw new Error((d && (d.message || d.error)) || `verify failed (${r.status})`);
+  const x = (d && (d.data || d.payload)) || d || {};
+  return { status: String(x.status || '').toLowerCase(), amount: Number(x.amount) || 0 };
+}
+const MODEM_PAID = new Set(['successful', 'succeeded', 'success', 'paid', 'completed']);
+const VERIFY_SEEN = new Map();   // order id → when we last asked Modem Pay about it
+
+/* Mark an order paid, once. Shared by the webhook and the direct check so the two can never
+   disagree about what "paid" means: the amount must cover what we charged, and an order that
+   is already paid is left exactly as it is. */
+function markOrderPaid(order, amount, via, ref) {
+  if (order.payment_status === 'paid') return 'already paid';
+  if (amount + 0.01 < Number(order.total)) {
+    logAct(null, 'payment_short', `${order.order_number}: paid ${amount} against ${order.total} (${via})`);
+    return `underpaid ${amount} of ${order.total}`;
+  }
+  db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now') WHERE id=? AND payment_status!='paid'")
+    .run(order.id);
+  logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay (${via}${ref ? ' ' + ref : ''})`);
+  return 'paid';
 }
 
 function publicSettings() {
@@ -429,9 +466,13 @@ async function api(req, res, url) {
       return send(res, 401, { error: 'bad signature' });
     }
     let evt = {}; try { evt = JSON.parse(raw); } catch { return send(res, 200, { ok: true, ignored: 'unreadable' }); }
+    /* Modem Pay sends {"event": "...", "payload": {...}}. The first version of this read a
+       "data" key that their messages do not have, so every real confirmation was accepted and
+       then matched no order. "data" is still read as a fallback in case they ever send it. */
     const type = String(evt.event || evt.type || '');
-    const data = evt.data || {};
-    const meta = data.metadata || evt.metadata || {};
+    const data = evt.payload || evt.data || {};
+    const meta = (data.metadata && typeof data.metadata === 'object') ? data.metadata : (evt.metadata || {});
+    const intentId = String(data.payment_intent_id || data.intent_id || '');
     const eventId = String(evt.id || evt.event_id || data.id || crypto.createHash('sha256').update(raw).digest('hex'));
     const amount = Number(data.amount != null ? data.amount : evt.amount) || 0;
 
@@ -449,28 +490,40 @@ async function api(req, res, url) {
     };
     if (type !== 'charge.succeeded') return finish('ignored: ' + (type || 'no type'));
 
+    /* Find the order. Their metadata can arrive empty, so the payment intent id — which we
+       stored when we created the payment — is the one match that always works. */
     const order = (meta.order_id && db.prepare('SELECT * FROM orders WHERE id=?').get(Number(meta.order_id)))
       || (meta.order_number && db.prepare('SELECT * FROM orders WHERE order_number=?').get(String(meta.order_number)))
+      || (intentId && db.prepare("SELECT * FROM orders WHERE payment_intent_id=? AND payment_intent_id!=''").get(intentId))
       || null;
-    if (!order) return finish('no matching order');
-    if (order.payment_status === 'paid') return finish('already paid', order.id);
-    // A payment short of the order total settles nothing. A rounding penny over is fine.
-    if (amount + 0.01 < Number(order.total)) {
-      logAct(null, 'payment_short', `${order.order_number}: paid ${amount} against ${order.total}`);
-      return finish(`underpaid ${amount} of ${order.total}`, order.id);
-    }
-    db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now'), payment_ref=COALESCE(NULLIF(payment_ref,''),?) WHERE id=?")
-      .run(String(data.id || eventId), order.id);
-    logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay`);
-    return finish('paid', order.id);
+    if (!order) return finish('no matching order' + (intentId ? ' for intent ' + intentId : ''));
+    return finish(markOrderPaid(order, amount, 'webhook', String(data.transaction_reference || data.id || '')), order.id);
   }
 
   /* Has this order been paid? Nothing else — no name, no amount, no address — so the page a
      customer lands on after paying can wait for the provider's webhook to arrive. */
   if (r[0] === 'payment-status' && method === 'GET') {
-    const ref = String(url.searchParams.get('ref') || '').slice(0, 40);
-    const o = ref ? db.prepare('SELECT payment_status FROM orders WHERE order_number=?').get(ref) : null;
-    return send(res, 200, { status: o ? (o.payment_status === 'paid' ? 'paid' : 'unpaid') : 'unknown' });
+    const ref = String(url.searchParams.get('ref') || '').trim().slice(0, 40);
+    let o = ref ? db.prepare('SELECT * FROM orders WHERE order_number=?').get(ref) : null;
+    if (!o) return send(res, 200, { status: 'unknown' });
+    /* Not paid yet? Ask Modem Pay directly instead of waiting on the webhook. Limited to an
+       online order still awaiting payment, at most once every few seconds per order, so this
+       public address cannot be used to hammer their API on our key. */
+    if (o.payment_status !== 'paid' && o.payment_method === 'online' && o.payment_ref && modemOn()) {
+      const last = VERIFY_SEEN.get(o.id) || 0;
+      if (Date.now() - last > 4000) {
+        if (VERIFY_SEEN.size > 5000) VERIFY_SEEN.clear();
+        VERIFY_SEEN.set(o.id, Date.now());
+        try {
+          const v = await modemVerify(o.payment_ref);
+          if (MODEM_PAID.has(v.status)) {
+            markOrderPaid(o, v.amount || Number(o.total), 'verify', '');
+            o = db.prepare('SELECT * FROM orders WHERE id=?').get(o.id);
+          }
+        } catch (e) { console.error('Modem Pay verify:', e.message); }
+      }
+    }
+    return send(res, 200, { status: o.payment_status === 'paid' ? 'paid' : 'unpaid' });
   }
   if (r[0] === 'products' && method === 'GET') return send(res, 200, { products: queries.activeProducts() });
   if (r[0] === 'categories' && method === 'GET') return send(res, 200, { categories: queries.activeCategories() });
@@ -986,7 +1039,7 @@ async function api(req, res, url) {
           base: siteBase(req),
         });
         payLink = pay.link;
-        db.prepare('UPDATE orders SET payment_ref=? WHERE id=?').run(pay.ref, info.lastInsertRowid);
+        db.prepare('UPDATE orders SET payment_ref=?, payment_intent_id=? WHERE id=?').run(pay.ref, pay.intentId, info.lastInsertRowid);
       } catch (e) {
         console.error('Modem Pay:', e.message);
         payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
