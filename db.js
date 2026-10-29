@@ -550,6 +550,31 @@ if (!columnExists('orders', 'postcode'))      db.exec("ALTER TABLE orders ADD CO
 if (!columnExists('customers', 'cart_json'))  db.exec("ALTER TABLE customers ADD COLUMN cart_json TEXT DEFAULT ''");
 if (!columnExists('customers', 'cart_at'))    db.exec("ALTER TABLE customers ADD COLUMN cart_at TEXT DEFAULT ''");
 
+/* ---------- Paying online through Modem Pay ----------
+   The order carries the payment's reference so a webhook arriving minutes later can find it,
+   and the moment it was actually paid. Nothing about money is taken from the customer's
+   browser: the order is priced here, and only Modem Pay's signed webhook may mark it paid. */
+if (!columnExists('orders', 'payment_ref'))   db.exec("ALTER TABLE orders ADD COLUMN payment_ref TEXT DEFAULT ''");
+if (!columnExists('orders', 'paid_at'))       db.exec("ALTER TABLE orders ADD COLUMN paid_at TEXT DEFAULT ''");
+/* Every webhook that arrives, kept by the provider's own event id. A payment provider may
+   deliver the same event more than once — on a retry, or if our reply was slow — and without
+   this an order could be marked paid, or a notification sent, twice over. The raw body is
+   kept so a disputed payment can be read back exactly as it was received. */
+db.exec(`CREATE TABLE IF NOT EXISTS payment_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL DEFAULT 'modempay',
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL DEFAULT '',
+  order_id INTEGER,
+  order_number TEXT DEFAULT '',
+  amount REAL DEFAULT 0,
+  currency TEXT DEFAULT 'GMD',
+  outcome TEXT DEFAULT '',
+  raw TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_events_unique ON payment_events(provider, event_id)');
+
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -607,6 +632,19 @@ const DEFAULT_SETTINGS = {
   site_url: '',                   // public address, e.g. https://shopjeddahtrading.com (blank = work it out from the request)
   // ---- United Kingdom ----
   uk_enabled: '0',                // the UK side stays invisible until this is switched on
+  // Filled in once the Play app is signed: they make /.well-known/assetlinks.json appear,
+  // which is what removes the browser address bar from the top of the Android app.
+  /* Modem Pay. The two secrets never leave the server: they are stripped from the public
+     settings and masked in the admin, so a stolen admin session cannot read them out. */
+  /* Which of the manual payment methods the checkout offers. A blank value means all of
+     them, so an older database and a cleared box both behave as they always did. */
+  pay_methods: 'wave,afri,qmoney,bank,cod,wachat',
+  modempay_enabled: '0',
+  modempay_public_key: '',
+  modempay_secret_key: '',
+  modempay_webhook_secret: '',
+  android_package: '',
+  android_cert_sha256: '',
   uk_delivery_fee: '3.95',        // £ — Royal Mail tracked, paid by the buyer
   uk_free_over: '45',             // £ — free delivery above this
   uk_business_name: '',           // the UK partner or importer named on the label and the site
@@ -923,6 +961,63 @@ const r2 = x => Math.round((Number(x) || 0) * 100) / 100;
 /* ===== Investor profit engine =====
    When investor-funded products sell, the sold quantity is allocated to open investments
    (oldest first) and profit is split on PROFIT ONLY, at the actual selling price of the order. */
+/* ---------- Erasing a customer, on their own request ----------
+   Both app stores require a customer to be able to delete their account and their personal
+   details, from inside the app and from a web page that works without it.
+
+   What that must NOT do is tear a hole in the accounts. An order is a financial record: the
+   shop's takings, the stock that left the shelf and an investor's share of the profit are all
+   anchored to it, and some of those people are owed money on the strength of it. So this
+   erases the PERSON and keeps the TRANSACTION: every field that identifies a human being is
+   emptied, while order numbers, dates, items and totals stay exactly as they were. Nothing in
+   any report, any investor's statement or any payout changes by a single dalasi.
+
+   Returns a plain tally of what was done, which the customer is shown. */
+function deleteCustomerData(customerId) {
+  const c = db.prepare('SELECT * FROM customers WHERE id=?').get(customerId);
+  if (!c) return null;
+  const phone = String(c.phone || '').replace(/[^0-9]/g, '');
+  const tally = { orders: 0, chats: 0, messages: 0 };
+
+  // node:sqlite has no transaction() helper, so the statements are wrapped by hand.
+  db.exec('BEGIN');
+  try {
+    // Orders: scrub the person, keep the money. Matched by account id and by the phone the
+    // order was placed with, so guest orders made before they had an account go too.
+    const orders = db.prepare(
+      `SELECT id FROM orders WHERE customer_id=? OR replace(replace(customer_phone,'+',''),' ','')=?`
+    ).all(c.id, phone);
+    tally.orders = orders.length;
+    const scrub = db.prepare(`UPDATE orders SET customer_name='Deleted customer', customer_phone='',
+      customer_email='', delivery_address='', delivery_area='', postcode='', notes='',
+      payment_proof='', customer_id=NULL WHERE id=?`);
+    for (const o of orders) scrub.run(o.id);
+
+    // Support conversations are correspondence, not records — they go completely.
+    const convs = db.prepare(
+      `SELECT id FROM conversations WHERE customer_id=? OR replace(replace(customer_phone,'+',''),' ','')=?`
+    ).all(c.id, phone);
+    tally.chats = convs.length;
+    for (const cv of convs) {
+      tally.messages += db.prepare('SELECT COUNT(*) n FROM chat_messages WHERE conversation_id=?').get(cv.id).n;
+      db.prepare('DELETE FROM chat_messages WHERE conversation_id=?').run(cv.id);
+      db.prepare('DELETE FROM conversations WHERE id=?').run(cv.id);
+    }
+
+    // Anyone they referred keeps their own account; it simply no longer points at a person.
+    db.prepare('UPDATE customers SET referred_by=NULL WHERE referred_by=?').run(c.id);
+    if (c.email) db.prepare('DELETE FROM newsletter WHERE lower(email)=lower(?)').run(c.email);
+    db.prepare('DELETE FROM customer_wishlist WHERE customer_id=?').run(c.id);
+    db.prepare('DELETE FROM customer_sessions WHERE customer_id=?').run(c.id);
+    db.prepare('DELETE FROM customers WHERE id=?').run(c.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw e;
+  }
+  return tally;
+}
+
 function recordInvestorSalesForOrder(orderId, orderNumber, items, byRef = '') {
   for (const it of items) {
     let left = Number(it.qty) || 0;
@@ -1297,12 +1392,26 @@ const queries = {
       return { rows, totals: { orders: rows.reduce((s, r) => s + r.orders, 0), revenue: rows.reduce((s, r) => s + r.revenue, 0) } };
     }
     if (type === 'pl') {
-      let revenue = 0, cogs = 0;
-      db.prepare(`SELECT items_json,total,delivery_fee FROM orders WHERE status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?`).all(F, T)
-        .forEach(o => { revenue += o.total; try { JSON.parse(o.items_json).forEach(i => cogs += (i.cost || 0) * (i.qty || 0)); } catch {} });
+      /* Dalasi only, like every other money report. Without market='gm' a UK order would be
+         added here as though £9.50 were D9.50, and the profit figure would quietly drift the
+         day the UK side is switched on. */
+      let revenue = 0, cogs = 0, delivery = 0;
+      db.prepare(`SELECT items_json,total,delivery_fee FROM orders WHERE market='gm' AND status NOT IN ('cancelled','returned','refunded') AND date(created_at) BETWEEN ? AND ?`).all(F, T)
+        .forEach(o => {
+          revenue += o.total;
+          delivery += Number(o.delivery_fee) || 0;
+          try { JSON.parse(o.items_json).forEach(i => cogs += (i.cost || 0) * (i.qty || 0)); } catch {}
+        });
+      /* Delivery money is shown on its own line. It is the shop's — no investor shares in it,
+         because an investor's cut is worked out per product line, from the selling price less
+         what that stock cost. But nothing here knows what a rider was paid, so whatever is
+         handed to a courier has to be entered under Expenses or this reads too well. */
+      const goods = r2(revenue - delivery);
       const expRows = db.prepare('SELECT category, COALESCE(SUM(amount),0) amount FROM expenses WHERE spent_on BETWEEN ? AND ? GROUP BY category ORDER BY amount DESC').all(F, T);
       const expenses = expRows.reduce((s, r) => s + r.amount, 0);
-      return { revenue, cogs, grossProfit: revenue - cogs, expRows, expenses, netProfit: revenue - cogs - expenses };
+      return { revenue: r2(revenue), goods, delivery: r2(delivery), cogs: r2(cogs),
+               grossProfit: r2(revenue - cogs), expRows, expenses,
+               netProfit: r2(revenue - cogs - expenses) };
     }
     if (type === 'purchases') {
       const rows = db.prepare(`SELECT po_number, supplier_name, status, total_cost, created_at, received_at FROM purchase_orders
@@ -1348,4 +1457,4 @@ const queries = {
   zoneById:    (id) => db.prepare('SELECT * FROM delivery_zones WHERE id=?').get(id),
 };
 
-module.exports = { db, DB_PATH, DATA_DIR, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 };
+module.exports = { db, DB_PATH, DATA_DIR, queries, getSetting, setSetting, rowToProduct, DEFAULT_SETTINGS, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, deleteCustomerData, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 };

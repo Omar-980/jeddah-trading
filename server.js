@@ -9,7 +9,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 } = require('./db');
+const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, deleteCustomerData, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 } = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // bind all interfaces so cloud hosts can route to it
@@ -43,12 +43,62 @@ function readBody(req) {
     req.on('error', reject);
   });
 }
+/* The exact bytes as they arrived. A webhook's signature is computed over those bytes, so
+   re-serialising a parsed object would change the whitespace and the check would fail — or,
+   worse, pass on something different from what was signed. */
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '', size = 0;
+    req.on('data', c => { size += c.length; if (size > 1024 * 1024) { reject(new Error('payload too large')); req.destroy(); } data += c; });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+/* ---------- Modem Pay ----------
+   Gambian payment provider: Wave, AfriMoney, QMoney, APS, Yonna and cards, on their own
+   hosted page. No card detail ever reaches this server.
+
+   The rule that matters: the customer coming back to our return_url proves nothing — they
+   can close the page, or type the address themselves. An order is marked paid only by a
+   webhook whose HMAC-SHA512 signature matches the raw body, and only after the amount has
+   been checked against what we charged. */
+const MODEM_API = process.env.MODEMPAY_API_BASE || 'https://api.modempay.com';
+function modemKey()     { return process.env.MODEMPAY_SECRET_KEY || getSetting('modempay_secret_key') || ''; }
+function modemHookKey() { return process.env.MODEMPAY_WEBHOOK_SECRET || getSetting('modempay_webhook_secret') || ''; }
+function modemOn()      { return getSetting('modempay_enabled') === '1' && !!modemKey(); }
+
+async function modemCreatePayment({ amount, orderId, orderNumber, title, base }) {
+  const body = {
+    amount: Number(amount),
+    currency: 'GMD',
+    title: title || 'Jeddah Trading order',
+    return_url: `${base}/payment/done?ref=${encodeURIComponent(orderNumber)}`,
+    cancel_url: `${base}/payment/done?ref=${encodeURIComponent(orderNumber)}&cancelled=1`,
+    metadata: { order_id: String(orderId), order_number: orderNumber },
+  };
+  const r = await fetch(`${MODEM_API}/v1/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${modemKey()}` },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await r.text();
+  let d = {}; try { d = JSON.parse(text); } catch {}
+  if (!r.ok) throw new Error((d && (d.message || d.error)) || `Modem Pay refused the payment (${r.status})`);
+  const link = d && d.data && d.data.payment_link;
+  if (!link) throw new Error('Modem Pay did not return a payment link');
+  return { link, ref: String((d.data.intent_secret || d.data.id || '')) };
+}
+
 function publicSettings() {
   return {
     whatsapp_number: getSetting('whatsapp_number'),
     store_name: getSetting('store_name'),
     free_delivery_over: Number(getSetting('free_delivery_over')),
     delivery_fee: Number(getSetting('delivery_fee')),
+    pay_methods: getSetting('pay_methods'),
+    pay_online: (getSetting('modempay_enabled') === '1' && !!(process.env.MODEMPAY_SECRET_KEY || getSetting('modempay_secret_key'))) ? '1' : '0',
     announce_en: getSetting('announce_en'),
     announce_ar: getSetting('announce_ar'),
     contact_address_en: getSetting('contact_address_en'),
@@ -339,6 +389,75 @@ async function api(req, res, url) {
   const method = req.method;
 
   /* ----- PUBLIC ----- */
+  /* ---------- Modem Pay webhook ----------
+     The ONLY thing in this system allowed to mark an order paid. It is public by necessity,
+     so every line here assumes the caller is hostile:
+
+       · the signature is checked over the raw bytes, with a timing-safe compare, before the
+         body is so much as parsed;
+       · the event is written to payment_events under a unique key, so the same event
+         delivered twice — which providers do on retry — cannot pay an order twice;
+       · the amount is checked against what this server charged, so a genuine D10 payment
+         cannot settle a D5,000 order;
+       · an order already paid is left alone.
+
+     It answers 200 for anything it has safely dealt with, so Modem Pay stops retrying, and
+     401 only when the signature is wrong. */
+  if (r[0] === 'webhooks' && r[1] === 'modempay' && method === 'POST') {
+    const raw = await readRawBody(req);
+    const secret = modemHookKey();
+    if (!secret) return send(res, 503, { error: 'not configured' });
+    const sent = String(req.headers['x-modem-signature'] || '');
+    const expected = crypto.createHmac('sha512', secret).update(raw, 'utf8').digest('hex');
+    const a = Buffer.from(expected), bsig = Buffer.from(sent);
+    if (a.length !== bsig.length || !crypto.timingSafeEqual(a, bsig)) {
+      console.error('Modem Pay webhook: bad signature');
+      return send(res, 401, { error: 'bad signature' });
+    }
+    let evt = {}; try { evt = JSON.parse(raw); } catch { return send(res, 200, { ok: true, ignored: 'unreadable' }); }
+    const type = String(evt.event || evt.type || '');
+    const data = evt.data || {};
+    const meta = data.metadata || evt.metadata || {};
+    const eventId = String(evt.id || evt.event_id || data.id || crypto.createHash('sha256').update(raw).digest('hex'));
+    const amount = Number(data.amount != null ? data.amount : evt.amount) || 0;
+
+    // Claim the event first. If this throws on the unique index we have seen it before.
+    try {
+      db.prepare(`INSERT INTO payment_events(provider,event_id,event_type,order_number,amount,currency,raw)
+        VALUES('modempay',?,?,?,?,?,?)`).run(eventId, type, String(meta.order_number || ''), amount,
+        String(data.currency || 'GMD'), raw.slice(0, 4000));
+    } catch { return send(res, 200, { ok: true, duplicate: true }); }
+
+    const finish = (outcome, orderId) => {
+      db.prepare('UPDATE payment_events SET outcome=?, order_id=? WHERE provider=? AND event_id=?')
+        .run(outcome, orderId || null, 'modempay', eventId);
+      return send(res, 200, { ok: true, outcome });
+    };
+    if (type !== 'charge.succeeded') return finish('ignored: ' + (type || 'no type'));
+
+    const order = (meta.order_id && db.prepare('SELECT * FROM orders WHERE id=?').get(Number(meta.order_id)))
+      || (meta.order_number && db.prepare('SELECT * FROM orders WHERE order_number=?').get(String(meta.order_number)))
+      || null;
+    if (!order) return finish('no matching order');
+    if (order.payment_status === 'paid') return finish('already paid', order.id);
+    // A payment short of the order total settles nothing. A rounding penny over is fine.
+    if (amount + 0.01 < Number(order.total)) {
+      logAct(null, 'payment_short', `${order.order_number}: paid ${amount} against ${order.total}`);
+      return finish(`underpaid ${amount} of ${order.total}`, order.id);
+    }
+    db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now'), payment_ref=COALESCE(NULLIF(payment_ref,''),?) WHERE id=?")
+      .run(String(data.id || eventId), order.id);
+    logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay`);
+    return finish('paid', order.id);
+  }
+
+  /* Has this order been paid? Nothing else — no name, no amount, no address — so the page a
+     customer lands on after paying can wait for the provider's webhook to arrive. */
+  if (r[0] === 'payment-status' && method === 'GET') {
+    const ref = String(url.searchParams.get('ref') || '').slice(0, 40);
+    const o = ref ? db.prepare('SELECT payment_status FROM orders WHERE order_number=?').get(ref) : null;
+    return send(res, 200, { status: o ? (o.payment_status === 'paid' ? 'paid' : 'unpaid') : 'unknown' });
+  }
   if (r[0] === 'products' && method === 'GET') return send(res, 200, { products: queries.activeProducts() });
   if (r[0] === 'categories' && method === 'GET') return send(res, 200, { categories: queries.activeCategories() });
   if (r[0] === 'settings' && method === 'GET') return send(res, 200, publicSettings());
@@ -448,6 +567,21 @@ async function api(req, res, url) {
     db.prepare("UPDATE customers SET cart_json=?, cart_at=datetime('now') WHERE id=?")
       .run(JSON.stringify(items), c.id);
     return send(res, 200, { ok: true, items });
+  }
+  /* Deleting an account, on the customer's own request. Both app stores require this, and
+     Google requires it to work from a web page too, for someone who has uninstalled the app.
+     The PIN is asked for again here even though they are already signed in: a phone left
+     unlocked on a counter should not be able to wipe someone's account in two taps. */
+  if (r[0] === 'customer' && r[1] === 'me' && method === 'DELETE') {
+    const c = currentCustomer(req);
+    if (!c) return send(res, 401, { error: 'unauthorized' });
+    const b = await readBody(req);
+    if (!verifyPassword(String(b.password || ''), c.pass_hash))
+      return send(res, 403, { error: 'Wrong PIN — enter the PIN you sign in with' });
+    const tally = deleteCustomerData(c.id);
+    if (!tally) return send(res, 404, { error: 'not found' });
+    logAct(null, 'customer_deleted', `Customer account erased on request (${tally.orders} order(s) kept, anonymised)`);
+    return send(res, 200, { ok: true, ...tally });
   }
   if (r[0] === 'customer' && r[1] === 'logout' && method === 'POST') {
     const t = req.headers['x-customer-token'] || '';
@@ -825,7 +959,26 @@ async function api(req, res, url) {
        investor's balance, so UK orders are deliberately left out until the UK side has a
        profit model of its own. */
     if (market === 'gm') recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);
-    return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market });
+
+    /* Paying online. The amount sent to Modem Pay is the total this server just worked out,
+       never a figure from the browser. If their service is unreachable the order still
+       stands — the customer is simply told to pay another way, rather than losing the sale. */
+    let payLink = null, payError = null;
+    if (market === 'gm' && b.payment_method === 'online' && modemOn() && total > 0) {
+      try {
+        const pay = await modemCreatePayment({
+          amount: total, orderId: info.lastInsertRowid, orderNumber,
+          title: `${getSetting('store_name') || 'Jeddah Trading'} — ${orderNumber}`,
+          base: siteBase(req),
+        });
+        payLink = pay.link;
+        db.prepare('UPDATE orders SET payment_ref=? WHERE id=?').run(pay.ref, info.lastInsertRowid);
+      } catch (e) {
+        console.error('Modem Pay:', e.message);
+        payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
+      }
+    }
+    return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError });
   }
 
   /* ----- ADMIN AUTH (rate limited) ----- */
@@ -2181,7 +2334,7 @@ async function api(req, res, url) {
     }
 
     // ---- SETTINGS ----
-    const SETTING_KEYS = ['whatsapp_number','store_name','free_delivery_over','delivery_fee','low_stock_threshold','max_staff_discount_pct',
+    const SETTING_KEYS = ['whatsapp_number','store_name','free_delivery_over','delivery_fee','low_stock_threshold','max_staff_discount_pct','android_package','android_cert_sha256','pay_methods','modempay_enabled','modempay_public_key','modempay_secret_key','modempay_webhook_secret',
       'announce_en','announce_ar','contact_address_en','contact_address_ar','contact_hours_en','contact_hours_ar',
       'pay_account_name','pay_wave_number','pay_afri_number','pay_qmoney_number','pay_bank_name','pay_bank_account','pay_note_en','pay_note_ar',
       'est_delivery_en','est_delivery_ar','loyalty_earn_per','loyalty_point_value','loyalty_max_redeem_pct','referral_bonus_points',
@@ -2191,12 +2344,19 @@ async function api(req, res, url) {
       'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
       'uk_dispatch_note','uk_returns_policy'];
     if (r[1] === 'settings' && method === 'GET') {
-      const out = {}; SETTING_KEYS.forEach(k => out[k] = getSetting(k)); return send(res, 200, out);
+      /* The payment secrets are write-only from here on. The admin is shown whether one is
+         set, never the value, so a borrowed laptop or a stolen session cannot read the key
+         that moves money. Posting the mask back leaves the stored key untouched. */
+      const MASK = '••••••••';
+      const SECRET_KEYS = ['modempay_secret_key', 'modempay_webhook_secret'];
+      const out = {};
+      SETTING_KEYS.forEach(k => { out[k] = SECRET_KEYS.includes(k) ? (getSetting(k) ? MASK : '') : getSetting(k); });
+      return send(res, 200, out);
     }
     if (r[1] === 'settings' && method === 'POST') {
       if (!requirePerm(req, res, 'settings')) return;
       const b = await readBody(req);
-      SETTING_KEYS.forEach(k => { if (b[k] !== undefined) setSetting(k, b[k]); });
+      SETTING_KEYS.forEach(k => { if (b[k] !== undefined && b[k] !== '••••••••') setSetting(k, b[k]); });
       logAct(me.username, 'settings_update', Object.keys(b).filter(k => k !== 'admin_password').slice(0, 6).join(', '));
       if (b.admin_password) {  // owner password also updates the owner user login
         setSetting('admin_password', b.admin_password);
@@ -2999,6 +3159,35 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       const rel = url.pathname.replace(/^\/admin\/?/, '') || 'index.html';
       return serveStatic(res, ADMIN_DIR, rel, req.method);
+    }
+    /* Tidy addresses for the two pages an app-store reviewer opens, and the one a customer
+       is sent to. Both must work with nothing installed. */
+    if (url.pathname === '/payment/done' || url.pathname === '/payment/done/') {
+      return serveStatic(res, PUBLIC_DIR, 'payment-done.html', req.method);
+    }
+    if (url.pathname === '/privacy' || url.pathname === '/privacy/') {
+      return serveStatic(res, PUBLIC_DIR, 'privacy.html', req.method);
+    }
+    if (url.pathname === '/delete-account' || url.pathname === '/delete-account/') {
+      return serveStatic(res, PUBLIC_DIR, 'delete-account.html', req.method);
+    }
+    /* Android app links. Once the Play app is signed, its certificate fingerprint goes in
+       Settings and this file tells Android the app and this website are the same business —
+       which is what removes the browser address bar from the top of the app. Until then it
+       is deliberately absent rather than empty, which is what Android expects. */
+    if (url.pathname === '/.well-known/assetlinks.json') {
+      const fp = String(getSetting('android_cert_sha256') || '').trim().toUpperCase();
+      const pkg = String(getSetting('android_package') || '').trim();
+      if (!fp || !pkg) return send(res, 404, 'Not found', { 'Content-Type': 'text/plain' });
+      const body = JSON.stringify([{
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: { namespace: 'android_app', package_name: pkg,
+                  sha256_cert_fingerprints: fp.split(/[\s,]+/).filter(Boolean) },
+      }], null, 2);
+      res.writeHead(200, { 'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body), 'Cache-Control': 'public, max-age=300' });
+      if (String(req.method).toUpperCase() === 'HEAD') return res.end();
+      return res.end(body);
     }
     if (url.pathname === '/investor' || url.pathname === '/investor/') {
       return serveStatic(res, PUBLIC_DIR, 'investor.html', req.method);
