@@ -879,6 +879,8 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
             <div class="field"><label>Secret key</label><input id="s_modempay_secret_key" placeholder="sk_test_…" autocomplete="off"></div>
             <div class="field"><label>Webhook secret</label><input id="s_modempay_webhook_secret" placeholder="from Developers → Webhooks" autocomplete="off"></div>
           </div>
+          <button class="btn btn-outline btn-sm" id="mpTest" style="margin-top:4px">Test the connection</button>
+          <div id="mpTestOut" style="font-size:.86rem;margin-top:9px;line-height:1.6"></div>
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
           <div class="section-label">United Kingdom</div>
           <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your UK partner holds the stock and posts the orders. Their name and full UK address are required by UK food labelling law and are shown to buyers. Nothing here appears on the shop until "Sell in the UK" is on.</p>
@@ -3656,6 +3658,27 @@ const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_deliv
 const PAY_METHOD_LIST=[['wave','Wave — transfer + screenshot'],['afri','AfriMoney — transfer + screenshot'],
   ['qmoney','QMoney — transfer + screenshot'],['bank','Bank transfer — screenshot'],
   ['cod','Cash on delivery — rider collects'],['wachat','Arrange on WhatsApp']];
+/* Ask Modem Pay for a real payment link and show whatever they say back. Save first — the
+   test uses the keys that are stored, not what is typed on screen. */
+async function modempayTest(){
+  const out=$('#mpTestOut'), btn=$('#mpTest');
+  out.innerHTML='<span style="color:var(--muted)">Asking Modem Pay…</span>';
+  btn.disabled=true;
+  try{
+    const d=await api('/admin/modempay-test',{method:'POST',body:'{}'});
+    if(d.ok){
+      out.innerHTML=`<b style="color:var(--green-700)">✓ Connected.</b> Modem Pay returned a payment page, so your secret key and permissions are right.<br>
+        <span style="color:var(--muted)">Nothing was charged.</span><br>
+        ${d.webhook_secret_set
+          ? '<b style="color:var(--green-700)">✓ Webhook secret saved.</b>'
+          : '<b style="color:var(--danger)">✗ No webhook secret saved</b> — orders will not turn to paid on their own until you add it.'}
+        <br><span style="color:var(--muted)">Webhook address for their dashboard:</span> <code>${esc(d.webhook_url)}</code>`;
+    }else{
+      out.innerHTML=`<b style="color:var(--danger)">✗ Modem Pay said:</b> ${esc(d.error||'no reason given')}`;
+    }
+  }catch(e){ out.innerHTML=`<b style="color:var(--danger)">✗ ${esc(e.message)}</b>`; }
+  btn.disabled=false;
+}
 function renderPayMethodBoxes(){
   const box=$('#payMethodBoxes'); if(!box)return;
   const raw=(SETTINGS.pay_methods==null||SETTINGS.pay_methods==='')?PAY_METHOD_LIST.map(m=>m[0]).join(','):SETTINGS.pay_methods;
@@ -3672,6 +3695,7 @@ function payMethodsValue(){
 function fillSettings(){
   SETTINGS_FIELDS.forEach(k=>{const el=$('#s_'+k);if(el)el.value=SETTINGS[k]||'';});
   renderPayMethodBoxes();
+  if($('#mpTest'))$('#mpTest').onclick=modempayTest;
   if($('#s_catalog_currency')&&!SETTINGS.catalog_currency)$('#s_catalog_currency').value='GMD';
   // The catalogue links are built from wherever the shop is actually being served from.
   const base=(SETTINGS.site_url||'').trim().replace(/\/+$/,'')||location.origin;
