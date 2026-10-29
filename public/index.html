@@ -1884,6 +1884,7 @@ const I18N = {
     co_yourdetails:'Your details', co_fullname:'Full name', co_phone:'Phone (WhatsApp)', co_deliv_method:'Delivery method',
     co_home:'Home delivery', co_home_s:'We deliver to your address', co_pickup:'Shop pickup', co_pickup_s:'Collect from Serrekunda', co_address:'Delivery address', co_area:'Area / Town', co_notes:'Order notes (optional)', co_notes_ph:'Landmark, preferred time, etc.',
     co_choose_pay:'Choose payment method', pay_confirm_wa:'You\'ll confirm & send payment details on WhatsApp',
+    pay_online_hint:'You\'ll pay securely on the next screen — Wave, AfriMoney, QMoney or card.', co_pay_proceed:'Proceed to payment',
     wave_s:'Mobile money', afri_s:'Africell mobile money', qmoney_s:'QCell mobile money', bank_s:'Direct bank transfer', cod_s:'Pay cash when delivered', wachat_s:'Place order via WhatsApp chat',
     co_review:'Review your order', co_name_l:'Name', co_phone_l:'Phone', co_deliv_l:'Delivery', co_pay_l:'Payment', co_items:'Items',
     co_place:'Place Order on WhatsApp', co_back:'Back', co_next:'Continue', co_placed:'Order ready!', co_placed_sub:'Your order summary is opening in WhatsApp. Send the message to confirm and we\'ll reply right away.',
@@ -1985,6 +1986,7 @@ const I18N = {
     co_yourdetails:'بياناتك', co_fullname:'الاسم الكامل', co_phone:'الهاتف (واتساب)', co_deliv_method:'طريقة التوصيل',
     co_home:'توصيل للمنزل', co_home_s:'نوصل إلى عنوانك', co_pickup:'استلام من المتجر', co_pickup_s:'استلم من سيريكوندا', co_address:'عنوان التوصيل', co_area:'المنطقة / المدينة', co_notes:'ملاحظات الطلب (اختياري)', co_notes_ph:'معلم قريب، الوقت المفضل، إلخ.',
     co_choose_pay:'اختر طريقة الدفع', pay_confirm_wa:'ستؤكد وترسل تفاصيل الدفع عبر واتساب',
+    pay_online_hint:'ستدفع بأمان في الشاشة التالية — ويف أو أفريموني أو كيو موني أو البطاقة.', co_pay_proceed:'المتابعة إلى الدفع',
     wave_s:'محفظة إلكترونية', afri_s:'محفظة أفريسيل', qmoney_s:'محفظة كيوسيل', bank_s:'تحويل بنكي مباشر', cod_s:'ادفع نقداً عند التوصيل', wachat_s:'أرسل الطلب عبر محادثة واتساب',
     co_review:'راجع طلبك', co_name_l:'الاسم', co_phone_l:'الهاتف', co_deliv_l:'التوصيل', co_pay_l:'الدفع', co_items:'المنتجات',
     co_place:'أرسل الطلب عبر واتساب', co_back:'رجوع', co_next:'متابعة', co_placed:'الطلب جاهز!', co_placed_sub:'ملخص طلبك يُفتح الآن في واتساب. أرسل الرسالة للتأكيد وسنرد فوراً.',
@@ -3124,7 +3126,7 @@ function payNowHtml(){
     <div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
   </div>`;
 }
-function payLabel(id){const m={wave:'WAVE',afri:'AfriMoney',qmoney:'QMoney',bank:(LANG==='ar'?'تحويل بنكي':'Bank Transfer'),cod:(LANG==='ar'?'الدفع عند الاستلام':'Cash on Delivery'),wachat:(LANG==='ar'?'تأكيد عبر واتساب':'WhatsApp Order')};return m[id]}
+function payLabel(id){const m={online:(LANG==='ar'?'ادفع الآن (إلكترونياً)':'Pay now (online)'),wave:'WAVE',afri:'AfriMoney',qmoney:'QMoney',bank:(LANG==='ar'?'تحويل بنكي':'Bank Transfer'),cod:(LANG==='ar'?'الدفع عند الاستلام':'Cash on Delivery'),wachat:(LANG==='ar'?'تأكيد عبر واتساب':'WhatsApp Order')};return m[id]}
 function deliveryFee(){
   const sub=cartSubtotal()-coDiscountTotal();   // free-delivery threshold applies to the discounted amount
   if(isUK()){   // one flat Royal Mail rate, free above the threshold
@@ -3250,7 +3252,7 @@ function renderCheckout(){
       <!-- Step 3 -->
       <div class="checkout-pane ${coStep===3?'active':''}" data-pane="3">
         <h4 class="display" style="color:var(--green-800);margin-bottom:6px">${t('co_choose_pay')}</h4>
-        <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">${t('pay_confirm_wa')}</p>
+        <p id="payHint" style="font-size:.85rem;color:var(--muted);margin-bottom:14px">${coData.pay==='online'?t('pay_online_hint'):t('pay_confirm_wa')}</p>
         ${isUK()?ukPayHtml():`${payNowHtml()}${activePayments().map(pm=>{
           const logo=pm.icon?`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'}"><svg viewBox="0 0 24 24" fill="${pm.id==='wachat'?'currentColor':'none'}" stroke="${pm.id==='wachat'?'none':'currentColor'}" stroke-width="2" style="width:24px;height:24px">${pm.icon}</svg></div>`
             :`<div class="po-logo" style="background:${pm.color};color:${pm.dark?pm.color2:'#fff'};white-space:pre-line">${pm.short}</div>`;
@@ -3291,7 +3293,11 @@ function renderCheckout(){
       <div class="checkout-foot">
         ${coStep>1?`<button class="btn btn-outline co-back" id="coBack">${t('co_back')}</button>`:''}
         ${coStep<4?`<button class="btn btn-primary btn-block" id="coNext">${t('co_next')}</button>`
-          :`<button class="btn btn-wa btn-block" id="coPlace"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_place')}</button>`}
+          :(coData.pay==='online'
+            /* Paying online: the last button takes them to the payment page, so it says so —
+               nothing about WhatsApp, which only comes in afterwards to send the receipt. */
+            ?`<button class="btn btn-primary btn-block" id="coPlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:18px;height:18px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>${t('co_pay_proceed')}</button>`
+            :`<button class="btn btn-wa btn-block" id="coPlace"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>${t('co_place')}</button>`)}
       </div>
     </div>`;
   // wire
@@ -3301,7 +3307,7 @@ function renderCheckout(){
   if($('#coPlace'))$('#coPlace').onclick=placeOrder;
   $$('#checkoutCard [data-deliv]').forEach(el=>el.onclick=()=>{coData.deliv=el.dataset.deliv;$('#addrFields').style.display=coData.deliv==='home'?'block':'none';$$('#checkoutCard [data-deliv]').forEach(x=>x.classList.toggle('sel',x===el))});
   if($('#coZone'))$('#coZone').onchange=()=>{coData.zoneId=$('#coZone').value||null;};
-  $$('#checkoutCard [data-pay]').forEach(el=>el.onclick=()=>{coData.pay=el.dataset.pay;$$('#checkoutCard [data-pay]').forEach(x=>x.classList.toggle('sel',x===el));renderPayDetail();});
+  $$('#checkoutCard [data-pay]').forEach(el=>el.onclick=()=>{coData.pay=el.dataset.pay;$$('#checkoutCard [data-pay]').forEach(x=>x.classList.toggle('sel',x===el));const ph=$('#payHint');if(ph)ph.textContent=coData.pay==='online'?t('pay_online_hint'):t('pay_confirm_wa');renderPayDetail();});
   if(coStep===3)renderPayDetail();
   if(coStep===4){
     fillReview();

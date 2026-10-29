@@ -45,21 +45,40 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 try{sessionStorage.removeItem('jt_paying');}catch{}
 
 function show(html){card.innerHTML=html;}
+// The shop's own WhatsApp number, read from its settings rather than written into this page.
+let WA='2207093900';
+fetch('/api/settings',{cache:'no-store'}).then(r=>r.json()).then(s=>{
+  const n=String((s&&s.whatsapp_number)||'').replace(/[^0-9]/g,''); if(n)WA=n;
+}).catch(()=>{});
+const waLink=text=>`https://wa.me/${WA}?text=${encodeURIComponent(text)}`;
+const WA_ICON='<svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;vertical-align:-3px;margin-right:7px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>';
+
+/* Paid. Now — and only now — WhatsApp comes in: to send the receipt and follow the order,
+   with the message already written so the customer only has to tap send. */
 function done(){
+  const msg='Assalamu alaikum Jeddah Trading, I have paid online for my order '+ref+
+            '. Please confirm and let me know when it is on its way. Thank you.';
   show(`<div class="tick">✓</div>
     <h1>Payment received</h1>
     <p>Thank you — your order is paid and we are getting it ready.</p>
     <div class="ref">${esc(ref)}</div>
-    <a class="btn" href="/#track=${encodeURIComponent(ref)}">Track my order</a>
+    <a class="btn wa" id="waReceipt" href="${waLink(msg)}" target="_blank" rel="noopener">${WA_ICON}Send my receipt on WhatsApp</a>
+    <a class="btn ghost" href="/#track=${encodeURIComponent(ref)}">Track my order</a>
     <a class="btn ghost" href="/">Back to the shop</a>`);
+  // the number may have arrived after the page drew — keep the link pointing at the right one
+  setTimeout(()=>{const a=document.getElementById('waReceipt');if(a)a.href=waLink(msg);},1500);
 }
 function pending(msg){
+  const ask='Assalamu alaikum Jeddah Trading, I am asking about the payment for my order '+ref+'.';
   show(`<div class="warn">!</div>
-    <h1>${cancelled?'Payment not completed':'Payment not confirmed yet'}</h1>
+    <h1>${cancelled?'Payment not completed':'Still confirming your payment'}</h1>
     <p>${esc(msg)}</p>
     <div class="ref">${esc(ref)}</div>
-    <a class="btn wa" href="https://wa.me/2207093900?text=${encodeURIComponent('Assalamu alaikum, I am asking about my order '+ref)}">Ask us on WhatsApp</a>
+    <button class="btn" id="again">Check again</button>
+    <a class="btn wa" href="${waLink(ask)}" target="_blank" rel="noopener">${WA_ICON}Ask us on WhatsApp</a>
     <a class="btn ghost" href="/">Back to the shop</a>`);
+  const b=document.getElementById('again');
+  if(b)b.onclick=()=>{tries=0;show('<div class="ring"></div><h1>Checking your payment…</h1><p>One moment.</p>');poll();};
 }
 
 /* The provider tells our server directly when a payment succeeds, and that message can land a
@@ -73,7 +92,7 @@ async function poll(){
     const d=await r.json();
     if(d.status==='paid')return done();
   }catch{}
-  if(++tries>12){
+  if(++tries>18){
     return pending(cancelled
       ? 'Your order is saved. You can pay on delivery, or message us to try again.'
       : 'Your order is saved. If money has left your account it may take a minute to show — message us and we will confirm.');
