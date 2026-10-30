@@ -116,6 +116,41 @@ a{color:inherit}
 .page-head h2{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--green-800)}
 .page-head p{color:var(--muted);font-size:.9rem;margin-top:2px}
 .view{display:none}.view.on{display:block;animation:fade .3s}
+/* WhatsApp assistant page */
+.wa-layout{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:20px;align-items:start}
+@media(max-width:980px){.wa-layout{grid-template-columns:1fr}}
+.wa-help{font-size:.85rem;color:var(--muted);margin-bottom:12px}
+.wa-simbar{display:flex;gap:8px;margin-bottom:10px}.wa-simbar input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px}
+.wa-phone{position:relative;border-radius:22px;overflow:hidden;border:8px solid #1b1b1b;background:#efe7dd;height:600px;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.wa-top{background:#075e54;color:#fff;display:flex;align-items:center;gap:10px;padding:10px 12px}.wa-top small{display:block;opacity:.8;font-size:.72rem}
+.wa-av{width:34px;height:34px;border-radius:50%;background:var(--gold-500);color:var(--green-900);display:grid;place-items:center;font-weight:700;font-size:.8rem}
+.wa-chat{flex:1;overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:6px;background-image:radial-gradient(rgba(0,0,0,.035) 1px,transparent 1px);background-size:14px 14px}
+.wa-hint{margin:auto;background:#fff8c5;color:#5b4b00;font-size:.82rem;padding:6px 12px;border-radius:8px}
+.wa-msg{max-width:86%;padding:7px 9px 4px;border-radius:9px;font-size:.88rem;line-height:1.38;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 1px .5px rgba(0,0,0,.13)}
+.wa-msg.in{align-self:flex-end;background:#d9fdd3;border-top-right-radius:2px}
+.wa-msg.out{align-self:flex-start;background:#fff;border-top-left-radius:2px}
+.wa-msg.staff{border-left:3px solid var(--gold-500)}
+.wa-msg time{display:block;text-align:right;font-size:.66rem;color:#667781;margin-top:2px}
+.wa-msg img{display:block;max-width:100%;border-radius:6px;margin-bottom:5px}
+.wa-msg a{color:#027eb5}
+.wa-btns{align-self:flex-start;max-width:86%;display:flex;flex-direction:column;gap:3px;margin-top:-3px;width:86%}
+.wa-btns button{background:#fff;color:#027eb5;font-weight:600;font-size:.86rem;padding:8px;border-radius:8px;box-shadow:0 1px .5px rgba(0,0,0,.13)}
+.wa-btns button:hover{background:#f5f6f6}
+.wa-fail{font-size:.7rem;color:var(--danger)}
+.wa-sheet{position:absolute;left:0;right:0;bottom:0;max-height:75%;overflow-y:auto;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.18);padding:8px 0 10px;z-index:2}
+.wa-sheet h4{text-align:center;font-size:.95rem;padding:8px 40px;position:relative}.wa-sheet h4 button{position:absolute;left:12px;top:4px;background:none;font-size:1.2rem}
+.wa-sheet .sec{font-size:.75rem;color:#008069;font-weight:600;padding:8px 18px 4px}
+.wa-sheet .row{display:block;width:100%;text-align:left;background:none;padding:9px 18px;border-top:1px solid #f0f2f5}
+.wa-sheet .row b{display:block;font-size:.9rem;font-weight:500}.wa-sheet .row small{color:#667781;font-size:.78rem}
+.wa-sheet .row:hover{background:#f5f6f6}
+.wa-input{display:flex;gap:6px;padding:8px;background:#f0f2f5}.wa-input input{flex:1;border:none;border-radius:20px;padding:10px 14px}
+.wa-input button{width:42px;height:42px;border-radius:50%;background:#00a884;color:#fff;font-size:1rem}
+.wa-sess{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap}.wa-sess:first-child{border-top:none}
+.wa-sess .who{flex:1;min-width:160px}.wa-sess .who small{display:block;color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
+.wa-copy{display:flex;gap:6px}.wa-copy input{flex:1;min-width:0}
+.wa-check{display:flex;align-items:center;gap:8px;font-size:.9rem;margin:6px 0}
+.wa-steps{background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:.88rem}
+.wa-steps summary{cursor:pointer;font-weight:600;color:var(--green-800)}.wa-steps ol{margin:10px 0 0 18px;display:grid;gap:6px}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:16px;margin-bottom:22px}
@@ -366,6 +401,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
     <button class="navbtn" data-view="expenses" data-perm="expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Expenses</button>
     <button class="navbtn" data-view="loans" data-perm="expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 9V7a5 5 0 0 0-10 0v2M5 9h14l-1 12H6z"/><path d="M12 13v4"/></svg>Loans<span class="pill" id="loanPill" style="display:none">0</span></button>
     <button class="navbtn" data-view="chat" data-perm="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Chat<span class="pill" id="chatPill" style="display:none">0</span></button>
+    <button class="navbtn" data-view="whatsapp" data-perm="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l1.65-4.95A8.5 8.5 0 1 1 8 19.6z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>WhatsApp Bot<span class="pill" id="waPill" style="display:none;background:#25D366;color:#063b1e">●</span></button>
     <button class="navbtn" data-view="customers" data-perm="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Customers</button>
     <button class="navbtn" data-view="marketing" data-perm="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2.5-7.5z"/></svg>Marketing</button>
     <button class="navbtn" data-view="investors" data-perm="profit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><circle cx="12" cy="12" r="10"/></svg>Investors</button>
@@ -425,6 +461,66 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           </div>
           <div class="ci-thread" id="ciThread">
             <div class="ci-empty">💬<p>Select a conversation</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WHATSAPP ASSISTANT -->
+      <section class="view" id="view-whatsapp">
+        <div class="page-head"><div><h2>WhatsApp Bot</h2><p>Your shop assistant on WhatsApp — it answers, shows products, takes orders and tracks deliveries</p></div>
+          <div style="display:flex;gap:8px;align-items:center"><span id="waStatus" class="tag grey">…</span><button class="btn btn-outline btn-sm" id="waRefresh">Refresh</button></div></div>
+        <div class="stat-grid" id="waStats"></div>
+        <div class="wa-layout">
+          <div class="panel wa-simpanel">
+            <h3>🧪 Try it here first</h3>
+            <p class="wa-help">This phone talks to the real assistant using your real products. Orders placed here are marked <b>TEST</b> in Orders — cancel them afterwards and the stock goes back.</p>
+            <div class="wa-simbar">
+              <input id="waSimPhone" value="2209990001" inputmode="numeric" aria-label="Test phone number" title="Test phone number">
+              <input id="waSimName" value="Test customer" aria-label="Customer name" title="Customer name">
+              <button class="btn btn-outline btn-sm" id="waSimReset" title="Clear this test chat">Reset</button>
+            </div>
+            <div class="wa-phone">
+              <div class="wa-top"><div class="wa-av">JT</div><div><b id="waTopName">Jeddah Trading</b><small>assistant · online</small></div></div>
+              <div class="wa-chat" id="waChat"><div class="wa-hint">Say <b>hi</b> to start 👋</div></div>
+              <div class="wa-sheet" id="waSheet" hidden></div>
+              <form class="wa-input" id="waSimForm"><input id="waSimText" placeholder="Type a message" autocomplete="off"><button aria-label="Send">➤</button></form>
+            </div>
+          </div>
+          <div>
+            <div class="panel">
+              <h3>Customers talking to the assistant</h3>
+              <div id="waSessions"><p class="wa-help">No conversations yet.</p></div>
+            </div>
+            <div class="panel" id="waConnPanel">
+              <h3>Connect your WhatsApp number</h3>
+              <details class="wa-steps"><summary>How to connect (about 20 minutes, one time)</summary>
+                <ol>
+                  <li>Open <b>developers.facebook.com</b> → <b>My Apps</b> → <b>Create app</b> → type <b>Business</b>, and link it to the same Meta Business account you use for your Facebook ads.</li>
+                  <li>In the app, add the <b>WhatsApp</b> product. Under <b>API Setup</b>, add your number <b>+220 709 3900</b>. Choose to keep using the WhatsApp Business app on your phone if Meta offers it (coexistence), so your chats stay on your phone too.</li>
+                  <li>Copy the <b>Phone number ID</b> into the box below.</li>
+                  <li>In <b>Business Settings → System users</b>, create a system user, give it the app with <b>whatsapp_business_messaging</b> and <b>whatsapp_business_management</b>, and generate a <b>permanent token</b>. Paste it below.</li>
+                  <li>In the app's <b>Settings → Basic</b>, copy the <b>App secret</b> and paste it below.</li>
+                  <li>In <b>WhatsApp → Configuration → Webhook</b>, paste the <b>Callback URL</b> and <b>Verify token</b> shown below, press <b>Verify and save</b>, then subscribe to the <b>messages</b> field.</li>
+                  <li>Press <b>Test connection</b>, tick <b>Assistant is on</b>, save — then send "hi" to your number from another phone.</li>
+                </ol>
+              </details>
+              <div class="grid2" style="margin-top:14px">
+                <div class="field"><label>Callback URL (for Meta)</label><div class="wa-copy"><input id="waHook" readonly><button type="button" class="btn btn-outline btn-sm" data-wacopy="waHook">Copy</button></div></div>
+                <div class="field"><label>Verify token (for Meta)</label><div class="wa-copy"><input id="waVerify" readonly><button type="button" class="btn btn-outline btn-sm" data-wacopy="waVerify">Copy</button></div></div>
+                <div class="field"><label>Phone number ID</label><input id="waPhoneId" inputmode="numeric" placeholder="e.g. 105467891234567"></div>
+                <div class="field"><label>Permanent access token</label><input id="waToken" type="password" autocomplete="off" placeholder="Paste token"></div>
+                <div class="field"><label>App secret</label><input id="waSecret" type="password" autocomplete="off" placeholder="Paste app secret"></div>
+                <div class="field"><label>Graph API version</label><input id="waVersion" placeholder="v21.0"></div>
+              </div>
+              <div class="field"><label>Welcome message (first time a customer writes)</label><textarea id="waWelcome" rows="3"></textarea></div>
+              <label class="wa-check"><input type="checkbox" id="waPickup"> Offer "Pick up at shop" at checkout</label>
+              <label class="wa-check"><input type="checkbox" id="waEnabled"> <b>Assistant is on</b> — reply to customers automatically</label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+                <button class="btn btn-primary" id="waSave">Save</button>
+                <button class="btn btn-outline" id="waTest">Test connection</button>
+              </div>
+              <div id="waTestOut" class="wa-help" style="margin-top:10px"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -546,7 +642,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       <section class="view" id="view-orders">
         <div class="page-head"><div><h2>Orders</h2><p>Manage and fulfil customer orders</p></div></div>
         <div class="toolbar"><select id="ordFilter"><option value="">All statuses</option><option value="new">New</option><option value="confirmed">Confirmed</option><option value="paid">Paid</option><option value="packed">Packed</option><option value="out_for_delivery">Out for delivery</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
-          <select id="ordChannel"><option value="">All sales</option><option value="online">Online only</option><option value="onsite">In-shop only</option></select></div>
+          <select id="ordChannel"><option value="">All sales</option><option value="online">Online only (website + WhatsApp)</option><option value="whatsapp">WhatsApp only</option><option value="onsite">In-shop only</option></select></div>
         <div id="ordList"></div>
         <div id="ordMore"></div>
       </section>
@@ -1735,7 +1831,7 @@ function renderChatList(){
       <div class="cr-last">${esc(c.last_message||'')}</div>
       <div class="cr-meta">
         <span class="tag ${CI_STATUS_TAG[c.status]||'grey'}">${c.status}</span>
-        ${c.source==='investor_portal'?'<span class="tag gold">💰 investor</span>':''}
+        ${c.source==='investor_portal'?'<span class="tag gold">💰 investor</span>':''}${c.source==='whatsapp'?'<span class="tag green">WhatsApp</span>':''}
         ${c.order_number?`<span class="tag blue">${esc(c.order_number)}</span>`:''}
         ${c.product_name?`<span class="tag teal">${esc(c.product_name.slice(0,18))}</span>`:''}
         ${c.assigned_name?`<span class="tag purple">→ ${esc(c.assigned_name)}</span>`:''}
@@ -1919,6 +2015,131 @@ async function loadAll(){
   }catch(e){console.error(e);}
 }
 
+/* ---------- WhatsApp assistant ---------- */
+let WA_DATA=null, WA_AFTER=0, WA_TIMER=null, WA_BUSY=false;
+function waFmt(t){ // WhatsApp-style *bold* and _italic_, links clickable — escaped first
+  return esc(t).replace(/\*([^*\n]+)\*/g,'<b>$1</b>').replace(/(^|\s)_([^_\n]+)_/g,'$1<i>$2</i>')
+    .replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function waTime(s){try{return new Date(String(s).replace(' ','T')+'Z').toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+async function loadWhatsApp(){
+  try{ WA_DATA=await api('/admin/whatsapp'); }catch(e){ toast(e.message); return; }
+  const d=WA_DATA, st=d.settings;
+  $('#waStatus').className='tag '+(d.live?'green':st.enabled?'gold':'grey');
+  $('#waStatus').textContent=d.live?'● Live on WhatsApp':st.enabled?'Switched on — connection incomplete':'Not connected yet';
+  $('#waPill').style.display=d.live?'':'none';
+  $('#waStats').innerHTML=statCard('Orders via WhatsApp',d.stats.orders,'cart')+statCard('Order value',money(d.stats.value),'cash')
+    +statCard('Customers (24h)',d.stats.chats_24h,'inbox')+statCard('Failed sends (24h)',d.stats.failed_24h,'alert',d.stats.failed_24h?'warn':'');
+  $('#waHook').value=d.webhook_url; $('#waVerify').value=st.verify_token;
+  $('#waPhoneId').value=st.phone_number_id||''; $('#waVersion').value=st.graph_version||'v21.0';
+  $('#waToken').value=''; $('#waToken').placeholder=st.has_token?('Saved '+st.token_hint+' — paste to replace'):'Paste token';
+  $('#waSecret').value=''; $('#waSecret').placeholder=st.has_app_secret?('Saved '+st.app_secret_hint+' — paste to replace'):'Paste app secret';
+  $('#waWelcome').value=st.welcome||''; $('#waPickup').checked=!!st.offer_pickup; $('#waEnabled').checked=!!st.enabled;
+  const editable=can('settings');
+  $$('#waConnPanel input:not([readonly]),#waConnPanel textarea,#waSave,#waTest').forEach(el=>el.disabled=!editable);
+  renderWaSessions();
+}
+function renderWaSessions(){
+  const rows=(WA_DATA&&WA_DATA.sessions)||[];
+  if(!rows.length){$('#waSessions').innerHTML='<p class="wa-help">No conversations yet. When customers message your number, they appear here.</p>';return;}
+  $('#waSessions').innerHTML=rows.map(r=>`<div class="wa-sess">
+    <div class="who"><b>${esc(r.name||'+'+r.phone)}</b> ${r.simulated?'<span class="tag purple">test</span>':''}
+      <span class="tag ${r.mode==='human'?'gold':'green'}">${r.mode==='human'?'👤 with staff':'🤖 assistant'}</span>${r.cart?` <span class="tag grey">🛒 ${r.cart}</span>`:''}
+      <small dir="ltr">+${esc(r.phone)} · ${esc(r.last_body||'')}</small></div>
+    ${r.mode==='human'
+      ?`<button class="btn btn-outline btn-sm" data-wamode="bot" data-waphone="${esc(r.phone)}">Hand back to bot</button>${r.conversation_id?`<button class="btn btn-primary btn-sm" data-waopen="${r.conversation_id}">Open chat</button>`:''}`
+      :`<button class="btn btn-outline btn-sm" data-wamode="human" data-waphone="${esc(r.phone)}">Take over</button>`}
+  </div>`).join('');
+  $$('[data-wamode]').forEach(b=>b.onclick=async()=>{
+    try{const r=await api('/admin/whatsapp/mode',{method:'POST',body:JSON.stringify({phone:b.dataset.waphone,mode:b.dataset.wamode})});
+      toast(b.dataset.wamode==='human'?'You are now answering this customer in Chat':'The assistant is answering again');
+      await loadWhatsApp(); if(b.dataset.wamode==='human'&&r.conversation_id)waOpenChat(r.conversation_id);}catch(e){toast(e.message);}
+  });
+  $$('[data-waopen]').forEach(b=>b.onclick=()=>waOpenChat(Number(b.dataset.waopen)));
+}
+function waOpenChat(id){
+  const nb=document.querySelector('.navbtn[data-view="chat"]'); if(nb)nb.click();
+  setTimeout(()=>{ if(typeof openChatThread==='function')openChatThread(id); },400);
+}
+/* simulator */
+function waPhone(){return $('#waSimPhone').value.replace(/[^0-9]/g,'');}
+function waAppend(list){
+  const box=$('#waChat'); const hint=box.querySelector('.wa-hint'); if(hint&&list.length)hint.remove();
+  box.querySelectorAll('.wa-btns').forEach(b=>b.remove());   // only the latest buttons stay tappable
+  for(const m of list){
+    WA_AFTER=Math.max(WA_AFTER,m.id);
+    const p=m.payload||{};
+    let html='';
+    if(m.direction==='in') html=`<div class="wa-msg in">${waFmt(m.body)}<time>${waTime(m.created_at)}</time></div>`;
+    else {
+      const t=p.text!=null?p.text:m.body;
+      const img=p.kind==='image'&&p.url?`<img src="${esc(p.url)}" alt="" onerror="this.remove()">`:'';
+      const fail=m.status==='failed'?`<div class="wa-fail">not delivered: ${esc(m.error)}</div>`:'';
+      html=`<div class="wa-msg out">${img}${waFmt(t)}<time>${waTime(m.created_at)}</time>${fail}</div>`;
+      if(p.kind==='buttons') html+=`<div class="wa-btns">${p.buttons.map(b=>`<button data-wabtn="${esc(b.id)}" data-watitle="${esc(b.title)}">${esc(b.title)}</button>`).join('')}</div>`;
+      if(p.kind==='list') html+=`<div class="wa-btns"><button data-walist="${m.id}">☰ ${esc(p.button)}</button></div>`;
+    }
+    box.insertAdjacentHTML('beforeend',html);
+    if(p.kind==='list') box.lastElementChild.querySelector('[data-walist]').__list=p;
+  }
+  box.querySelectorAll('[data-wabtn]').forEach(b=>b.onclick=()=>waSend({id:b.dataset.wabtn,title:b.dataset.watitle}));
+  box.querySelectorAll('[data-walist]').forEach(b=>b.onclick=()=>waOpenSheet(b.__list));
+  box.scrollTop=box.scrollHeight;
+}
+function waOpenSheet(p){
+  if(!p)return;
+  const sh=$('#waSheet');
+  sh.innerHTML=`<h4><button type="button" aria-label="Close" id="waSheetX">✕</button>${esc(p.button)}</h4><div class="sec">${esc(p.section||'')}</div>`
+    +p.rows.map(r=>`<button class="row" data-warow="${esc(r.id)}" data-watitle="${esc(r.title)}"><b>${esc(r.title)}</b>${r.description?`<small>${esc(r.description)}</small>`:''}</button>`).join('');
+  sh.hidden=false;
+  $('#waSheetX').onclick=()=>sh.hidden=true;
+  sh.querySelectorAll('[data-warow]').forEach(b=>b.onclick=()=>{sh.hidden=true;waSend({id:b.dataset.warow,title:b.dataset.watitle});});
+}
+async function waSend(o){
+  if(WA_BUSY)return; WA_BUSY=true;
+  const phone=waPhone();
+  // show the customer's own tap/typing immediately
+  $('#waChat').insertAdjacentHTML('beforeend',`<div class="wa-msg in wa-pending">${waFmt(o.title||o.text||'')}<time>…</time></div>`);
+  $('#waChat').scrollTop=$('#waChat').scrollHeight;
+  try{
+    const r=await api('/admin/whatsapp/simulate',{method:'POST',body:JSON.stringify(Object.assign({phone,name:$('#waSimName').value,after:WA_AFTER},o))});
+    $$('#waChat .wa-pending').forEach(x=>x.remove());
+    waAppend(r.messages);
+  }catch(e){ $$('#waChat .wa-pending').forEach(x=>x.remove()); toast(e.message); }
+  WA_BUSY=false;
+}
+async function waLoadSim(reset){
+  WA_AFTER=0; $('#waChat').innerHTML='<div class="wa-hint">Say <b>hi</b> to start 👋</div>'; $('#waSheet').hidden=true;
+  const phone=waPhone(); if(phone.length<7)return;
+  try{
+    if(reset){await api('/admin/whatsapp/simulate',{method:'POST',body:JSON.stringify({phone,reset:true})});return;}
+    const r=await api('/admin/whatsapp/messages?phone='+phone+'&after=0'); waAppend(r.messages);
+  }catch(e){toast(e.message);}
+}
+async function waPoll(){   // staff replies sent from the Chat inbox show up on the test phone
+  if(!$('#view-whatsapp').classList.contains('on')||WA_BUSY)return;
+  const phone=waPhone(); if(phone.length<7)return;
+  try{const r=await api('/admin/whatsapp/messages?phone='+phone+'&after='+WA_AFTER); if(r.messages.length)waAppend(r.messages);}catch(e){}
+}
+$('#waSimForm').onsubmit=e=>{e.preventDefault();const t=$('#waSimText').value.trim();if(!t)return;$('#waSimText').value='';waSend({text:t});};
+$('#waSimReset').onclick=async()=>{await waLoadSim(true);toast('Test chat cleared');loadWhatsApp();};
+$('#waSimPhone').onchange=()=>waLoadSim(false);
+$('#waRefresh').onclick=()=>{loadWhatsApp();waPoll();};
+$$('[data-wacopy]').forEach(b=>b.onclick=()=>{const i=$('#'+b.dataset.wacopy);i.select();try{navigator.clipboard.writeText(i.value);}catch(e){document.execCommand('copy');}toast('Copied');});
+$('#waSave').onclick=async()=>{
+  const body={phone_number_id:$('#waPhoneId').value,graph_version:$('#waVersion').value.trim()||'v21.0',welcome:$('#waWelcome').value,
+    offer_pickup:$('#waPickup').checked,enabled:$('#waEnabled').checked};
+  if($('#waToken').value.trim())body.access_token=$('#waToken').value.trim();
+  if($('#waSecret').value.trim())body.app_secret=$('#waSecret').value.trim();
+  try{await api('/admin/whatsapp/settings',{method:'POST',body:JSON.stringify(body)});toast('WhatsApp settings saved');loadWhatsApp();}catch(e){toast(e.message);}
+};
+$('#waTest').onclick=async()=>{
+  $('#waTestOut').textContent='Checking with Meta…';
+  try{const r=await api('/admin/whatsapp/test',{method:'POST'});
+    $('#waTestOut').innerHTML=r.ok?`✅ Connected to <b>${esc(r.number)}</b> (${esc(r.name||'')})${r.quality?' · quality '+esc(r.quality):''}${r.app_secret_set?'':' — ⚠️ add the App secret, or incoming messages will be refused'}`
+      :'❌ '+esc(r.error);}catch(e){$('#waTestOut').textContent='❌ '+e.message;}
+};
+
 /* ---------- Navigation ---------- */
 $$('.navbtn[data-view]').forEach(b=>b.onclick=()=>{
   $$('.navbtn[data-view]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
@@ -1927,6 +2148,7 @@ $$('.navbtn[data-view]').forEach(b=>b.onclick=()=>{
   if(b.dataset.view==='recordsale'){const s=$('#posScan');if(s)setTimeout(()=>s.focus(),60);}
   if(b.dataset.view==='saleshistory'&&typeof loadSalesHistory==='function')loadSalesHistory();
   if(b.dataset.view==='chat'&&typeof loadChats==='function')loadChats();
+  if(b.dataset.view==='whatsapp'){loadWhatsApp();waLoadSim(false);clearInterval(WA_TIMER);WA_TIMER=setInterval(waPoll,3000);}
   if(b.dataset.view==='loans'){if(typeof loadLoans==='function')loadLoans();if($('#ln_taken')&&!$('#ln_taken').value)$('#ln_taken').value=new Date().toISOString().slice(0,10);if($('#ln_kind').value==='product')fillLoanProducts();}
   if(b.dataset.view==='investors'){if(typeof loadInvestors==='function')loadInvestors();if($('#in_date')&&!$('#in_date').value)$('#in_date').value=new Date().toISOString().slice(0,10);}
 });
@@ -2741,7 +2963,7 @@ $('#ordChannel').onchange=()=>{ORD_SHOWN=ORD_STEP;renderOrders();};
 function renderOrders(){
   const editable=can('orders');
   const ch=$('#ordChannel').value;
-  let list=ch?ORDERS.filter(o=>(o.channel||'online')===ch):ORDERS;
+  let list=ch?ORDERS.filter(o=>{const c=o.channel||'online';return ch==='online'?c!=='onsite':c===ch;}):ORDERS;
   if(!list.length){
     $('#ordList').innerHTML='<div class="panel" style="text-align:center;color:var(--muted)">No orders to show.</div>';
     $('#ordMore').innerHTML='';
@@ -2758,7 +2980,7 @@ function renderOrders(){
       :('Assalamu alaikum '+(o.customer_name||'')+'! Update on your order '+o.order_number+' from Jeddah Trading — status: '+(STATUS_LABEL[o.status]||o.status)+'. Track it here: '+trackUrl);
     return `<div class="panel" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
-        <div><div style="font-weight:700;color:var(--green-800);font-size:1.05rem">${o.order_number} <span class="tag ${o.status==='delivered'?'green':o.status==='cancelled'?'red':'gold'}">${STATUS_LABEL[o.status]||o.status}</span> <span class="tag ${o.channel==='onsite'?'blue':'grey'}">${o.channel==='onsite'?'In-shop':'Online'}</span></div>
+        <div><div style="font-weight:700;color:var(--green-800);font-size:1.05rem">${o.order_number} <span class="tag ${o.status==='delivered'?'green':o.status==='cancelled'?'red':'gold'}">${STATUS_LABEL[o.status]||o.status}</span> <span class="tag ${o.channel==='onsite'?'blue':o.channel==='whatsapp'?'green':'grey'}">${o.channel==='onsite'?'In-shop':o.channel==='whatsapp'?'WhatsApp':'Online'}</span></div>
           <div style="font-size:.86rem;color:var(--muted);margin-top:3px">${esc(o.customer_name)}${o.customer_phone?' · <span dir="ltr">'+esc(o.customer_phone)+'</span>':''} · ${new Date(o.created_at.replace(' ','T')+'Z').toLocaleString()}${o.staff?' · by '+esc(o.staff):''}</div>
           <div style="font-size:.84rem;margin-top:4px">${o.delivery_method==='home'?'Home delivery':'Shop pickup'}${o.delivery_zone?' · <b>'+esc(o.delivery_zone)+'</b>':''}${o.delivery_address?(' — '+esc(o.delivery_address)+(o.delivery_area?', '+esc(o.delivery_area):'')):''} · ${PAY_LABEL[o.payment_method]||o.payment_method}${o.courier_name?' · 🛵 '+esc(o.courier_name):''}</div>
           ${o.notes?`<div style="font-size:.82rem;color:var(--muted);margin-top:3px">Note: ${esc(o.notes)}</div>`:''}</div>
