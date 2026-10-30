@@ -433,6 +433,132 @@ function nextOrderNumber() {
   return `JT-2026-${n}`;
 }
 
+/* ---------- placing an order ----------
+   One path for every order that does not happen at the shop counter: the website checkout and
+   the WhatsApp assistant both come through here, so prices, delivery fees, stock, investor
+   profit and online payment can never differ between the two. `ctx.channel` is set by the
+   server (never read from the request body) and only labels where the order came from. */
+async function placeOrder(b, ctx = {}) {
+    if (!b.customer_name || !b.customer_phone || !Array.isArray(b.items) || !b.items.length)
+      return { status: 400, body: { error: 'Missing name, phone, or items' } };
+    // Which market this order belongs to. A UK order is priced in pounds from the UK fields and
+    // posted by the partner in Britain; it only exists at all once the UK side is switched on.
+    const market = (b.market === 'uk' && getSetting('uk_enabled') === '1') ? 'uk' : 'gm';
+    const currency = market === 'uk' ? 'GBP' : 'GMD';
+    // recompute totals server-side from live prices (sizes included); cost is snapshotted so
+    // profit stays accurate even if the cost price changes later
+    const resolved = resolveSaleItems(b.items, market);
+    const items = resolved.items;
+    let subtotal = resolved.subtotal;
+    if (!items.length) return { status: 400, body: { error: 'No valid items' } };
+    const isPickup = market === 'gm' && b.delivery_method === 'pickup';
+    // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
+    let freeOver, zoneName = '', zoneFee;
+    if (market === 'uk') {
+      freeOver = Number(getSetting('uk_free_over')) || 0;
+      zoneFee = Number(getSetting('uk_delivery_fee')) || 0;
+      zoneName = 'United Kingdom';
+    } else {
+      freeOver = Number(getSetting('free_delivery_over'));
+      zoneFee = Number(getSetting('delivery_fee')) || 0;
+      if (!isPickup && b.delivery_zone_id) {
+        const z = queries.zoneById(Number(b.delivery_zone_id));
+        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; }
+      }
+    }
+    /* ---- discounts: coupon + loyalty points (all validated server-side) ----
+       Coupons and loyalty points are held in dalasi, so they are not offered on a UK order —
+       taking D50 off a £20 basket would be meaningless. A separate UK scheme can come later. */
+    let discount = 0, couponCode = '';
+    if (market === 'uk') { /* no coupon or points on a UK order */ }
+    else if (b.coupon && !ctx.dryRun) {
+      const coupon = queries.couponByCode(String(b.coupon));
+      const chk = couponDiscount(coupon, subtotal);
+      if (!chk.ok) return { status: 400, body: { error: chk.err } };
+      discount += chk.discount; couponCode = coupon.code;
+      db.prepare('UPDATE coupons SET used_count = used_count + 1 WHERE id=?').run(coupon.id);
+    }
+    const cust = ctx.cust || null;
+    let redeemed = 0;
+    if (market === 'gm' && cust && !ctx.dryRun && Number(b.redeem_points) > 0) {
+      const pv = Number(getSetting('loyalty_point_value')) || 1;
+      const maxPct = Number(getSetting('loyalty_max_redeem_pct')) || 30;
+      const capPts = Math.floor(subtotal * maxPct / 100 / pv);
+      redeemed = Math.min(Math.floor(Number(b.redeem_points)), cust.points || 0, capPts);
+      if (redeemed > 0) {
+        discount += redeemed * pv;
+        db.prepare('UPDATE customers SET points = points - ? WHERE id=?').run(redeemed, cust.id);
+      }
+    }
+    discount = Math.min(discount, subtotal);
+    const goods = subtotal - discount;
+    const fee = isPickup ? 0 : (goods >= freeOver ? 0 : zoneFee);
+    const total = goods + fee;
+    /* A quote: the exact figures this order would be charged, worked out by the same lines
+       above, with nothing written — the WhatsApp assistant shows it before the customer confirms. */
+    if (ctx.dryRun) return { status: 200, body: { items, subtotal, discount, delivery_fee: fee, total, currency, zone: zoneName, pickup: isPickup, free_over: freeOver } };
+    // Optional payment proof screenshot (mobile money / bank transfer)
+    let proof = '';
+    try { if (b.payment_proof_data) proof = saveImage(b.payment_proof_data) || ''; } catch (e) { return { status: 400, body: { error: e.message } }; }
+    const orderNumber = nextOrderNumber();
+    const info = db.prepare(`INSERT INTO orders
+      (order_number,customer_name,customer_phone,customer_email,postcode,market,currency,delivery_method,delivery_address,delivery_area,delivery_zone,payment_method,payment_proof,subtotal,discount,coupon_code,customer_id,delivery_fee,total,notes,language,items_json,channel)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        orderNumber, String(b.customer_name).slice(0,120), String(b.customer_phone).slice(0,40),
+        String(b.customer_email||'').slice(0,160), String(b.postcode||'').slice(0,16).toUpperCase(),
+        market, currency,
+        isPickup ? 'pickup' : 'home', String(b.delivery_address||'').slice(0,300),
+        String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
+        proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items), ctx.channel === 'whatsapp' ? 'whatsapp' : 'online');
+    // decrement stock for confirmed inventory + record in the stock ledger
+    decrementStockForItems(items, 'order', orderNumber, '', market);
+    /* Investors funded stock in dalasi at Gambian cost prices. Feeding a pound sale into that
+       same pot would put two currencies in one profit figure and quietly corrupt every
+       investor's balance, so UK orders are deliberately left out until the UK side has a
+       profit model of its own. */
+    if (market === 'gm') recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);
+
+    /* Paying online. The amount sent to Modem Pay is the total this server just worked out,
+       never a figure from the browser. If their service is unreachable the order still
+       stands — the customer is simply told to pay another way, rather than losing the sale. */
+    let payLink = null, payError = null;
+    if (market === 'gm' && b.payment_method === 'online' && modemOn() && total > 0) {
+      try {
+        const pay = await modemCreatePayment({
+          amount: total, orderId: info.lastInsertRowid, orderNumber,
+          title: `${getSetting('store_name') || 'Jeddah Trading'} — ${orderNumber}`,
+          base: ctx.base,
+        });
+        payLink = pay.link;
+        db.prepare('UPDATE orders SET payment_ref=?, payment_intent_id=? WHERE id=?').run(pay.ref, pay.intentId, info.lastInsertRowid);
+      } catch (e) {
+        console.error('Modem Pay:', e.message);
+        payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
+      }
+    }
+    return { status: 201, body: { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError } };
+}
+
+/* ---------- WhatsApp assistant ----------
+   The engine lives in whatsapp.js. It is created on first use, after every helper it borrows
+   from this file (orders, chat inbox, image saving) exists. */
+const createWhatsApp = require('./whatsapp');
+let WA = null;
+function wa() {
+  return WA || (WA = createWhatsApp({ db, queries, getSetting, setSetting, placeOrder, addChatMessage, newToken,
+    ADMIN_STREAMS, sseSend, saveImage, modemOn }));
+}
+/* The webhook body as raw bytes. Meta signs the exact bytes it sent, and customers type emoji:
+   joining chunks as strings could split a multi-byte character and break the signature. */
+function readRawBuffer(req) {
+  return new Promise((resolve, reject) => {
+    const parts = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size > 2 * 1024 * 1024) { reject(new Error('payload too large')); req.destroy(); } else parts.push(c); });
+    req.on('end', () => resolve(Buffer.concat(parts)));
+    req.on('error', reject);
+  });
+}
+
 /* ---------- API router ---------- */
 async function api(req, res, url) {
   const seg = url.pathname.split('/').filter(Boolean); // ['api', ...]
@@ -502,6 +628,38 @@ async function api(req, res, url) {
 
   /* Has this order been paid? Nothing else — no name, no amount, no address — so the page a
      customer lands on after paying can wait for the provider's webhook to arrive. */
+  /* ---------- WhatsApp Cloud API webhook ----------
+     GET is Meta's one-time check that this address belongs to us: it must echo the challenge
+     only when the verify token matches. POST carries customers' messages. It is public by
+     necessity, so the X-Hub-Signature-256 HMAC (keyed with the Meta app secret) is checked
+     over the raw bytes before anything is parsed, and nothing is processed while the
+     assistant is switched off. We answer 200 at once — Meta retries slow webhooks — and do
+     the work afterwards; duplicate deliveries are dropped by message id. */
+  if (r[0] === 'webhooks' && r[1] === 'whatsapp' && method === 'GET') {
+    const mode = url.searchParams.get('hub.mode'), tok = url.searchParams.get('hub.verify_token') || '';
+    const expected = wa().verifyToken();
+    const a = Buffer.from(tok), b2 = Buffer.from(expected);
+    if (mode === 'subscribe' && a.length === b2.length && crypto.timingSafeEqual(a, b2)) {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      return res.end(String(url.searchParams.get('hub.challenge') || ''));
+    }
+    return send(res, 403, { error: 'verification failed' });
+  }
+  if (r[0] === 'webhooks' && r[1] === 'whatsapp' && method === 'POST') {
+    let raw;
+    try { raw = await readRawBuffer(req); } catch { return send(res, 413, { error: 'too large' }); }
+    if (!wa().cfg().appSecret) return send(res, 503, { error: 'not configured' });
+    if (!wa().verifySignature(raw, req.headers['x-hub-signature-256'])) {
+      console.error('WhatsApp webhook: bad signature');
+      return send(res, 401, { error: 'bad signature' });
+    }
+    send(res, 200, { ok: true });
+    if (!wa().cfg().enabled) return;
+    let payload; try { payload = JSON.parse(raw.toString('utf8')); } catch { return; }
+    wa().ingest(payload, siteBase(req)).catch(e => console.error('WhatsApp ingest:', e));
+    return;
+  }
+
   if (r[0] === 'payment-status' && method === 'GET') {
     const ref = String(url.searchParams.get('ref') || '').trim().slice(0, 40);
     let o = ref ? db.prepare('SELECT * FROM orders WHERE order_number=?').get(ref) : null;
@@ -951,101 +1109,8 @@ async function api(req, res, url) {
 
   if (r[0] === 'orders' && method === 'POST') {
     const b = await readBody(req);
-    if (!b.customer_name || !b.customer_phone || !Array.isArray(b.items) || !b.items.length)
-      return send(res, 400, { error: 'Missing name, phone, or items' });
-    // Which market this order belongs to. A UK order is priced in pounds from the UK fields and
-    // posted by the partner in Britain; it only exists at all once the UK side is switched on.
-    const market = (b.market === 'uk' && getSetting('uk_enabled') === '1') ? 'uk' : 'gm';
-    const currency = market === 'uk' ? 'GBP' : 'GMD';
-    // recompute totals server-side from live prices (sizes included); cost is snapshotted so
-    // profit stays accurate even if the cost price changes later
-    const resolved = resolveSaleItems(b.items, market);
-    const items = resolved.items;
-    let subtotal = resolved.subtotal;
-    if (!items.length) return send(res, 400, { error: 'No valid items' });
-    const isPickup = market === 'gm' && b.delivery_method === 'pickup';
-    // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
-    let freeOver, zoneName = '', zoneFee;
-    if (market === 'uk') {
-      freeOver = Number(getSetting('uk_free_over')) || 0;
-      zoneFee = Number(getSetting('uk_delivery_fee')) || 0;
-      zoneName = 'United Kingdom';
-    } else {
-      freeOver = Number(getSetting('free_delivery_over'));
-      zoneFee = Number(getSetting('delivery_fee')) || 0;
-      if (!isPickup && b.delivery_zone_id) {
-        const z = queries.zoneById(Number(b.delivery_zone_id));
-        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; }
-      }
-    }
-    /* ---- discounts: coupon + loyalty points (all validated server-side) ----
-       Coupons and loyalty points are held in dalasi, so they are not offered on a UK order —
-       taking D50 off a £20 basket would be meaningless. A separate UK scheme can come later. */
-    let discount = 0, couponCode = '';
-    if (market === 'uk') { /* no coupon or points on a UK order */ }
-    else if (b.coupon) {
-      const coupon = queries.couponByCode(String(b.coupon));
-      const chk = couponDiscount(coupon, subtotal);
-      if (!chk.ok) return send(res, 400, { error: chk.err });
-      discount += chk.discount; couponCode = coupon.code;
-      db.prepare('UPDATE coupons SET used_count = used_count + 1 WHERE id=?').run(coupon.id);
-    }
-    const cust = currentCustomer(req);
-    let redeemed = 0;
-    if (market === 'gm' && cust && Number(b.redeem_points) > 0) {
-      const pv = Number(getSetting('loyalty_point_value')) || 1;
-      const maxPct = Number(getSetting('loyalty_max_redeem_pct')) || 30;
-      const capPts = Math.floor(subtotal * maxPct / 100 / pv);
-      redeemed = Math.min(Math.floor(Number(b.redeem_points)), cust.points || 0, capPts);
-      if (redeemed > 0) {
-        discount += redeemed * pv;
-        db.prepare('UPDATE customers SET points = points - ? WHERE id=?').run(redeemed, cust.id);
-      }
-    }
-    discount = Math.min(discount, subtotal);
-    const goods = subtotal - discount;
-    const fee = isPickup ? 0 : (goods >= freeOver ? 0 : zoneFee);
-    const total = goods + fee;
-    // Optional payment proof screenshot (mobile money / bank transfer)
-    let proof = '';
-    try { if (b.payment_proof_data) proof = saveImage(b.payment_proof_data) || ''; } catch (e) { return send(res, 400, { error: e.message }); }
-    const orderNumber = nextOrderNumber();
-    const info = db.prepare(`INSERT INTO orders
-      (order_number,customer_name,customer_phone,customer_email,postcode,market,currency,delivery_method,delivery_address,delivery_area,delivery_zone,payment_method,payment_proof,subtotal,discount,coupon_code,customer_id,delivery_fee,total,notes,language,items_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-        orderNumber, String(b.customer_name).slice(0,120), String(b.customer_phone).slice(0,40),
-        String(b.customer_email||'').slice(0,160), String(b.postcode||'').slice(0,16).toUpperCase(),
-        market, currency,
-        isPickup ? 'pickup' : 'home', String(b.delivery_address||'').slice(0,300),
-        String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
-        proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items));
-    // decrement stock for confirmed inventory + record in the stock ledger
-    decrementStockForItems(items, 'order', orderNumber, '', market);
-    /* Investors funded stock in dalasi at Gambian cost prices. Feeding a pound sale into that
-       same pot would put two currencies in one profit figure and quietly corrupt every
-       investor's balance, so UK orders are deliberately left out until the UK side has a
-       profit model of its own. */
-    if (market === 'gm') recordInvestorSalesForOrder(info.lastInsertRowid, orderNumber, items);
-
-    /* Paying online. The amount sent to Modem Pay is the total this server just worked out,
-       never a figure from the browser. If their service is unreachable the order still
-       stands — the customer is simply told to pay another way, rather than losing the sale. */
-    let payLink = null, payError = null;
-    if (market === 'gm' && b.payment_method === 'online' && modemOn() && total > 0) {
-      try {
-        const pay = await modemCreatePayment({
-          amount: total, orderId: info.lastInsertRowid, orderNumber,
-          title: `${getSetting('store_name') || 'Jeddah Trading'} — ${orderNumber}`,
-          base: siteBase(req),
-        });
-        payLink = pay.link;
-        db.prepare('UPDATE orders SET payment_ref=?, payment_intent_id=? WHERE id=?').run(pay.ref, pay.intentId, info.lastInsertRowid);
-      } catch (e) {
-        console.error('Modem Pay:', e.message);
-        payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
-      }
-    }
-    return send(res, 201, { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError });
+    const out = await placeOrder(b, { cust: currentCustomer(req), base: siteBase(req), channel: 'online' });
+    return send(res, out.status, out.body);
   }
 
   /* ----- ADMIN AUTH (rate limited) ----- */
@@ -1789,6 +1854,52 @@ async function api(req, res, url) {
     }
 
     // ---- LIVE CHAT: staff inbox ----
+    /* ---- WHATSAPP ASSISTANT ----
+       Viewing chats and using the simulator needs the 'chat' permission; changing the
+       connection (tokens, switching it on) needs 'settings'. Tokens are write-only: the page
+       is told whether one is saved and its last four characters, never the value. */
+    if (r[1] === 'whatsapp' && !r[2] && method === 'GET') {
+      if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
+      return send(res, 200, Object.assign(wa().adminOverview(), { webhook_url: siteBase(req) + '/api/webhooks/whatsapp' }));
+    }
+    if (r[1] === 'whatsapp' && r[2] === 'settings' && method === 'POST') {
+      if (!requirePerm(req, res, 'settings')) return;
+      const b = await readBody(req);
+      wa().saveSettings(b);
+      logAct(me.username, 'whatsapp_settings', b.enabled === undefined ? 'updated' : (b.enabled ? 'switched on' : 'switched off'));
+      return send(res, 200, { ok: true });
+    }
+    if (r[1] === 'whatsapp' && r[2] === 'test' && method === 'POST') {
+      if (!requirePerm(req, res, 'settings')) return;
+      return send(res, 200, await wa().testConnection());
+    }
+    if (r[1] === 'whatsapp' && r[2] === 'simulate' && method === 'POST') {
+      if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
+      const b = await readBody(req);
+      const phone = String(b.phone || '').replace(/[^0-9]/g, '');
+      if (phone.length < 7 || phone.length > 15) return send(res, 400, { error: 'Use a phone number of 7–15 digits' });
+      // A real customer's number cannot be driven from the simulator — its replies would be
+      // drawn here instead of reaching them, and it would put words in their mouth.
+      if (!wa().isSimulatedOrNew(phone)) return send(res, 400, { error: 'That number belongs to a real WhatsApp customer — pick another test number' });
+      if (b.reset) { wa().resetSimulated(phone); return send(res, 200, { ok: true, messages: [] }); }
+      const text = String(b.text || '').slice(0, 1000), id = String(b.id || '').slice(0, 100);
+      if (!text && !id) return send(res, 400, { error: 'Empty message' });
+      await wa().handleIncoming({ phone, name: String(b.name || 'Test customer').slice(0, 60), text, id, title: String(b.title || '').slice(0, 60),
+        simulated: true, base: siteBase(req) });
+      return send(res, 200, { ok: true, messages: wa().messages(phone, b.after) });
+    }
+    if (r[1] === 'whatsapp' && r[2] === 'messages' && method === 'GET') {
+      if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
+      return send(res, 200, { messages: wa().messages(url.searchParams.get('phone'), url.searchParams.get('after')) });
+    }
+    if (r[1] === 'whatsapp' && r[2] === 'mode' && method === 'POST') {
+      if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
+      const b = await readBody(req);
+      const sess = wa().setMode(b.phone, b.mode === 'human' ? 'human' : 'bot', me.name || me.username);
+      if (!sess) return send(res, 404, { error: 'not found' });
+      return send(res, 200, { ok: true, mode: sess.mode, conversation_id: sess.conversation_id || null });
+    }
+
     if (r[1] === 'chats' && !r[2] && method === 'GET') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
       const q = String(url.searchParams.get('q') || '').trim().toLowerCase();
@@ -1848,7 +1959,10 @@ async function api(req, res, url) {
       if (!text && !attach) return send(res, 400, { error: 'Empty message' });
       if (c.status === 'pending') db.prepare("UPDATE conversations SET status='open' WHERE id=?").run(c.id);
       const m = addChatMessage(c.id, 'staff', me.id, me.name || me.username, text, attach, attachType);
-      return send(res, 201, { ok: true, message: chatMsgRow(m) });
+      // A WhatsApp conversation: the reply also has to reach the customer's phone.
+      let delivery = null;
+      if (c.source === 'whatsapp') delivery = await wa().staffReply(c, text, attach, siteBase(req));
+      return send(res, 201, { ok: true, message: chatMsgRow(m), whatsapp: delivery });
     }
     if (r[1] === 'chats' && r[2] && !r[3] && method === 'PATCH') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
@@ -1858,6 +1972,8 @@ async function api(req, res, url) {
       if (b.status && ['open', 'pending', 'resolved', 'closed'].includes(b.status)) {
         db.prepare("UPDATE conversations SET status=?, updated_at=datetime('now') WHERE id=?").run(b.status, c.id);
         logAct(me.username, 'chat_status', '#' + c.id + ' → ' + b.status);
+        // Resolving a WhatsApp chat gives the customer back to the assistant.
+        if (c.source === 'whatsapp' && (b.status === 'resolved' || b.status === 'closed')) wa().conversationClosed(c);
         chatBroadcast(c.id, { type: 'status', status: b.status }, { toStaff: true });
       }
       if (b.assigned_staff_id !== undefined) db.prepare('UPDATE conversations SET assigned_staff_id=? WHERE id=?').run(b.assigned_staff_id ? Number(b.assigned_staff_id) : null, c.id);

@@ -579,6 +579,40 @@ db.exec(`CREATE TABLE IF NOT EXISTS payment_events (
 )`);
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_events_unique ON payment_events(provider, event_id)');
 
+/* ---------- WhatsApp assistant ----------
+   One row per WhatsApp number that has talked to the shop's assistant: where they are in the
+   conversation (browsing, choosing a quantity, checking out), their basket, and whether the bot
+   or a member of staff is answering them. `simulated` marks the test phones used from the admin
+   simulator, whose replies are shown on screen and never sent to Meta. */
+db.exec(`CREATE TABLE IF NOT EXISTS wa_sessions (
+  phone TEXT PRIMARY KEY,                    -- digits only, country code first (2207093900)
+  name TEXT DEFAULT '',
+  state TEXT NOT NULL DEFAULT 'menu',
+  data_json TEXT NOT NULL DEFAULT '{}',      -- basket + checkout answers in progress
+  mode TEXT NOT NULL DEFAULT 'bot',          -- bot | human
+  conversation_id INTEGER,                   -- the Chat inbox thread, once staff are involved
+  simulated INTEGER NOT NULL DEFAULT 0,
+  last_in_at TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+)`);
+/* Every message in and out, kept so staff can read what the bot said, so the simulator can
+   draw the chat, and so a message Meta delivers twice is only answered once (wa_id). */
+db.exec(`CREATE TABLE IF NOT EXISTS wa_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT NOT NULL,
+  direction TEXT NOT NULL,                   -- in | out
+  kind TEXT NOT NULL DEFAULT 'text',         -- text | buttons | list | image | media
+  body TEXT DEFAULT '',
+  payload_json TEXT DEFAULT '',
+  wa_id TEXT DEFAULT '',
+  status TEXT DEFAULT '',                    -- received | sent | delivered | read | failed | simulated
+  error TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_wa_messages_phone ON wa_messages(phone, id)");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_messages_waid ON wa_messages(wa_id) WHERE wa_id != ''");
+
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -646,6 +680,15 @@ const DEFAULT_SETTINGS = {
   modempay_enabled: '0',
   modempay_public_key: '',
   modempay_secret_key: '',
+  // WhatsApp assistant (Meta WhatsApp Cloud API). Off until the owner connects it.
+  wa_enabled: '0',
+  wa_phone_number_id: '',
+  wa_access_token: '',
+  wa_app_secret: '',
+  wa_verify_token: '',
+  wa_graph_version: 'v21.0',
+  wa_welcome_en: 'Assalamu alaikum 👋 Welcome to Jeddah Trading! I can show you our products, take your order and track deliveries — any time, day or night.',
+  wa_offer_pickup: '1',
   modempay_webhook_secret: '',
   android_package: '',
   android_cert_sha256: '',
