@@ -612,6 +612,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS wa_messages (
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS idx_wa_messages_phone ON wa_messages(phone, id)");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_messages_waid ON wa_messages(wa_id) WHERE wa_id != ''");
+// What an outgoing message was for, e.g. "order:JT-2026-0042:delivered" — so an order update is
+// never sent twice, and the admin page can list the updates customers received.
+if (!columnExists('wa_messages', 'tag')) db.exec("ALTER TABLE wa_messages ADD COLUMN tag TEXT DEFAULT ''");
+db.exec("CREATE INDEX IF NOT EXISTS idx_wa_messages_tag ON wa_messages(tag) WHERE tag != ''");
 
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
@@ -687,8 +691,15 @@ const DEFAULT_SETTINGS = {
   wa_app_secret: '',
   wa_verify_token: '',
   wa_graph_version: 'v21.0',
+  wa_waba_id: '',
   wa_welcome_en: 'Assalamu alaikum 👋 Welcome to Jeddah Trading! I can show you our products, take your order and track deliveries — any time, day or night.',
   wa_offer_pickup: '1',
+  // Automatic order updates on WhatsApp
+  wa_notify_on: '1',
+  wa_notify_scope: 'whatsapp',            // whatsapp = orders placed through the bot | all = website orders too
+  wa_notify_events: 'confirmed,paid,out_for_delivery,delivered,cancelled',
+  wa_notify_tpl: '',                      // approved template used after WhatsApp's 24-hour window
+  wa_notify_tpl_lang: 'en',
   modempay_webhook_secret: '',
   android_package: '',
   android_cert_sha256: '',

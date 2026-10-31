@@ -533,11 +533,14 @@ module.exports = function createWhatsApp(deps) {
     if (m.kind === 'buttons') return m.text + '\n[' + m.buttons.map(b => b.title).join(' | ') + ']';
     if (m.kind === 'list') return m.text + '\n[' + m.button + ': ' + m.rows.map(r => r.title).join(', ') + ']';
     if (m.kind === 'image') return '🖼️ ' + m.text;
+    if (m.kind === 'template') return m.text;
     return m.text;
   }
   function toCloud(m, to) {
     const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
     if (m.kind === 'image') return { ...base, type: 'image', image: { link: m.url, caption: m.text } };
+    if (m.kind === 'template') return { ...base, type: 'template', template: { name: m.name, language: { code: m.lang || 'en' },
+      components: [{ type: 'body', parameters: m.params.map(t => ({ type: 'text', text: String(t).slice(0, 1000) })) }] } };
     if (m.kind === 'buttons') return { ...base, type: 'interactive', interactive: { type: 'button', body: { text: m.text },
       action: { buttons: m.buttons.map(b => ({ type: 'reply', reply: { id: b.id, title: b.title } })) } } };
     if (m.kind === 'list') return { ...base, type: 'interactive', interactive: { type: 'list', body: { text: m.text },
@@ -552,10 +555,10 @@ module.exports = function createWhatsApp(deps) {
     if (!r.ok) throw new Error((d.error && (d.error.error_user_msg || d.error.message)) || ('HTTP ' + r.status));
     return d;
   }
-  async function deliver(phone, msgs, simulated) {
+  async function deliver(phone, msgs, simulated, tag) {
     for (const m of msgs) {
-      const info = db.prepare("INSERT INTO wa_messages(phone,direction,kind,body,payload_json,status) VALUES(?,'out',?,?,?,?)")
-        .run(phone, m.kind, summaryOf(m), JSON.stringify(m), simulated ? 'simulated' : 'queued');
+      const info = db.prepare("INSERT INTO wa_messages(phone,direction,kind,body,payload_json,status,tag) VALUES(?,'out',?,?,?,?,?)")
+        .run(phone, m.kind, summaryOf(m), JSON.stringify(m), simulated ? 'simulated' : 'queued', tag || '');
       if (simulated) continue;
       if (!live()) { db.prepare("UPDATE wa_messages SET status='failed', error=? WHERE id=?").run('WhatsApp is not connected', info.lastInsertRowid); continue; }
       try {
@@ -704,6 +707,101 @@ module.exports = function createWhatsApp(deps) {
     return sess;
   }
 
+  /* ---------------------------------------------------------------- order updates
+     When staff change an order's status (or a payment is confirmed), the customer hears about
+     it on WhatsApp without anyone typing. Rules WhatsApp imposes, and how they are met:
+       · a business may write freely only within 24 hours of the customer's last message — inside
+         that window the update goes as a normal message with buttons;
+       · outside it, only a pre-approved "template" may be sent, so the owner names one here;
+         with none set, the update is skipped (and the admin page says why) rather than failing;
+       · customers who never chose WhatsApp are not messaged unless the owner opts website
+         orders in, because their phone number alone is not consent.
+     Each order/event pair is sent at most once, however often the status is toggled. */
+  const NOTIFY_EVENTS = ['confirmed', 'paid', 'packed', 'out_for_delivery', 'delivered', 'cancelled'];
+  const NOTIFY_DEFAULTS = {
+    confirmed: '✅ Hi {name}, your order *{order}* is confirmed. We are getting it ready now.',
+    paid: '💳 Thank you {name}! We have received your payment of *{total}* for order *{order}*.',
+    packed: '📦 Hi {name}, your order *{order}* is packed and ready to leave our shop.',
+    ready: '🏪 Hi {name}, your order *{order}* is ready for pickup at our shop: {address}.',
+    out_for_delivery: '🚚 Good news {name}! Your order *{order}* is on the way{courier}. Please keep your phone close.',
+    delivered: '🎉 Your order *{order}* has been delivered. Thank you for shopping with {shop}! 🤝',
+    cancelled: '✖️ Hi {name}, your order *{order}* has been cancelled. If this is a mistake, just reply here and our team will help.',
+  };
+  // Short phrases for the template's third slot: "Your order JT-… {{3}}".
+  const NOTIFY_PHRASE = { confirmed: 'is confirmed ✅', paid: 'payment is received 💳', packed: 'is packed 📦', ready: 'is ready for pickup 🏪',
+    out_for_delivery: 'is on the way 🚚', delivered: 'has been delivered 🎉', cancelled: 'has been cancelled' };
+  const NOTIFY_LABEL = { confirmed: 'Order confirmed', paid: 'Payment received', packed: 'Packed / ready for pickup',
+    out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled' };
+  function notifyEvents() { return String(getSetting('wa_notify_events') || '').split(',').map(x => x.trim()).filter(x => NOTIFY_EVENTS.includes(x)); }
+  function notifyText(ev) { return String(getSetting('wa_msg_' + ev) || '').trim() || NOTIFY_DEFAULTS[ev]; }
+  // WhatsApp needs the full international number; website orders are often typed as 7 local digits.
+  function waNumberFor(orderPhone) {
+    let d = digits(orderPhone).replace(/^00/, '');
+    if (d.length === 7) d = '220' + d;
+    return d.length >= 10 && d.length <= 15 ? d : '';
+  }
+  function fill(tpl, o, base) {
+    const first = String(o.customer_name || '').trim().split(/\s+/)[0] || 'there';
+    const track = base ? base.replace(/\/$/, '') + '/#track=' + encodeURIComponent(o.order_number) : '';
+    return String(tpl)
+      .replace(/\{name\}/g, first).replace(/\{order\}/g, o.order_number).replace(/\{total\}/g, money(o.total))
+      .replace(/\{courier\}/g, o.courier_name ? ' with ' + o.courier_name : '').replace(/\{shop\}/g, storeName())
+      .replace(/\{address\}/g, getSetting('contact_address_en') || '').replace(/\{track\}/g, track);
+  }
+  async function notifyOrder(orderId, event, base) {
+    try {
+      if (getSetting('wa_notify_on') === '0') return { sent: false, reason: 'Order updates are switched off' };
+      if (!NOTIFY_EVENTS.includes(event) || !notifyEvents().includes(event)) return { sent: false, reason: 'not enabled for this status' };
+      const o = db.prepare('SELECT * FROM orders WHERE id=?').get(Number(orderId));
+      if (!o || o.channel === 'onsite' || o.market === 'uk') return { sent: false, reason: 'not an online order' };
+      if (o.channel !== 'whatsapp' && getSetting('wa_notify_scope') !== 'all') return { sent: false, reason: 'website orders are not notified' };
+      const phone = waNumberFor(o.customer_phone);
+      if (!phone) return { sent: false, reason: 'no usable phone number' };
+      // A pickup order's "packed" moment means "come and collect it".
+      const kind = (event === 'packed' && o.delivery_method === 'pickup') ? 'ready' : event;
+      const tag = 'order:' + o.order_number + ':' + kind;
+      if (db.prepare("SELECT 1 FROM wa_messages WHERE tag=? AND status NOT IN ('failed','skipped')").get(tag)) return { sent: false, reason: 'already sent' };
+      const sess = db.prepare('SELECT * FROM wa_sessions WHERE phone=?').get(phone);
+      const simulated = !!(sess && sess.simulated);
+      if (!simulated && !live()) return { sent: false, reason: 'WhatsApp is not connected yet' };
+      base = base || siteUrl();
+      const text = fill(kind === 'ready' ? (getSetting('wa_msg_ready') || NOTIFY_DEFAULTS.ready) : notifyText(kind), o, base);
+      const inWindow = sess && sess.last_in_at && (Date.now() - Date.parse(String(sess.last_in_at).replace(' ', 'T') + 'Z')) < 23.5 * 3600 * 1000;
+      let msg;
+      if (simulated || inWindow) {
+        msg = ['delivered', 'cancelled'].includes(kind)
+          ? B(text, [['m:shop', '🛍️ Shop again'], ['m:human', '🙋 Talk to us']])
+          : B(text, [['trk:' + o.order_number, '📦 Track order'], ['m:human', '🙋 Ask a question']]);
+      } else {
+        const tpl = String(getSetting('wa_notify_tpl') || '').trim();
+        if (!tpl) {
+          db.prepare("INSERT INTO wa_messages(phone,direction,kind,body,status,error,tag) VALUES(?,'out','text',?,'skipped',?,?)")
+            .run(phone, text, 'Customer last wrote over 24 hours ago and no approved template is set', tag);
+          return { sent: false, reason: 'outside WhatsApp\'s 24-hour window — add an approved template to send it' };
+        }
+        const first = String(o.customer_name || '').trim().split(/\s+/)[0] || 'there';
+        msg = { kind: 'template', name: tpl, lang: getSetting('wa_notify_tpl_lang') || 'en', text,
+                params: [first, o.order_number, NOTIFY_PHRASE[kind] || kind, base ? base.replace(/\/$/, '') + '/#track=' + encodeURIComponent(o.order_number) : storeName()] };
+      }
+      const r = await deliver(phone, [msg], simulated, tag);
+      return r.ok ? { sent: true, phone } : { sent: false, reason: r.error };
+    } catch (e) {
+      console.error('WhatsApp order update:', e);
+      return { sent: false, reason: e.message };
+    }
+  }
+  function notifySettings() {
+    const msgs = {};
+    NOTIFY_EVENTS.concat('ready').forEach(ev => { msgs[ev] = getSetting('wa_msg_' + ev) || ''; });
+    return { on: getSetting('wa_notify_on') !== '0', scope: getSetting('wa_notify_scope') === 'all' ? 'all' : 'whatsapp',
+      events: notifyEvents(), template: getSetting('wa_notify_tpl') || '', template_lang: getSetting('wa_notify_tpl_lang') || 'en',
+      messages: msgs, defaults: NOTIFY_DEFAULTS, labels: NOTIFY_LABEL, all_events: NOTIFY_EVENTS };
+  }
+  function recentUpdates() {
+    return db.prepare("SELECT phone, body, status, error, tag, created_at FROM wa_messages WHERE tag LIKE 'order:%' ORDER BY id DESC LIMIT 25").all()
+      .map(m => { const [, order, ev] = m.tag.split(':'); return { phone: m.phone, order, event: ev, status: m.status, error: m.error, created_at: m.created_at }; });
+  }
+
   /* ---------------------------------------------------------------- admin data */
   function adminOverview() {
     const c = cfg();
@@ -719,31 +817,50 @@ module.exports = function createWhatsApp(deps) {
     const today = db.prepare("SELECT COUNT(DISTINCT phone) n FROM wa_messages WHERE direction='in' AND created_at >= datetime('now','-1 day')").get().n;
     const failed = db.prepare("SELECT COUNT(*) n FROM wa_messages WHERE direction='out' AND status='failed' AND created_at >= datetime('now','-1 day')").get().n;
     return {
-      settings: { enabled: c.enabled, phone_number_id: c.phoneId, graph_version: c.version, token_hint: mask(c.token), app_secret_hint: mask(c.appSecret),
+      settings: { enabled: c.enabled, phone_number_id: c.phoneId, waba_id: getSetting('wa_waba_id') || '', graph_version: c.version, token_hint: mask(c.token), app_secret_hint: mask(c.appSecret),
         has_token: !!c.token, has_app_secret: !!c.appSecret, verify_token: verifyToken(),
         welcome: getSetting('wa_welcome_en') || '', offer_pickup: getSetting('wa_offer_pickup') !== '0',
         from_env: { phone: !!process.env.WA_PHONE_NUMBER_ID, token: !!process.env.WA_ACCESS_TOKEN, secret: !!process.env.WA_APP_SECRET } },
       live: live(),
       stats: { orders: stats.n, value: stats.value, chats_24h: today, failed_24h: failed },
       sessions,
+      notify: notifySettings(),
+      updates: recentUpdates(),
     };
   }
   function saveSettings(b) {
     if (b.enabled !== undefined) setSetting('wa_enabled', b.enabled ? '1' : '0');
     if (b.phone_number_id !== undefined) setSetting('wa_phone_number_id', digits(b.phone_number_id).slice(0, 30));
+    if (b.waba_id !== undefined) setSetting('wa_waba_id', digits(b.waba_id).slice(0, 30));
     if (b.graph_version !== undefined && /^v\d{1,2}\.\d$/.test(String(b.graph_version))) setSetting('wa_graph_version', b.graph_version);
     if (b.access_token) setSetting('wa_access_token', String(b.access_token).trim().slice(0, 600));
     if (b.app_secret) setSetting('wa_app_secret', String(b.app_secret).trim().slice(0, 120));
     if (b.welcome !== undefined) setSetting('wa_welcome_en', String(b.welcome).slice(0, 600));
     if (b.offer_pickup !== undefined) setSetting('wa_offer_pickup', b.offer_pickup ? '1' : '0');
+    if (b.notify_on !== undefined) setSetting('wa_notify_on', b.notify_on ? '1' : '0');
+    if (b.notify_scope !== undefined) setSetting('wa_notify_scope', b.notify_scope === 'all' ? 'all' : 'whatsapp');
+    if (Array.isArray(b.notify_events)) setSetting('wa_notify_events', b.notify_events.filter(e => NOTIFY_EVENTS.includes(e)).join(','));
+    if (b.notify_template !== undefined) setSetting('wa_notify_tpl', String(b.notify_template).trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 512));
+    if (b.notify_template_lang !== undefined && /^[a-z]{2}(_[A-Z]{2})?$/.test(String(b.notify_template_lang))) setSetting('wa_notify_tpl_lang', b.notify_template_lang);
+    if (b.notify_messages && typeof b.notify_messages === 'object')
+      NOTIFY_EVENTS.concat('ready').forEach(ev => { if (b.notify_messages[ev] !== undefined) setSetting('wa_msg_' + ev, String(b.notify_messages[ev]).slice(0, 900)); });
     if (b.regenerate_verify) setSetting('wa_verify_token', 'jt-' + crypto.randomBytes(12).toString('hex'));
   }
   async function testConnection() {
     const c = cfg();
     if (!c.phoneId || !c.token) return { ok: false, error: 'Add the Phone number ID and the access token first.' };
     try {
-      const d = await graph(c.phoneId + '?fields=display_phone_number,verified_name,quality_rating', { method: 'GET' });
-      return { ok: true, number: d.display_phone_number, name: d.verified_name, quality: d.quality_rating, app_secret_set: !!c.appSecret };
+      const d = await graph(c.phoneId + '?fields=display_phone_number,verified_name,quality_rating,status,code_verification_status', { method: 'GET' });
+      /* Meta only forwards a WhatsApp account's incoming messages to apps "subscribed" to that
+         account. Doing it here means pressing Test connection is all the owner has to do. */
+      let subscribed = null, subError = '';
+      const waba = String(getSetting('wa_waba_id') || '').trim();
+      if (waba) {
+        try { await graph(waba + '/subscribed_apps', { method: 'POST' }); subscribed = true; }
+        catch (e) { subscribed = false; subError = String(e.message); }
+      }
+      return { ok: true, number: d.display_phone_number, name: d.verified_name, quality: d.quality_rating, status: d.status,
+               app_secret_set: !!c.appSecret, subscribed, sub_error: subError };
     } catch (e) { return { ok: false, error: String(e.message) }; }
   }
   function messages(phone, after) {
@@ -764,7 +881,7 @@ module.exports = function createWhatsApp(deps) {
     return !s || !!s.simulated;
   }
 
-  return { cfg, live, verifyToken, verifySignature, ingest, handleIncoming, staffReply, conversationClosed, setMode,
+  return { cfg, live, verifyToken, notifyOrder, verifySignature, ingest, handleIncoming, staffReply, conversationClosed, setMode,
            adminOverview, saveSettings, testConnection, messages, resetSimulated, isSimulatedOrNew,
            _respond: respond, _toCloud: toCloud };
 };

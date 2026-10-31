@@ -45,3 +45,21 @@ tracking links in WhatsApp point to your real site.
 - **Payment screenshots** sent after an order are attached to that order and sent to Chat.
 - Secrets can also be set as Render environment variables instead of in the page:
   `WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`, `WA_APP_SECRET`.
+
+## Automatic order updates
+
+When you change an order's status in **Orders**, the customer gets a WhatsApp message by
+itself (confirmed, payment received, out for delivery, delivered, cancelled). Set it up in
+**Admin → WhatsApp Bot → Automatic order updates**:
+
+- **Which orders:** by default only orders placed through the bot. Choose "All online orders"
+  to include website orders too.
+- **Messages:** edit the wording; `{name}`, `{order}`, `{total}`, `{courier}`, `{track}`, `{shop}`
+  are filled in automatically.
+- **After 24 hours:** WhatsApp only allows free messages within 24 hours of the customer's last
+  message. For updates after that, create a **Utility** template in **WhatsApp Manager → Message
+  templates** named `order_update`, English, with the body:
+  `Hello {{1}}, your Jeddah Trading order {{2}} {{3}}. Track it here: {{4}}`
+  Once Meta approves it, enter `order_update` as the template name. (Template messages are
+  billed by Meta per message; a payment method is needed in WhatsApp Manager.)
+- Each update is sent only once per order, even if you change the status back and forth.

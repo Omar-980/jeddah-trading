@@ -139,6 +139,7 @@ function markOrderPaid(order, amount, via, ref) {
   db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now') WHERE id=? AND payment_status!='paid'")
     .run(order.id);
   logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay (${via}${ref ? ' ' + ref : ''})`);
+  wa().notifyOrder(order.id, 'paid').catch(() => {});   // "we received your payment" on WhatsApp
   return 'paid';
 }
 
@@ -1550,7 +1551,14 @@ async function api(req, res, url) {
       if (nextStatus !== 'delivered' && cur.status === 'delivered')
         db.prepare('UPDATE orders SET delivered_at = NULL WHERE id=?').run(id);
       if (b.status && b.status !== cur.status) logAct(me.username, 'order_status', cur.order_number + ' → ' + nextStatus);
-      return send(res, 200, { ok: true });
+      // Tell the customer on WhatsApp. A failure here never undoes the status change.
+      let whatsapp = null;
+      if (nextStatus !== cur.status) whatsapp = await wa().notifyOrder(id, nextStatus, siteBase(req));
+      if (payStatus === 'paid' && cur.payment_status !== 'paid') {
+        const p = await wa().notifyOrder(id, 'paid', siteBase(req));
+        if (!whatsapp || !whatsapp.sent) whatsapp = p;
+      }
+      return send(res, 200, { ok: true, whatsapp });
     }
 
     // ---- COURIERS (for the assignment dropdown) ----
@@ -1999,6 +2007,7 @@ async function api(req, res, url) {
       if (!next) return send(res, 400, { error: 'Unknown action' });
       const paid = (next === 'delivered' && b.mark_paid) ? 'paid' : o.payment_status;
       db.prepare('UPDATE orders SET status=?, payment_status=? WHERE id=?').run(next, paid, id);
+      if (next !== o.status) wa().notifyOrder(id, next, siteBase(req)).catch(() => {});
       return send(res, 200, { ok: true, status: next });
     }
 
