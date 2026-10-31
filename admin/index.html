@@ -148,6 +148,13 @@ a{color:inherit}
 .wa-sess{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap}.wa-sess:first-child{border-top:none}
 .wa-sess .who{flex:1;min-width:160px}.wa-sess .who small{display:block;color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
 .wa-copy{display:flex;gap:6px}.wa-copy input{flex:1;min-width:0}
+.wa-evs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px 16px}
+.field .wa-evs label{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:500;margin:0;color:var(--ink)}
+.field .wa-evs input{width:auto;padding:0;flex:none;accent-color:var(--green-700)}
+.wa-msgrow{margin-bottom:10px}.wa-msgrow label{font-size:.82rem;font-weight:600;color:#3a4a40;display:block;margin-bottom:4px}
+.wa-msgrow textarea{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;font-size:.88rem;min-height:56px;resize:vertical}
+.wa-upd{display:flex;gap:10px;align-items:center;font-size:.86rem;padding:7px 0;border-top:1px solid var(--border)}.wa-upd:first-child{border-top:none}
+.wa-upd .o{font-weight:600;min-width:118px}.wa-upd .e{flex:1}.wa-upd small{color:var(--muted)}
 .wa-check{display:flex;align-items:center;gap:8px;font-size:.9rem;margin:6px 0}
 .wa-steps{background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:.88rem}
 .wa-steps summary{cursor:pointer;font-weight:600;color:var(--green-800)}.wa-steps ol{margin:10px 0 0 18px;display:grid;gap:6px}
@@ -491,6 +498,27 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
               <h3>Customers talking to the assistant</h3>
               <div id="waSessions"><p class="wa-help">No conversations yet.</p></div>
             </div>
+            <div class="panel" id="waNotifyPanel">
+              <h3>📦 Automatic order updates</h3>
+              <p class="wa-help">When you change an order's status, the customer gets a WhatsApp message by itself — no need to press 🔔 Notify.</p>
+              <label class="wa-check"><input type="checkbox" id="waNotifyOn"> <b>Send order updates on WhatsApp</b></label>
+              <div class="field" style="margin-top:10px"><label>Which orders</label>
+                <select id="waNotifyScope"><option value="whatsapp">Orders placed through the WhatsApp bot</option><option value="all">All online orders (website too)</option></select></div>
+              <div class="field"><label>Send a message when the order is…</label><div id="waNotifyEvents" class="wa-evs"></div></div>
+              <details class="wa-steps"><summary>Edit the messages</summary>
+                <p class="wa-help" style="margin:8px 0">You can use <code>{name}</code> <code>{order}</code> <code>{total}</code> <code>{courier}</code> <code>{track}</code> <code>{shop}</code>. Leave a box empty to use the standard message shown in grey.</p>
+                <div id="waNotifyMsgs"></div>
+              </details>
+              <details class="wa-steps" style="margin-top:10px"><summary>After 24 hours: approved template (optional)</summary>
+                <p class="wa-help" style="margin:8px 0">WhatsApp lets you message a customer freely only for 24 hours after they last wrote to you. Delivery often takes longer, so create one <b>Utility</b> template in <b>WhatsApp Manager → Message templates</b> and enter its name here. Suggested template — name <code>order_update</code>, language English, body:</p>
+                <div class="wa-copy" style="margin-bottom:10px"><input id="waTplText" readonly value="Hello {{1}}, your Jeddah Trading order {{2}} {{3}}. Track it here: {{4}}"><button type="button" class="btn btn-outline btn-sm" data-wacopy="waTplText">Copy</button></div>
+                <div class="grid2"><div class="field"><label>Template name</label><input id="waTplName" placeholder="order_update"></div>
+                  <div class="field"><label>Template language code</label><input id="waTplLang" placeholder="en"></div></div>
+              </details>
+              <div style="margin-top:14px"><button class="btn btn-primary" id="waNotifySave">Save order updates</button></div>
+              <h3 style="margin-top:22px">Recent updates sent</h3>
+              <div id="waUpdates"><p class="wa-help">None yet.</p></div>
+            </div>
             <div class="panel" id="waConnPanel">
               <h3>Connect your WhatsApp number</h3>
               <details class="wa-steps"><summary>How to connect (about 20 minutes, one time)</summary>
@@ -508,6 +536,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
                 <div class="field"><label>Callback URL (for Meta)</label><div class="wa-copy"><input id="waHook" readonly><button type="button" class="btn btn-outline btn-sm" data-wacopy="waHook">Copy</button></div></div>
                 <div class="field"><label>Verify token (for Meta)</label><div class="wa-copy"><input id="waVerify" readonly><button type="button" class="btn btn-outline btn-sm" data-wacopy="waVerify">Copy</button></div></div>
                 <div class="field"><label>Phone number ID</label><input id="waPhoneId" inputmode="numeric" placeholder="e.g. 105467891234567"></div>
+                <div class="field"><label>WhatsApp Business Account ID</label><input id="waWabaId" inputmode="numeric" placeholder="e.g. 4374435022828389"></div>
                 <div class="field"><label>Permanent access token</label><input id="waToken" type="password" autocomplete="off" placeholder="Paste token"></div>
                 <div class="field"><label>App secret</label><input id="waSecret" type="password" autocomplete="off" placeholder="Paste app secret"></div>
                 <div class="field"><label>Graph API version</label><input id="waVersion" placeholder="v21.0"></div>
@@ -2031,14 +2060,38 @@ async function loadWhatsApp(){
   $('#waStats').innerHTML=statCard('Orders via WhatsApp',d.stats.orders,'cart')+statCard('Order value',money(d.stats.value),'cash')
     +statCard('Customers (24h)',d.stats.chats_24h,'inbox')+statCard('Failed sends (24h)',d.stats.failed_24h,'alert',d.stats.failed_24h?'warn':'');
   $('#waHook').value=d.webhook_url; $('#waVerify').value=st.verify_token;
-  $('#waPhoneId').value=st.phone_number_id||''; $('#waVersion').value=st.graph_version||'v21.0';
+  $('#waPhoneId').value=st.phone_number_id||''; $('#waWabaId').value=st.waba_id||''; $('#waVersion').value=st.graph_version||'v21.0';
   $('#waToken').value=''; $('#waToken').placeholder=st.has_token?('Saved '+st.token_hint+' — paste to replace'):'Paste token';
   $('#waSecret').value=''; $('#waSecret').placeholder=st.has_app_secret?('Saved '+st.app_secret_hint+' — paste to replace'):'Paste app secret';
   $('#waWelcome').value=st.welcome||''; $('#waPickup').checked=!!st.offer_pickup; $('#waEnabled').checked=!!st.enabled;
   const editable=can('settings');
   $$('#waConnPanel input:not([readonly]),#waConnPanel textarea,#waSave,#waTest').forEach(el=>el.disabled=!editable);
   renderWaSessions();
+  renderWaNotify();
 }
+const WA_EVT_ICON={confirmed:'✅',paid:'💳',packed:'📦',ready:'🏪',out_for_delivery:'🚚',delivered:'🎉',cancelled:'✖️'};
+function renderWaNotify(){
+  const n=WA_DATA.notify; if(!n)return;
+  $('#waNotifyOn').checked=n.on; $('#waNotifyScope').value=n.scope;
+  $('#waNotifyEvents').innerHTML=n.all_events.map(e=>`<label><input type="checkbox" data-waev="${e}" ${n.events.includes(e)?'checked':''}> ${WA_EVT_ICON[e]||''} ${esc(n.labels[e]||e)}</label>`).join('');
+  const rows=n.all_events.concat('ready');
+  $('#waNotifyMsgs').innerHTML=rows.map(e=>`<div class="wa-msgrow"><label>${WA_EVT_ICON[e]||''} ${esc(e==='ready'?'Ready for pickup (pickup orders, when packed)':(n.labels[e]||e))}</label>
+    <textarea data-wamsg="${e}" placeholder="${esc(n.defaults[e])}">${esc(n.messages[e]||'')}</textarea></div>`).join('');
+  $('#waTplName').value=n.template||''; $('#waTplLang').value=n.template_lang||'en';
+  const ST={sent:'✓ sent',delivered:'✓✓ delivered',read:'✓✓ read',simulated:'🧪 test phone',skipped:'⏸ skipped',failed:'⚠️ failed',queued:'…'};
+  const ups=WA_DATA.updates||[];
+  $('#waUpdates').innerHTML=ups.length?ups.map(u=>`<div class="wa-upd"><span class="o">${esc(u.order)}</span><span class="e">${WA_EVT_ICON[u.event]||''} ${esc((n.labels[u.event])||(u.event==='ready'?'Ready for pickup':u.event))}<br><small>${esc(ST[u.status]||u.status)}${u.error?' — '+esc(u.error):''}</small></span><small>${fmtDateTime(u.created_at)}</small></div>`).join('')
+    :'<p class="wa-help">None yet. Change the status of a WhatsApp order to see one here.</p>';
+  const editable=can('settings');
+  $$('#waNotifyPanel input,#waNotifyPanel select,#waNotifyPanel textarea,#waNotifySave').forEach(el=>{if(el.id!=='waTplText')el.disabled=!editable;});
+}
+$('#waNotifySave').onclick=async()=>{
+  const msgs={}; $$('[data-wamsg]').forEach(t=>msgs[t.dataset.wamsg]=t.value.trim());
+  const body={notify_on:$('#waNotifyOn').checked,notify_scope:$('#waNotifyScope').value,
+    notify_events:[...document.querySelectorAll('[data-waev]')].filter(c=>c.checked).map(c=>c.dataset.waev),
+    notify_template:$('#waTplName').value,notify_template_lang:$('#waTplLang').value.trim()||'en',notify_messages:msgs};
+  try{await api('/admin/whatsapp/settings',{method:'POST',body:JSON.stringify(body)});toast('Order update settings saved');loadWhatsApp();}catch(e){toast(e.message);}
+};
 function renderWaSessions(){
   const rows=(WA_DATA&&WA_DATA.sessions)||[];
   if(!rows.length){$('#waSessions').innerHTML='<p class="wa-help">No conversations yet. When customers message your number, they appear here.</p>';return;}
@@ -2127,7 +2180,7 @@ $('#waSimPhone').onchange=()=>waLoadSim(false);
 $('#waRefresh').onclick=()=>{loadWhatsApp();waPoll();};
 $$('[data-wacopy]').forEach(b=>b.onclick=()=>{const i=$('#'+b.dataset.wacopy);i.select();try{navigator.clipboard.writeText(i.value);}catch(e){document.execCommand('copy');}toast('Copied');});
 $('#waSave').onclick=async()=>{
-  const body={phone_number_id:$('#waPhoneId').value,graph_version:$('#waVersion').value.trim()||'v21.0',welcome:$('#waWelcome').value,
+  const body={phone_number_id:$('#waPhoneId').value,waba_id:$('#waWabaId').value,graph_version:$('#waVersion').value.trim()||'v21.0',welcome:$('#waWelcome').value,
     offer_pickup:$('#waPickup').checked,enabled:$('#waEnabled').checked};
   if($('#waToken').value.trim())body.access_token=$('#waToken').value.trim();
   if($('#waSecret').value.trim())body.app_secret=$('#waSecret').value.trim();
@@ -2137,6 +2190,7 @@ $('#waTest').onclick=async()=>{
   $('#waTestOut').textContent='Checking with Meta…';
   try{const r=await api('/admin/whatsapp/test',{method:'POST'});
     $('#waTestOut').innerHTML=r.ok?`✅ Connected to <b>${esc(r.number)}</b> (${esc(r.name||'')})${r.quality?' · quality '+esc(r.quality):''}${r.app_secret_set?'':' — ⚠️ add the App secret, or incoming messages will be refused'}`
+      +(r.subscribed===true?'<br>✅ Your app is subscribed to this WhatsApp account — incoming messages will reach the bot.':r.subscribed===false?'<br>⚠️ Could not subscribe the app to the WhatsApp account: '+esc(r.sub_error):'<br>⚠️ Add the WhatsApp Business Account ID and test again, so incoming messages reach the bot.')
       :'❌ '+esc(r.error);}catch(e){$('#waTestOut').textContent='❌ '+e.message;}
 };
 
@@ -3002,7 +3056,7 @@ function renderOrders(){
     : '';
   const mb=$('#ordMoreBtn');
   if(mb)mb.onclick=()=>{ORD_SHOWN+=ORD_STEP;renderOrders();};
-  $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast('Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
+  $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{const r=await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast(r.whatsapp&&r.whatsapp.sent?'Order updated — customer notified on WhatsApp ✓':'Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
   $$('[data-assign]').forEach(sel=>sel.onchange=()=>assignCourier(sel.dataset.assign,sel.value));
 }
 // Printable invoice/receipt for an order
