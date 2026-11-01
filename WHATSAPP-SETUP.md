@@ -63,3 +63,26 @@ itself (confirmed, payment received, out for delivery, delivered, cancelled). Se
   Once Meta approves it, enter `order_update` as the template name. (Template messages are
   billed by Meta per message; a payment method is needed in WhatsApp Manager.)
 - Each update is sent only once per order, even if you change the status back and forth.
+
+## Facebook Messenger (same assistant on your Facebook Page)
+
+The assistant also answers people who message your **Jeddah Trading Facebook Page**. It works
+like WhatsApp, except it asks for the customer's phone number at checkout (Messenger does not
+share it), and orders show a blue **Messenger** tag in Orders.
+
+1. developers.facebook.com → app **Jeddah Trading Bots** → **Use cases → Add use cases** →
+   **Engage with customers on Messenger from Meta**.
+2. In its settings → **Access tokens** → connect the **Jeddah Trading** Page → **Generate token**.
+   Paste it in **Admin → WhatsApp Bot → Connect Facebook Messenger**.
+3. **Webhooks**: Callback URL `https://shopjeddahtrading.com/api/webhooks/messenger`, the same
+   Verify token shown in admin → **Verify and save** → subscribe the Page to `messages` and
+   `messaging_postbacks`.
+4. **Test connection** (also subscribes the Page and adds a "Get Started" button), tick
+   **Messenger assistant is on**, Save, and message your Page from another Facebook account.
+
+While the app is in development mode, only people with a role on the app (admins, testers)
+get replies. To answer the public, Meta's **App Review** must approve the
+`pages_messaging` permission (the app must be Live, with Business verification done).
+
+Messenger allows replies within 24 hours of the customer's last message; order updates after
+that are skipped and shown as "skipped" in Recent updates.

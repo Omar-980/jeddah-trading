@@ -692,6 +692,10 @@ const DEFAULT_SETTINGS = {
   wa_verify_token: '',
   wa_graph_version: 'v21.0',
   wa_waba_id: '',
+  // Facebook Messenger on the shop's Page — same assistant, off until connected
+  msg_enabled: '0',
+  msg_page_id: '',
+  msg_page_token: '',
   wa_welcome_en: 'Assalamu alaikum 👋 Welcome to Jeddah Trading! I can show you our products, take your order and track deliveries — any time, day or night.',
   wa_offer_pickup: '1',
   // Automatic order updates on WhatsApp

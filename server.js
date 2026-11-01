@@ -510,7 +510,7 @@ async function placeOrder(b, ctx = {}) {
         market, currency,
         isPickup ? 'pickup' : 'home', String(b.delivery_address||'').slice(0,300),
         String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
-        proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items), ctx.channel === 'whatsapp' ? 'whatsapp' : 'online');
+        proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items), ['whatsapp', 'messenger'].includes(ctx.channel) ? ctx.channel : 'online');
     // decrement stock for confirmed inventory + record in the stock ledger
     decrementStockForItems(items, 'order', orderNumber, '', market);
     /* Investors funded stock in dalasi at Gambian cost prices. Feeding a pound sale into that
@@ -636,7 +636,9 @@ async function api(req, res, url) {
      over the raw bytes before anything is parsed, and nothing is processed while the
      assistant is switched off. We answer 200 at once — Meta retries slow webhooks — and do
      the work afterwards; duplicate deliveries are dropped by message id. */
-  if (r[0] === 'webhooks' && r[1] === 'whatsapp' && method === 'GET') {
+  /* Facebook Messenger uses the same verification and signing as WhatsApp (same Meta app),
+     at its own address so each product's webhook can be set separately in the app. */
+  if (r[0] === 'webhooks' && (r[1] === 'whatsapp' || r[1] === 'messenger') && method === 'GET') {
     const mode = url.searchParams.get('hub.mode'), tok = url.searchParams.get('hub.verify_token') || '';
     const expected = wa().verifyToken();
     const a = Buffer.from(tok), b2 = Buffer.from(expected);
@@ -645,6 +647,20 @@ async function api(req, res, url) {
       return res.end(String(url.searchParams.get('hub.challenge') || ''));
     }
     return send(res, 403, { error: 'verification failed' });
+  }
+  if (r[0] === 'webhooks' && r[1] === 'messenger' && method === 'POST') {
+    let raw;
+    try { raw = await readRawBuffer(req); } catch { return send(res, 413, { error: 'too large' }); }
+    if (!wa().cfg().appSecret) return send(res, 503, { error: 'not configured' });
+    if (!wa().verifySignature(raw, req.headers['x-hub-signature-256'])) {
+      console.error('Messenger webhook: bad signature');
+      return send(res, 401, { error: 'bad signature' });
+    }
+    send(res, 200, { ok: true });
+    if (!wa().mcfg().enabled) return;
+    let payload; try { payload = JSON.parse(raw.toString('utf8')); } catch { return; }
+    wa().ingestMessenger(payload, siteBase(req)).catch(e => console.error('Messenger ingest:', e));
+    return;
   }
   if (r[0] === 'webhooks' && r[1] === 'whatsapp' && method === 'POST') {
     let raw;
@@ -1868,7 +1884,8 @@ async function api(req, res, url) {
        is told whether one is saved and its last four characters, never the value. */
     if (r[1] === 'whatsapp' && !r[2] && method === 'GET') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
-      return send(res, 200, Object.assign(wa().adminOverview(), { webhook_url: siteBase(req) + '/api/webhooks/whatsapp' }));
+      return send(res, 200, Object.assign(wa().adminOverview(), { webhook_url: siteBase(req) + '/api/webhooks/whatsapp',
+        messenger_webhook_url: siteBase(req) + '/api/webhooks/messenger' }));
     }
     if (r[1] === 'whatsapp' && r[2] === 'settings' && method === 'POST') {
       if (!requirePerm(req, res, 'settings')) return;
@@ -1881,11 +1898,17 @@ async function api(req, res, url) {
       if (!requirePerm(req, res, 'settings')) return;
       return send(res, 200, await wa().testConnection());
     }
+    if (r[1] === 'whatsapp' && r[2] === 'test-messenger' && method === 'POST') {
+      if (!requirePerm(req, res, 'settings')) return;
+      return send(res, 200, await wa().testMessenger());
+    }
     if (r[1] === 'whatsapp' && r[2] === 'simulate' && method === 'POST') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
       const b = await readBody(req);
-      const phone = String(b.phone || '').replace(/[^0-9]/g, '');
-      if (phone.length < 7 || phone.length > 15) return send(res, 400, { error: 'Use a phone number of 7–15 digits' });
+      const digitsOnly = String(b.phone || '').replace(/[^0-9]/g, '');
+      if (digitsOnly.length < 7 || digitsOnly.length > 15) return send(res, 400, { error: 'Use a phone number of 7–15 digits' });
+      // The Messenger simulator talks as a pretend Facebook user built from the test number.
+      const phone = b.channel === 'messenger' ? 'fb' + digitsOnly : digitsOnly;
       // A real customer's number cannot be driven from the simulator — its replies would be
       // drawn here instead of reaching them, and it would put words in their mouth.
       if (!wa().isSimulatedOrNew(phone)) return send(res, 400, { error: 'That number belongs to a real WhatsApp customer — pick another test number' });
@@ -1898,7 +1921,9 @@ async function api(req, res, url) {
     }
     if (r[1] === 'whatsapp' && r[2] === 'messages' && method === 'GET') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
-      return send(res, 200, { messages: wa().messages(url.searchParams.get('phone'), url.searchParams.get('after')) });
+      const qp = String(url.searchParams.get('phone') || '');
+      const key = url.searchParams.get('channel') === 'messenger' && !/^fb/.test(qp) ? 'fb' + qp.replace(/[^0-9]/g, '') : qp;
+      return send(res, 200, { messages: wa().messages(key, url.searchParams.get('after')) });
     }
     if (r[1] === 'whatsapp' && r[2] === 'mode' && method === 'POST') {
       if (!hasPerm(me, 'chat')) return send(res, 403, { error: 'No permission' });
@@ -1969,7 +1994,7 @@ async function api(req, res, url) {
       const m = addChatMessage(c.id, 'staff', me.id, me.name || me.username, text, attach, attachType);
       // A WhatsApp conversation: the reply also has to reach the customer's phone.
       let delivery = null;
-      if (c.source === 'whatsapp') delivery = await wa().staffReply(c, text, attach, siteBase(req));
+      if (c.source === 'whatsapp' || c.source === 'messenger') delivery = await wa().staffReply(c, text, attach, siteBase(req));
       return send(res, 201, { ok: true, message: chatMsgRow(m), whatsapp: delivery });
     }
     if (r[1] === 'chats' && r[2] && !r[3] && method === 'PATCH') {
@@ -1981,7 +2006,7 @@ async function api(req, res, url) {
         db.prepare("UPDATE conversations SET status=?, updated_at=datetime('now') WHERE id=?").run(b.status, c.id);
         logAct(me.username, 'chat_status', '#' + c.id + ' → ' + b.status);
         // Resolving a WhatsApp chat gives the customer back to the assistant.
-        if (c.source === 'whatsapp' && (b.status === 'resolved' || b.status === 'closed')) wa().conversationClosed(c);
+        if ((c.source === 'whatsapp' || c.source === 'messenger') && (b.status === 'resolved' || b.status === 'closed')) wa().conversationClosed(c);
         chatBroadcast(c.id, { type: 'status', status: b.status }, { toStaff: true });
       }
       if (b.assigned_staff_id !== undefined) db.prepare('UPDATE conversations SET assigned_staff_id=? WHERE id=?').run(b.assigned_staff_id ? Number(b.assigned_staff_id) : null, c.id);
