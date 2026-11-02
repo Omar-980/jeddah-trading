@@ -1152,6 +1152,114 @@ body.viewing-product .pp-sticky{display:none}
   .reveal{opacity:1;transform:none}
   .fab-wa::after{display:none}
 }
+
+/* ================= SIMPLE SHOP =================
+   The shop screen shows what a shopper needs to buy and nothing else: search, one row of
+   categories, the products, and a bar to pay. The welcome hero, category tiles and deal
+   bands are switched off here (their code is untouched); Why us, reviews, FAQ, contact,
+   newsletter and the footer moved to the Help screen (#help). */
+#installTop,#heroSection,#categories,#deals,#arrivals{display:none !important}
+.announce{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#promoBanners{padding-top:16px !important}
+#shop{padding-top:18px}
+#shop .section-head{display:none}
+
+/* Help screen — only while the address is #help */
+#helpHead{display:none}
+body.viewing-help #helpHead{display:block}
+body.viewing-help #promoBanners,body.viewing-help #shop{display:none !important}
+body:not(.viewing-help) #why,body:not(.viewing-help) #testimonials,body:not(.viewing-help) #faq,
+body:not(.viewing-help) #contact,body:not(.viewing-help) #newsletter,body:not(.viewing-help) .footer{display:none}
+.help-head{padding:28px 0 4px}
+.help-title{font-size:1.65rem;color:var(--green-800);margin-bottom:16px}
+.help-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.help-btn{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:64px;background:#fff;border:1px solid var(--border);border-radius:14px;font:inherit;font-weight:600;font-size:.95rem;color:var(--ink);cursor:pointer;text-align:start;transition:border-color .2s,transform .15s}
+.help-btn:hover{border-color:var(--green-600)}
+.help-btn:active{transform:scale(.98)}
+.hb-ic{width:40px;height:40px;border-radius:12px;background:var(--green-700);color:#fff;display:grid;place-items:center;flex-shrink:0}
+.hb-ic svg{width:21px;height:21px}
+
+/* Search + Filter on one line */
+.shop-toolbar{flex-wrap:nowrap;gap:10px;margin-bottom:12px}
+.shop-toolbar .search-box{min-width:0}
+.search-box input{min-height:48px;font-size:1rem}
+.filter-toggle{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 16px;border-radius:999px;border:1.5px solid var(--border);background:#fff;font:inherit;font-weight:600;font-size:.92rem;color:var(--ink-soft);cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.filter-toggle svg{width:18px;height:18px}
+.filter-toggle.on{border-color:var(--green-700);color:var(--green-700)}
+.ft-n{display:none;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--gold-500);color:#3a2e07;font-size:.72rem;place-items:center}
+.ft-n.on{display:grid}
+.filter-bar{display:none}
+.filter-bar.open{display:flex;margin:12px 0 4px;padding:14px;background:#fff;border:1px solid var(--border);border-radius:14px}
+
+/* One swipeable row of categories, each with its icon */
+.chips{margin:0 -20px;padding:2px 20px 6px;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:5px 16px;padding-inline-start:5px;font-size:.92rem;font-weight:600;cursor:pointer;touch-action:manipulation}
+.chip[data-cat="all"]{padding:5px 20px}
+.chip-ic{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;flex-shrink:0;font-size:1rem;line-height:1}
+.chip-ic svg{width:17px;height:17px}
+.chip-deals .chip-ic{background:#fff1cc}
+.chip.active .chip-ic{box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+
+/* Products: a plain grid — photo, name, price, one Add button. The description, rating,
+   chat and the rest are on the product's own page, one tap on the photo away. */
+.prod-grid{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;overflow:visible;padding:0;scroll-snap-type:none}
+.prod-grid>.prod-card{flex:none}
+.prod-grid .prod-card.reveal{opacity:1;transform:none;transition:transform .25s var(--ease),box-shadow .25s}   /* products show at once — no fade-in */
+.prod-grid .prod-desc,.prod-grid .prod-rating,.prod-grid .btn-chat,.prod-grid .quick-add,.prod-grid .prod-cat,.prod-grid .stock-line.in-stock{display:none}
+.prod-grid .prod-media{aspect-ratio:1/1}
+.prod-grid .prod-body{padding:10px 12px 12px}
+.prod-grid .prod-name{font-size:.95rem;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.prod-grid .prod-meta{margin-bottom:6px}
+.prod-grid .stock-line{font-size:.76rem;margin-bottom:6px}
+.prod-grid .prod-actions{margin-top:auto}
+.prod-grid .prod-actions .btn{width:100%;min-height:46px;font-size:.92rem;font-weight:700;touch-action:manipulation}
+
+/* The cart bar */
+.cart-bar{position:fixed;inset-inline:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:150;max-width:560px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:8px;background:var(--green-800);color:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(7,38,23,.35)}
+.cart-bar[hidden]{display:none}
+.cbar-sum{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:2px 4px;background:none;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.cbar-ic{position:relative;width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.13);display:grid;place-items:center;flex-shrink:0}
+.cbar-ic svg{width:21px;height:21px}
+.cbar-ic b{position:absolute;top:-6px;inset-inline-end:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--gold-500);color:#3a2e07;font-size:.72rem;display:grid;place-items:center}
+.cbar-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.cbar-txt b{font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbar-txt small{font-size:.76rem;color:var(--gold-200);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbar-go{display:flex;align-items:center;gap:6px;min-height:50px;padding:0 16px;background:var(--gold-500);color:#2a2105;border:0;border-radius:12px;font:inherit;font-weight:700;font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.cbar-go:active{transform:scale(.97)}
+.cbar-go svg{width:18px;height:18px}
+html[dir="rtl"] .cbar-go svg{transform:scaleX(-1)}
+body.has-cartbar{padding-bottom:90px}
+body.has-cartbar .toast-wrap{bottom:100px}
+
+/* The chat bubble no longer floats over the products: it is on the Help screen, and comes
+   back everywhere once a conversation is under way so replies are never missed. */
+.fab-chat{display:none}
+body.viewing-help .fab-chat,body.chat-live .fab-chat{display:flex}
+body.has-cartbar .fab-chat{bottom:100px}
+
+@media(max-width:760px){
+  .prod-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .prod-grid .prod-actions .btn svg{display:none}
+  body{padding-bottom:76px}
+  body.has-cartbar{padding-bottom:150px}
+  .cart-bar{inset-inline:8px;bottom:calc(78px + env(safe-area-inset-bottom))}
+  .toast-wrap{bottom:84px}
+  body.has-cartbar .toast-wrap{bottom:150px}
+  body.has-cartbar .fab-chat{bottom:150px}
+  .footer{padding-bottom:20px}
+  .help-actions{grid-template-columns:1fr 1fr;gap:10px}
+  .help-btn{flex-direction:column;align-items:flex-start;gap:8px;font-size:.9rem}
+  .mobile-nav a{font-size:.74rem}
+}
+@media(max-width:420px){
+  .cbar-go svg{display:none}
+  .cbar-go{padding:0 15px}
+  .cbar-txt small{white-space:normal;line-height:1.2}
+}
+@media(max-width:360px){
+  .filter-toggle span:not(.ft-n){display:none}
+  .filter-toggle{padding:0 14px}
+}
 </style>
 </head>
 <body>
@@ -1179,10 +1287,8 @@ body.viewing-product .pp-sticky{display:none}
         <button class="nav-cats-btn" id="navCatsBtn" aria-haspopup="true" aria-expanded="false"><span data-i18n="nav_cat">Categories</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="cats-menu" id="catsMenu"></div>
       </div>
-      <a href="#why" data-i18n="nav_why">Why Us</a>
-      <a href="#testimonials" data-i18n="nav_testi">Reviews</a>
-      <a href="#faq" data-i18n="nav_faq">FAQ</a>
-      <a href="#contact" data-i18n="nav_contact">Contact</a>
+      <a href="#track" data-i18n="track_order">Track order</a>
+      <a href="#help" data-i18n="nav_help">Help</a>
     </nav>
     <div class="nav-actions">
       <button class="lang-toggle mkt-toggle" id="mktToggle" aria-label="Change country" style="display:none">
@@ -1208,6 +1314,23 @@ body.viewing-product .pp-sticky{display:none}
 </header>
 
 <main id="top">
+
+<!-- ============ HELP PAGE (#help) ============
+     The shop screen carries only what a shopper needs to buy. Everything else — WhatsApp,
+     chat, tracking, Why us, reviews, FAQ, contact, newsletter — lives here, one tap away from
+     the bottom bar. Shown only while the address is #help (or #faq, #contact, …). -->
+<section class="section help-head" id="helpHead">
+  <div class="container">
+    <h1 class="display help-title" data-i18n="help_title">How can we help?</h1>
+    <div class="help-actions">
+      <button class="help-btn" id="helpWa" type="button"><span class="hb-ic" style="background:#25D366"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg></span><span data-i18n="hero_cta2">Order on WhatsApp</span></button>
+      <button class="help-btn" id="helpChat" type="button"><span class="hb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span data-i18n="chat_fab">Chat with us</span></button>
+      <button class="help-btn" id="helpTrack" type="button"><span class="hb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span data-i18n="track_order">Track order</span></button>
+      <a class="help-btn" id="helpCall" href="tel:+2207093900"><span class="hb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span data-i18n="help_call">Call us</span></a>
+      <button class="help-btn" id="helpInstall" type="button" style="display:none"><span class="hb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></span><span data-i18n="install_app">Install app</span></button>
+    </div>
+  </div>
+</section>
 
 <!-- ============ HERO ============ -->
 <section class="hero jh" id="heroSection">
@@ -1317,16 +1440,21 @@ body.viewing-product .pp-sticky{display:none}
       <h2 class="section-title display reveal" data-d="1" data-i18n="shop_title">Featured & Bestsellers</h2>
       <p class="section-sub reveal" data-d="2" data-i18n="shop_sub">Every item shows availability, price in Dalasi, and lets you add to cart or order on WhatsApp instantly.</p>
     </div>
-    <div class="shop-toolbar reveal">
+    <div class="shop-toolbar">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
         <input type="search" id="search" placeholder="Search products…" data-i18n-ph="search_ph" aria-label="Search products">
       </div>
+      <!-- sort, price, in-stock and saved live behind this one button -->
+      <button class="filter-toggle" id="filterToggle" type="button" aria-expanded="false" aria-controls="filterBar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        <span data-i18n="f_filter">Filter</span><span class="ft-n" id="filterCount"></span>
+      </button>
     </div>
-    <div class="filter-bar reveal" id="filterBar"></div>
-    <div class="chips reveal" id="filterChips"></div>
+    <div class="chips" id="filterChips"></div>
+    <div class="filter-bar" id="filterBar"></div>
     <div id="catBanner" class="cat-banner"></div>
-    <div style="height:20px"></div>
+    <div style="height:14px"></div>
     <div class="prod-grid" id="prodGrid"></div>
     <div id="gridMore"></div>
     <div id="noResults" style="display:none;text-align:center;padding:50px;color:var(--muted)"><p data-i18n="no_results">No products match your search.</p></div>
@@ -1501,9 +1629,9 @@ body.viewing-product .pp-sticky{display:none}
   <div class="drawer-body">
     <nav style="display:flex;flex-direction:column;gap:6px">
       <a class="mm-link" href="#shop" data-i18n="nav_shop">Shop</a>
-      <a class="mm-link" href="#categories" data-i18n="nav_cat">Categories</a>
       <a class="mm-link" href="#" id="menuTrack" data-i18n="track_order">Track order</a>
       <a class="mm-link" href="#" id="menuAcct" data-i18n="ac_title">My Account</a>
+      <a class="mm-link" href="#help" data-i18n="nav_help">Help</a>
       <a class="mm-link" href="#why" data-i18n="nav_why">Why Us</a>
       <a class="mm-link" href="#testimonials" data-i18n="nav_testi">Reviews</a>
       <a class="mm-link" href="#faq" data-i18n="nav_faq">FAQ</a>
@@ -1528,11 +1656,23 @@ body.viewing-product .pp-sticky{display:none}
 
 <!-- ============ MOBILE BOTTOM NAV ============ -->
 <nav class="mobile-nav">
-  <a href="#top" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="mn_home">Home</span></a>
-  <a href="#shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg><span data-i18n="mn_shop">Shop</span></a>
+  <a href="#top" id="mnHome" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="mn_home">Home</span></a>
   <a href="#" id="mnCart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><span class="mn-badge" id="mnBadge" style="display:none">0</span><span data-i18n="mn_cart">Cart</span></a>
-  <a href="#" id="mnWa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l-.999 3.648 3.978-1.044z"/></svg><span data-i18n="mn_order">Order</span></a>
+  <a href="#" id="mnOrders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span data-i18n="mn_orders">My orders</span></a>
+  <a href="#help" id="mnHelp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span data-i18n="mn_help">Help</span></a>
 </nav>
+
+<!-- ============ CART BAR ============
+     Appears the moment something is in the basket and stays at the bottom of every screen,
+     so a shopper can always see what they have and go straight to paying — without having
+     to find the small cart icon at the top. -->
+<div class="cart-bar" id="cartBar" role="region" aria-label="Cart" hidden>
+  <button class="cbar-sum" id="cbarOpen" type="button">
+    <span class="cbar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><b id="cbarQty">0</b></span>
+    <span class="cbar-txt"><b id="cbarTotal"></b><small id="cbarHint"></small></span>
+  </button>
+  <button class="cbar-go" id="cbarCheckout" type="button"><span data-i18n="cbar_go">Checkout</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+</div>
 
 <!-- ============ FLOATING WHATSAPP ============ -->
 <!-- built-in live chat (independent of WhatsApp) -->
@@ -1829,7 +1969,8 @@ let PRODUCTS = [
 const I18N = {
   en:{
     announce:'🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime',
-    tagline:'The Gambia', nav_shop:'Shop', nav_cat:'Categories', nav_why:'Why Us', nav_testi:'Reviews', nav_faq:'FAQ', nav_contact:'Contact',
+    tagline:'The Gambia', nav_shop:'Shop', nav_cat:'Categories',
+    nav_help:'Help', mn_help:'Help', mn_orders:'My orders', help_title:'How can we help?', help_call:'Call us', f_filter:'Filter', chip_deals:'Deals', cbar_go:'Checkout', cbar_items:'{n} items', cbar_item:'1 item', cbar_free_more:'Add {x} for free delivery', cbar_free_ok:'Free delivery ✓', nav_why:'Why Us', nav_testi:'Reviews', nav_faq:'FAQ', nav_contact:'Contact',
     hero_eyebrow:'The Gambia\'s premium Islamic marketplace', hero_h1a:'Your trusted destination for', hero_h1b:'Islamic products, herbs & quality goods',
     hero_lead:'Discover premium herbs, prophetic medicine, perfumes, clothing, electronics and much more — all in one trusted place.',
     hero_cta1:'Shop Now', hero_cta2:'Order on WhatsApp', hero_cta3:'Explore Categories',
@@ -1931,7 +2072,8 @@ const I18N = {
   },
   ar:{
     announce:'🌙 توصيل مجاني في منطقة بانجول الكبرى للطلبات فوق <strong>٢٬٥٠٠ دلاسي</strong> · اطلب عبر واتساب في أي وقت',
-    tagline:'غامبيا', nav_shop:'المتجر', nav_cat:'الأقسام', nav_why:'لماذا نحن', nav_testi:'التقييمات', nav_faq:'الأسئلة', nav_contact:'تواصل',
+    tagline:'غامبيا', nav_shop:'المتجر', nav_cat:'الأقسام',
+    nav_help:'مساعدة', mn_help:'مساعدة', mn_orders:'طلباتي', help_title:'كيف نساعدك؟', help_call:'اتصل بنا', f_filter:'تصفية', chip_deals:'العروض', cbar_go:'الدفع', cbar_items:'{n} منتجات', cbar_item:'منتج واحد', cbar_free_more:'أضف {x} للتوصيل المجاني', cbar_free_ok:'توصيل مجاني ✓', nav_why:'لماذا نحن', nav_testi:'التقييمات', nav_faq:'الأسئلة', nav_contact:'تواصل',
     hero_eyebrow:'سوق غامبيا الإسلامي الفاخر', hero_h1a:'وجهتك الموثوقة لـ', hero_h1b:'المنتجات الإسلامية والأعشاب والسلع الراقية',
     hero_lead:'اكتشف الأعشاب الفاخرة والطب النبوي والعطور والملابس والإلكترونيات وأكثر — كل ذلك في مكان واحد موثوق.',
     hero_cta1:'تسوّق الآن', hero_cta2:'اطلب عبر واتساب', hero_cta3:'استكشف الأقسام',
@@ -2434,9 +2576,21 @@ function updateCatBanner(){
     <button class="cb-clear" data-cat="all">${LANG==='ar'?'كل المنتجات ✕':'All products ✕'}</button>`;
   b.classList.add('show');
 }
+/* The one row of categories on the shop screen: All · Deals · each category, with its icon.
+   It replaces the big category tiles and the Flash Deals band — tapping one filters the
+   products right underneath, so the shopper never leaves the list. */
 function renderChips(){
-  const all=`<button class="chip ${activeCat==='all'?'active':''}" data-cat="all">${LANG==='ar'?'الكل':'All'}</button>`;
-  $('#filterChips').innerHTML=all+CATEGORIES.map(c=>`<button class="chip ${activeCat===c.id?'active':''}" data-cat="${c.id}">${c[LANG]}</button>`).join('');
+  const deals=!!FILTERS.dealsOnly;
+  const all=`<button class="chip ${activeCat==='all'&&!deals?'active':''}" data-cat="all">${LANG==='ar'?'الكل':'All'}</button>`;
+  const hasDeals=marketProducts().some(p=>p.sale&&stockState(p)!=='out');
+  const dealChip=hasDeals?`<button class="chip chip-deals ${deals?'active':''}" data-deals="1"><span class="chip-ic">⚡</span>${t('chip_deals')}</button>`:'';
+  $('#filterChips').innerHTML=all+dealChip+CATEGORIES.map(c=>`<button class="chip ${activeCat===c.id&&!deals?'active':''}" data-cat="${c.id}"><span class="chip-ic" style="background:${c.grad}">${svg(c.icon)}</span>${c[LANG]}</button>`).join('');
+  updateFilterCount();
+}
+/* How many of the tucked-away filters are switched on, shown on the Filter button. */
+function updateFilterCount(){
+  const n=(FILTERS.sort!=='featured'?1:0)+(FILTERS.brand?1:0)+(FILTERS.inStock?1:0)+(FILTERS.savedOnly?1:0)+(FILTERS.maxPrice>0?1:0);
+  const el=$('#filterCount'); if(el){el.textContent=n?n:'';el.classList.toggle('on',n>0);}
 }
 // Stable, deterministic rating per product (curated quality goods; replace with real review data later)
 function ratingFor(id){const v=4.4+(((id*37)%6)*0.1);const val=Math.min(5,v);return {val:val.toFixed(1), full:Math.round(val), count:9+((id*53)%150)};}
@@ -2513,7 +2667,7 @@ function renderFilterBar(){
   $('#fSort').onchange=()=>{FILTERS.sort=$('#fSort').value;renderProducts();};
   if($('#fBrand'))$('#fBrand').onchange=()=>{FILTERS.brand=$('#fBrand').value;renderProducts();};
   $('#fStock').onchange=()=>{FILTERS.inStock=$('#fStock').checked;renderProducts();};
-  if($('#fDeals'))$('#fDeals').onchange=()=>{FILTERS.dealsOnly=$('#fDeals').checked;$('#fDealsWrap').classList.toggle('on',FILTERS.dealsOnly);renderProducts();};
+  if($('#fDeals'))$('#fDeals').onchange=()=>{FILTERS.dealsOnly=$('#fDeals').checked;$('#fDealsWrap').classList.toggle('on',FILTERS.dealsOnly);renderChips();renderProducts();};
   $('#fSaved').onchange=()=>{FILTERS.savedOnly=$('#fSaved').checked;$('#fSavedWrap').classList.toggle('on',FILTERS.savedOnly);renderProducts();};
   $('#fPrice').oninput=()=>{FILTERS.maxPrice=+$('#fPrice').value;$('#fPriceLbl').textContent=money(FILTERS.maxPrice);};
   $('#fPrice').onchange=()=>renderProducts();
@@ -2555,6 +2709,7 @@ function renderProducts(keepShown){
   }
   $('#noResults').style.display=list.length?'none':'block';
   updateCatBanner();
+  updateFilterCount();
   observeReveals();
 }
 /* ---------- Flash Deals + New Arrivals strips ---------- */
@@ -2976,6 +3131,19 @@ function handleRoute(){
   const mp=/^#product=(\d+)/.exec(hash);
   const mt=/^#track(?:=(.*))?$/.exec(hash);
   const ma=/^#account$/.exec(hash);
+  // The Help screen: the info sections that used to fill the shop page. Their old links
+  // (#faq, #contact, …) still work — they open Help at that section.
+  const mh=/^#(help|why|testimonials|faq|contact|newsletter)$/.exec(hash);
+  document.body.classList.toggle('viewing-help',!!mh);
+  $$('.mobile-nav a').forEach(a=>a.classList.remove('active'));
+  const navOn=mh?'#mnHelp':(ma||mt)?'#mnOrders':mp?null:'#mnHome';
+  if(navOn&&$(navOn))$(navOn).classList.add('active');
+  if(mh){
+    const sec=mh[1]==='help'?null:document.getElementById(mh[1]);
+    setTimeout(()=>{if(sec)sec.scrollIntoView();else window.scrollTo(0,0);},30);
+  }
+  if(hash==='#top')setTimeout(()=>window.scrollTo(0,0),30);
+  if(hash==='#categories')setTimeout(()=>{const s=document.getElementById('shop');if(s)s.scrollIntoView();},30);
   document.body.classList.remove('viewing-account');
   if($('#accountPage')&&!ma)$('#accountPage').innerHTML='';
   if(ma){
@@ -3032,6 +3200,7 @@ function updateCart(){
   const q=cartQty();
   const cc=$('#cartCount');cc.textContent=q;cc.classList.toggle('show',q>0);
   const mb=$('#mnBadge');mb.textContent=q;mb.style.display=q>0?'grid':'none';
+  renderCartBar();
   // body
   if(!cart.length){
     $('#cartBody').innerHTML=`<div class="cart-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><h4 style="font-family:var(--font-display);color:var(--green-800);margin-bottom:6px">${t('cart_empty')}</h4><p style="font-size:.9rem">${t('cart_empty_sub')}</p></div>`;
@@ -3062,6 +3231,25 @@ function updateCart(){
     <button class="btn btn-outline btn-block" id="clearCartBtn" style="margin-top:8px">${t('clear_cart')}</button>`;
   $('#goCheckout').onclick=openCheckout;
   $('#clearCartBtn').onclick=clearCart;
+}
+
+/* The bar at the bottom of the screen: what is in the basket, and one button to pay.
+   The total is the basket's own subtotal, as in the drawer — delivery and discounts are
+   worked out at checkout and again by the server, never from this line. */
+function renderCartBar(){
+  const bar=$('#cartBar'); if(!bar)return;
+  const q=cartQty();
+  bar.hidden=q<=0;
+  document.body.classList.toggle('has-cartbar',q>0);
+  if(q<=0)return;
+  const sub=cartSubtotal();
+  $('#cbarQty').textContent=q;
+  $('#cbarTotal').textContent=(q===1?t('cbar_item'):t('cbar_items').replace('{n}',q))+' · '+money(sub);
+  let hint='';
+  if(!isUK()&&FREE_DELIVERY_OVER>0){
+    hint=sub>=FREE_DELIVERY_OVER?t('cbar_free_ok'):t('cbar_free_more').replace('{x}',money(FREE_DELIVERY_OVER-sub));
+  }
+  const h=$('#cbarHint'); h.textContent=hint; h.style.display=hint?'':'none';
 }
 
 /* ---------- Checkout ---------- */
@@ -4341,6 +4529,7 @@ async function chSend(){
 function chAttachClear(){CH_ATTACH=null;const p=$('#chAttachPrev');p.style.display='none';p.innerHTML='';$('#chFile').value='';}
 function openChat(ctx){
   CH_CTX=ctx||null;CH_OPEN=true;
+  document.body.classList.add('chat-live');   // keep the bubble on screen from now on, for replies
   $('#chatPanel').classList.add('show');
   chBadge(0);
   if(CH_TOKEN){chHistory().then(ok=>{if(ok){chShowChat();chConnect();if(CH_CTX&&(CH_CTX.product_id||CH_CTX.order_ref)){chStartCtx();}}else chAutoOrForm();});}
@@ -4456,7 +4645,8 @@ document.addEventListener('click',e=>{
   const dec=e.target.closest('[data-dec]');if(dec){setQty(dec.dataset.dec,-1);return}
   const rm=e.target.closest('[data-rm]');if(rm){removeItem(rm.dataset.rm);return}
   const hd=e.target.closest('[data-hsdot]');if(hd){showHs(+hd.dataset.hsdot);startHs();return}
-  const cat=e.target.closest('[data-cat]');if(cat){if(cat.tagName==='A')e.preventDefault();activeCat=cat.dataset.cat;renderChips();renderProducts();const inMenu=cat.closest('#catsMenu');const fromProduct=cat.closest('#productPage');const jump=cat.classList.contains('cat-card')||cat.classList.contains('foot-cat')||inMenu||fromProduct||cat.classList.contains('cb-clear');if($('#navCats'))$('#navCats').classList.remove('open');if(/product=/.test(location.hash)){location.hash='';}if(jump){setTimeout(()=>document.getElementById('shop').scrollIntoView({behavior:'smooth'}),(inMenu||fromProduct)?60:0)}return}
+  const dl=e.target.closest('[data-deals]');if(dl){const on=!FILTERS.dealsOnly;FILTERS.dealsOnly=on;if(on)activeCat='all';renderChips();renderFilterBar();renderProducts();return}
+  const cat=e.target.closest('[data-cat]');if(cat){if(cat.tagName==='A')e.preventDefault();activeCat=cat.dataset.cat;if(FILTERS.dealsOnly){FILTERS.dealsOnly=false;renderFilterBar();}renderChips();renderProducts();const inMenu=cat.closest('#catsMenu');const fromProduct=cat.closest('#productPage');const jump=cat.classList.contains('cat-card')||cat.classList.contains('foot-cat')||inMenu||fromProduct||cat.classList.contains('cb-clear');if($('#navCats'))$('#navCats').classList.remove('open');if(/product=/.test(location.hash)){location.hash='';}if(jump){setTimeout(()=>document.getElementById('shop').scrollIntoView({behavior:'smooth'}),(inMenu||fromProduct)?60:0)}return}
   const fq=e.target.closest('[data-faq]');if(fq){const item=fq.closest('.faq-item');const open=item.classList.contains('open');$$('.faq-item').forEach(x=>{x.classList.remove('open');x.querySelector('.faq-a').style.maxHeight=null});if(!open){item.classList.add('open');const a=item.querySelector('.faq-a');a.style.maxHeight=a.scrollHeight+'px'}return}
 });
 
@@ -4533,6 +4723,7 @@ async function init(){
   await loadCustomer();
   if(CUST){mergeWishlist();await mergeCart();}   // pull the account wishlist and basket onto this device
   initChat();
+  document.body.classList.toggle('chat-live',!!CH_TOKEN);
   renderBannersStrip();
   // order tracking entry points (override the generic mm-link close for the track link)
   if($('#footTrack'))$('#footTrack').onclick=e=>{e.preventDefault();openTrack();};
@@ -4558,7 +4749,18 @@ async function init(){
   jhInit();   // premium hero: particles, mouse light, tilt, magnetic buttons, counters, hero search
   $('#fabWa').onclick=e=>{e.preventDefault();waGeneral()};
   $('#footWa').onclick=e=>{e.preventDefault();waGeneral()};
-  $('#mnWa').onclick=e=>{e.preventDefault();waGeneral()};
+  // bottom bar: My orders → the account page when signed in, otherwise order tracking
+  if($('#mnOrders'))$('#mnOrders').onclick=e=>{e.preventDefault();if(CUST)openAccount();else openTrack();};
+  // the cart bar: tap the summary to look at the basket, the button to go straight to paying
+  if($('#cbarOpen'))$('#cbarOpen').onclick=()=>openDrawer('#cartDrawer');
+  if($('#cbarCheckout'))$('#cbarCheckout').onclick=()=>{closeAll();openCheckout();};
+  // the Filter button opens and closes the tucked-away sort / price / stock filters
+  if($('#filterToggle'))$('#filterToggle').onclick=()=>{const open=$('#filterBar').classList.toggle('open');$('#filterToggle').setAttribute('aria-expanded',open);$('#filterToggle').classList.toggle('on',open);};
+  // Help screen buttons
+  if($('#helpWa'))$('#helpWa').onclick=()=>waGeneral();
+  if($('#helpChat'))$('#helpChat').onclick=()=>{document.body.classList.add('chat-live');openChat();};
+  if($('#helpTrack'))$('#helpTrack').onclick=()=>openTrack();
+  if($('#helpInstall')){$('#helpInstall').style.display=STANDALONE()?'none':'';$('#helpInstall').onclick=()=>openInstall();}
   // search
   let st;$('#search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{search=e.target.value;renderProducts()},180)};
   // contact form
