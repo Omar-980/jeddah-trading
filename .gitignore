@@ -1,0 +1,27 @@
+# ── Never commit these ──────────────────────────────────────────────
+# A local run writes the database here. It holds every customer's name, phone,
+# address and password hash, and every order. It must never reach GitHub.
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Product photos uploaded while testing locally (live ones sit on Render's disk).
+public/uploads/
+
+# Secrets. Payment keys live in the admin Settings, never in files.
+.env
+.env.*
+
+# Test output and tooling
+tests/_out/
+__pycache__/
+*.pyc
+node_modules/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
