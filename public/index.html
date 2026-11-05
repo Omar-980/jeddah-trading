@@ -561,6 +561,22 @@ body.viewing-track #trackPage{display:block;animation:fadeUp .4s var(--ease)}
 .track-actions{display:flex;gap:10px;margin-top:14px}
 .track-actions .btn{flex:1}
 @media(max-width:860px){.track-grid{grid-template-columns:1fr;gap:22px}.track-right{min-height:0}.track-empty{display:none}}
+/* Phones: the four receipt buttons used to sit in one row that could not wrap, which made the
+   page ~840px wide and the phone zoomed the whole shop out. Now: Share on top, View | Print side
+   by side, Ask underneath — and labels may wrap instead of pushing the page wider. */
+@media(max-width:640px){
+  .track-page{padding:0 0 32px}
+  .track-page .tp-lead{margin-bottom:14px}
+  .track-form{padding:16px}
+  .track-form .field input{font-size:16px}   /* under 16px, iPhones zoom in when the box is tapped */
+  .track-summary{padding:12px 14px}
+  .track-summary .ts-total{font-size:1.15rem}
+  .track-progress{padding:14px}
+  .track-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .track-actions .btn{min-width:0;white-space:normal;line-height:1.25;text-align:center;padding:11px 12px;font-size:.88rem}
+  .track-actions #tkShareImg{grid-column:1/-1;order:-1}
+  .track-actions [data-chat-order]{grid-column:1/-1}
+}
 .pp-wrap{max-width:var(--maxw);margin:0 auto;padding:24px 20px 60px}
 .pp-back{display:inline-flex;align-items:center;gap:7px;color:var(--green-700);font-weight:600;font-size:.92rem;margin-bottom:20px;background:#fff;border:1.5px solid var(--border);padding:9px 16px;border-radius:999px;transition:border-color .2s}
 .pp-back:hover{border-color:var(--green-600)}
@@ -4380,6 +4396,8 @@ async function doTrack(silent){
     $('#tkReceipt').onclick=()=>openReceiptModal(rc);
     $('#tkPrint').onclick=()=>printReceipt(rc);
     $('#tkShareImg').onclick=()=>shareReceiptImage(rc,{title:statusLabel(rc.status),subtitle:t('co_thanks')});
+    // on a phone the result lands under the form, below the fold — bring it into view once
+    if(!silent&&innerWidth<=860){const tr=$('#tkResult');if(tr&&tr.scrollIntoView)setTimeout(()=>tr.scrollIntoView({behavior:'smooth',block:'start'}),60);}
     // live updates: alert when the status moves on, keep polling until delivered/closed
     if(TK_LAST_REF!==o.order_number){TK_LAST_STATUS=null;TK_LAST_REF=o.order_number;}
     if(TK_LAST_STATUS&&TK_LAST_STATUS!==o.status){
