@@ -1462,6 +1462,22 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
   </div>
 </div></div>
 
+<!-- Loan receipt: a statement / payment reminder / payment receipt for someone who owes the shop -->
+<div class="modal" id="loanReceiptModal"><div class="modal-card" style="max-width:400px">
+  <div class="modal-head"><h3 id="lrTitle">Loan receipt</h3><button class="close-x" data-close="loanReceiptModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="modal-body">
+    <div id="loanReceiptPreview"></div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+      <button class="btn btn-wa" id="lrShare"><svg viewBox="0 0 24 24" fill="currentColor" style="width:17px;height:17px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>Send receipt picture</button>
+      <div style="display:flex;gap:9px">
+        <a class="btn btn-outline" style="flex:1" id="lrText" target="_blank" rel="noopener">WhatsApp text</a>
+        <button class="btn btn-outline" style="flex:1" id="lrPrint">Print / PDF</button>
+      </div>
+      <p id="lrNoPhone" style="display:none;font-size:.8rem;color:var(--muted);margin:0">No phone number on this loan — add one to send it on WhatsApp.</p>
+    </div>
+  </div>
+</div></div>
+
 <div id="labelArea"></div>
 <div class="toast" id="toast"></div>
 
@@ -1821,11 +1837,12 @@ function renderLoans(){
       <td class="hide-sm" style="font-size:.82rem">${l.date_taken}</td>
       <td style="font-size:.82rem">${due}</td>
       <td>${st}</td>
-      <td><div class="row-actions">${act}</div></td>
+      <td><div class="row-actions">${act}${l.direction==='given'?`<button class="btn btn-outline btn-sm" data-loan-rc="${l.id}" title="Statement, payment reminder or receipt to send on WhatsApp">🧾 Receipt</button>`:''}</div></td>
     </tr>`;
   }).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:26px">No loans recorded.</td></tr>`;
   $$('[data-loan-pay]').forEach(b=>b.onclick=()=>{LOAN_PAYING=+b.dataset.loanPay;renderLoans();const i=$('#lp_amt');if(i)i.focus();});
   $$('[data-loan-payx]').forEach(b=>b.onclick=()=>{LOAN_PAYING=null;renderLoans();});
+  $$('[data-loan-rc]').forEach(b=>b.onclick=()=>showLoanReceipt(+b.dataset.loanRc));
   $$('[data-loan-payok]').forEach(b=>b.onclick=async()=>{
     const amt=+($('#lp_amt').value||0);
     try{await api('/admin/loans/'+b.dataset.loanPayok+'/settle',{method:'POST',body:JSON.stringify({mode:'cash',amount:amt})});
@@ -3881,7 +3898,7 @@ function receiptDoc(sale){
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Receipt ${esc(sale.order_number)}</title>
 <style>body{margin:0;padding:16px;background:#f3f1ea;font-family:'Courier New',monospace}${rc}
 @media print{body{background:#fff;padding:0}.rc-wrap{border:none;max-width:100%}}</style></head>
-<body onload="window.focus()">${receiptInner(sale)}</body></html>`;
+<body onload="window.focus()">${sale.__html||receiptInner(sale)}</body></html>`;
 }
 function showReceipt(sale,justRecorded){
   RECEIPT_SALE=sale;
@@ -3905,6 +3922,131 @@ function downloadReceipt(sale){
 }
 $('#rcPrint') && ($('#rcPrint').onclick=()=>{if(RECEIPT_SALE)printReceipt(RECEIPT_SALE);});
 $('#rcDownload') && ($('#rcDownload').onclick=()=>{if(RECEIPT_SALE)downloadReceipt(RECEIPT_SALE);});
+
+/* ================= LOAN RECEIPT =================
+   For someone who owes the shop. One set of lines feeds the on-screen preview, the printed
+   copy and the picture sent on WhatsApp, so all three always say the same thing. Every
+   figure comes from the loan as the server holds it — nothing is typed in here. */
+let RECEIPT_LOAN=null;
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function daysBetween(a,b){return Math.round((Date.parse(b)-Date.parse(a))/86400000);}
+// A Gambian number written locally (7 digits) gets the 220 country code WhatsApp needs.
+function waIntl(p){const d=String(p||'').replace(/[^0-9]/g,'');if(!d)return '';return d.length===7?'220'+d:d;}
+function loanReceiptData(l){
+  const left=Math.max(0,Math.round((l.amount-l.paid_amount)*100)/100);
+  const late=l.status==='active'&&l.date_due&&l.date_due<todayISO()?daysBetween(l.date_due,todayISO()):0;
+  const kind=l.status==='returned'?'returned':l.status!=='active'?'paid':late>0?'reminder':'statement';
+  const title={reminder:'PAYMENT REMINDER',statement:'LOAN STATEMENT',paid:'PAYMENT RECEIPT',returned:'GOODS RETURNED'}[kind];
+  const rows=[
+    ['Receipt no.','LN-'+String(l.id).padStart(5,'0')],
+    ['Date',todayISO()],
+    ['Name',l.party_name||''],
+  ];
+  if(l.party_phone)rows.push(['Phone',l.party_phone]);
+  rows.push(['For',l.kind==='product'?`${l.product_name} ×${l.qty}`:'Cash loan']);
+  rows.push(['Date given',l.date_taken||'—']);
+  if(l.date_due)rows.push(['Due date',l.date_due]);
+  if(late>0)rows.push(['Days overdue',String(late),'late']);
+  const money2=[['Loan amount',money(l.amount)],['Paid so far',money(l.paid_amount)]];
+  const totalLabel=kind==='paid'||kind==='returned'?'BALANCE':'BALANCE DUE';
+  const store=SETTINGS.store_name||'Jeddah Trading';
+  // shown as +220 709 3900 rather than a run of digits
+  const pd=String(SETTINGS.whatsapp_number||'').replace(/[^0-9]/g,'');
+  const phone=/^220\d{7}$/.test(pd)?'+220 '+pd.slice(3,6)+' '+pd.slice(6):(SETTINGS.whatsapp_number||'');
+  const msg={reminder:`This loan was due on ${l.date_due} and is now ${late} day${late===1?'':'s'} overdue. Please pay the balance as soon as you can.`,
+    statement:l.date_due?`Please pay the balance by ${l.date_due}.`:'Please pay the balance as soon as you can.',
+    paid:'Paid in full — thank you!',returned:'The goods were returned — nothing more is owed. Thank you!'}[kind];
+  return {kind,title,rows,money2,totalLabel,left,late,store,phone,addr:SETTINGS.store_address||'Serrekunda, The Gambia',msg};
+}
+function loanReceiptInner(l){
+  const d=loanReceiptData(l);
+  const meta=r=>`<div class="rc-meta"><span>${esc(r[0])}</span><b${r[2]==='late'?' style="color:#b42318"':''}>${esc(r[1])}</b></div>`;
+  return `<div class="rc-wrap">
+    <div class="rc-store">${esc(d.store)}</div>
+    <div class="rc-sub">${esc(d.addr)}${d.phone?' · '+esc(d.phone):''}</div>
+    <div class="rc-title"${d.kind==='reminder'?' style="color:#b42318"':''}>${d.title}</div>
+    ${d.rows.map(meta).join('')}
+    <div style="border-top:1px dashed #b9b9b9;margin:8px 0 4px"></div>
+    ${d.money2.map(meta).join('')}
+    <div class="rc-total"><span>${d.totalLabel}</span><span>${money(d.left)}</span></div>
+    <div class="rc-thanks">${esc(d.msg)}${d.phone&&d.left>0?'<br>Questions? Call or WhatsApp '+esc(d.phone):''}</div>
+  </div>`;
+}
+// The same receipt drawn as a picture, so it can be sent on WhatsApp like a photo.
+function loanReceiptCanvas(l){
+  const d=loanReceiptData(l), S=2, W=380, P=22;
+  const c=document.createElement('canvas'), x=c.getContext('2d');
+  const mono="'Courier New',monospace";
+  const wrap=(txt,font,max)=>{x.font=font;const out=[];let line='';for(const w of String(txt).split(' ')){const t=line?line+' '+w:w;if(x.measureText(t).width>max&&line){out.push(line);line=w;}else line=t;}if(line)out.push(line);return out;};
+  // first pass measures the height, second pass draws
+  const draw=(paint)=>{
+    let y=P;
+    const text=(t,font,color,align,yy)=>{if(!paint)return;x.font=font;x.fillStyle=color;x.textAlign=align;x.fillText(t,align==='center'?W/2:align==='right'?W-P:P,yy);};
+    const rule=(dash,yy,width)=>{if(!paint)return;x.save();x.strokeStyle=dash?'#b9b9b9':'#111';x.lineWidth=width||1;x.setLineDash(dash?[4,3]:[]);x.beginPath();x.moveTo(P,yy);x.lineTo(W-P,yy);x.stroke();x.restore();};
+    y+=20;text(d.store,"bold 21px Georgia,serif",'#0f3a24','center',y);
+    for(const ln of wrap(d.addr+(d.phone?' · '+d.phone:''),`12px ${mono}`,W-2*P)){y+=17;text(ln,`12px ${mono}`,'#666','center',y);}
+    y+=12;rule(true,y);y+=19;text(d.title,`bold 13px ${mono}`,d.kind==='reminder'?'#b42318':'#111','center',y);y+=9;rule(true,y);
+    const meta=r=>{y+=20;text(r[0],`13px ${mono}`,'#444','left',y);text(r[1],`bold 13px ${mono}`,r[2]==='late'?'#b42318':'#111','right',y);};
+    y+=4;d.rows.forEach(meta);
+    y+=10;rule(true,y);d.money2.forEach(meta);
+    y+=14;rule(false,y,2);y+=24;text(d.totalLabel,`bold 17px ${mono}`,'#0f3a24','left',y);text(money(d.left),`bold 17px ${mono}`,'#0f3a24','right',y);
+    y+=10;
+    const foot=d.msg+(d.phone&&d.left>0?' Questions? Call or WhatsApp '+d.phone+'.':'');
+    for(const ln of wrap(foot,`12px ${mono}`,W-2*P)){y+=17;text(ln,`12px ${mono}`,'#555','center',y);}
+    return y+P;
+  };
+  c.width=W*S;c.height=10;x.scale(S,S);
+  const H=draw(false);
+  c.height=H*S;x.setTransform(S,0,0,S,0,0);x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  draw(true);
+  return c;
+}
+function loanReceiptText(l){
+  const d=loanReceiptData(l);
+  const first=(l.party_name||'').split(' ')[0];
+  if(d.kind==='paid'||d.kind==='returned')
+    return `Assalamu alaikum ${first}, this is ${d.store}. ${d.msg} (Receipt LN-${String(l.id).padStart(5,'0')})`;
+  return `Assalamu alaikum ${first}, this is ${d.store}.\n`+
+    `Loan: ${money(l.amount)} · Paid: ${money(l.paid_amount)}\n*Balance due: ${money(d.left)}*\n`+
+    (d.late>0?`It was due on ${l.date_due} (${d.late} day${d.late===1?'':'s'} ago). Please pay as soon as you can.`:d.msg)+
+    `\nThank you.`;
+}
+function showLoanReceipt(id){
+  const l=LOANS.find(x=>x.id===id); if(!l)return;
+  RECEIPT_LOAN=l;
+  const d=loanReceiptData(l);
+  $('#lrTitle').textContent={reminder:'Payment reminder',statement:'Loan statement',paid:'Payment receipt',returned:'Goods returned'}[d.kind];
+  $('#loanReceiptPreview').innerHTML=loanReceiptInner(l);
+  const ph=waIntl(l.party_phone);
+  $('#lrText').style.display=ph?'':'none';
+  $('#lrNoPhone').style.display=ph?'none':'block';
+  if(ph)$('#lrText').href=`https://wa.me/${ph}?text=${encodeURIComponent(loanReceiptText(l))}`;
+  openModal('loanReceiptModal');
+}
+async function shareLoanReceipt(){
+  const l=RECEIPT_LOAN; if(!l)return;
+  const name='receipt-LN-'+String(l.id).padStart(5,'0')+'.png';
+  const blob=await new Promise(r=>loanReceiptCanvas(l).toBlob(r,'image/png'));
+  if(!blob){toast('Could not make the picture');return;}
+  const file=new File([blob],name,{type:'image/png'});
+  // On a phone this opens the share sheet — pick WhatsApp, then the customer.
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],text:loanReceiptText(l)});return;}
+    catch(e){if(e&&e.name==='AbortError')return;}
+  }
+  // On a computer: save the picture, and open their WhatsApp chat to attach it.
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},400);
+  const ph=waIntl(l.party_phone);
+  toast(ph?'Picture saved — attach it in the WhatsApp chat that just opened':'Picture saved');
+  if(ph)window.open(`https://wa.me/${ph}?text=${encodeURIComponent(loanReceiptText(l))}`,'_blank');
+}
+function printLoanReceipt(){
+  const l=RECEIPT_LOAN; if(!l)return;
+  printReceipt({order_number:'LN-'+String(l.id).padStart(5,'0'),__html:loanReceiptInner(l)});
+}
+$('#lrShare') && ($('#lrShare').onclick=shareLoanReceipt);
+$('#lrPrint') && ($('#lrPrint').onclick=printLoanReceipt);
 
 /* ---------- Scan-to-add (barcode scanner + camera) ---------- */
 // Match a scanned string to a product by barcode or SKU. Handles a QR that carries "SKU BARCODE".
