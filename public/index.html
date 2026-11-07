@@ -2809,7 +2809,9 @@ function initPixel(){
     if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
     t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s);
   }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-  try{fbq('init',id);fbq('track','PageView');PIXEL_ON=true;}catch(e){PIXEL_ON=false;}
+  // autoConfig off: the Pixel must not read button text or page details by itself. Meta flagged
+  // that kind of data from this shop as religious; we send product ID numbers and prices only.
+  try{fbq('set','autoConfig',false,id);fbq('init',id);fbq('track','PageView');PIXEL_ON=true;}catch(e){PIXEL_ON=false;}
 }
 function track(ev,data){ if(PIXEL_ON&&window.fbq){ try{fbq('track',ev,data||{})}catch(e){} } }
 // The cart, in the shape Facebook expects, for the checkout and purchase events.
@@ -2946,7 +2948,7 @@ function renderProductPage(id){
   const p=prod(id); if(!p){location.hash='';return;}
   if(isUK()&&!ukReady(p)){location.hash='';toast('That item is not available in the UK');return;}
   track('ViewContent',{content_type:'product', content_ids:[feedId(p.id,0)],
-    content_name:p.en.name, value:unitPrice(p), currency:fbCurrency()});
+    value:unitPrice(p), currency:fbCurrency()});   // IDs only — never product names
   const d=p[LANG], ss=stockState(p), out=ss==='out';
   const grad=(catMap[p.cat]&&catMap[p.cat].grad)||'linear-gradient(135deg,#10502f,#1c7d4a)';
   const catLabel=(catMap[p.cat]&&catMap[p.cat][LANG])||'';
@@ -3197,7 +3199,7 @@ function addToCart(id,qty,vid){
   const e=cart.find(i=>ckey(i.id,i.vid)===k);
   if(e){e.qty=Math.min(max,e.qty+qty);}else cart.push({id,vid,qty:Math.min(max,qty)});
   track('AddToCart',{content_type:'product', content_ids:[feedId(id,vid)],
-    content_name:lineName(p,vid), value:linePrice(p,vid)*qty, currency:fbCurrency()});
+    value:linePrice(p,vid)*qty, currency:fbCurrency()});   // IDs only — never product names
   updateCart(); bump(); toast(t('toast_added'));
 }
 function setQty(key,delta){

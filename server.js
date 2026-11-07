@@ -12,6 +12,9 @@ const crypto = require('node:crypto');
 const { db, DB_PATH, queries, getSetting, setSetting, hashPassword, verifyPassword, ALL_PERMS, logMove, nextPoNumber, logAct, newReferralCode, deleteCustomerData, recordInvestorSalesForOrder, reverseInvestorSalesForOrder, variantById, variantByCode, r2 } = require('./db');
 
 const PORT = process.env.PORT || 3000;
+// The shop's real address. Visits to Render's *.onrender.com address are sent here.
+// Set CANONICAL_HOST to an empty string to switch that off.
+const CANONICAL_HOST = (process.env.CANONICAL_HOST ?? 'shopjeddahtrading.com').toLowerCase().trim();
 const HOST = process.env.HOST || '0.0.0.0'; // bind all interfaces so cloud hosts can route to it
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const ADMIN_DIR = path.join(__dirname, 'admin');
@@ -3391,6 +3394,16 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
+  /* One address for the shop. Render's own *.onrender.com address still answers, and Meta
+     flagged the Pixel data it sent; a page opened there now moves to the shop's real address,
+     so the Pixel only ever runs on one site. Only page visits move: the API and anything
+     posted (payment and WhatsApp webhooks may still point here) are answered where they land. */
+  const host = String(req.headers.host || '').toLowerCase().split(':')[0];
+  if (host.endsWith('.onrender.com') && CANONICAL_HOST && host !== CANONICAL_HOST
+      && (req.method === 'GET' || req.method === 'HEAD') && !url.pathname.startsWith('/api/')) {
+    res.writeHead(301, { Location: 'https://' + CANONICAL_HOST + url.pathname + url.search });
+    return res.end();
+  }
   try {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
