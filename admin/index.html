@@ -227,6 +227,61 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .rc-items td.r{text-align:right;white-space:nowrap;padding-left:10px}
 .rc-items .q{color:#777;font-size:.7rem;margin-top:1px}
 .rc-total{display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:2px solid #111;padding-top:9px;margin-top:2px;color:#0f3a24}
+/* ---------- Settings: topics on the left, one topic at a time ---------- */
+.set-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;align-items:start;max-width:1020px}
+.set-nav{position:sticky;top:84px;display:flex;flex-direction:column;gap:3px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px}
+.set-nav button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:9px 12px;border:0;background:none;border-radius:10px;
+  font:inherit;font-size:.9rem;font-weight:600;color:var(--ink);text-align:start;cursor:pointer;transition:background .15s,color .15s}
+.set-nav button svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.set-nav button:hover{background:var(--cream)}
+.set-nav button.on{background:var(--green-700);color:#fff}
+.set-nav button.on svg{color:var(--gold-200)}
+.set-sec{display:none}
+.set-sec.on{display:block;min-width:0;animation:setIn .18s ease-out}
+.set-main{min-width:0}
+.set-card .tbl-wrap{overflow-x:auto}
+@keyframes setIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.set-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px}
+.set-card>h3,.set-card summary h3{font-size:1.02rem;color:var(--green-800);margin:0 0 4px}
+.set-sub{display:block;color:var(--muted);font-size:.86rem;line-height:1.5;margin:0 0 14px}
+.set-subhead{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-600);margin:6px 0 10px}
+.set-card .field:last-child{margin-bottom:0}
+.zone-pt{display:flex;gap:4px;align-items:center}
+.zone-pt input{width:100%;min-width:0;padding:7px 6px;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem}
+.set-copy{display:flex;gap:8px;align-items:center}
+.set-copy input{flex:1;min-width:0}
+.set-add{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.set-add .field{margin:0;flex:1;min-width:140px}
+.set-test{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.set-test>div{font-size:.86rem;line-height:1.55;flex:1;min-width:200px}
+.set-state{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:.86rem;line-height:1.5;background:var(--cream)}
+.set-state.ok{background:#eef7f1;color:var(--green-800)}
+.set-state.warn{background:#fff6ec;color:#8a4b0f}
+.set-more{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.set-more summary,.set-more-card summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600;color:var(--green-800);min-height:36px}
+.set-more summary::-webkit-details-marker,.set-more-card summary::-webkit-details-marker{display:none}
+.set-more summary::before,.set-more-card summary::before{content:'';width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s;margin-inline-end:4px}
+.set-more[open] summary::before,.set-more-card[open] summary::before{transform:rotate(45deg)}
+.set-more[open] summary{margin-bottom:12px}
+.set-more-card summary{flex-direction:row}
+.set-more-card summary h3{margin:0}
+.set-more-card summary .set-sub{margin:0;flex-basis:100%;padding-inline-start:16px}
+.set-pill{font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--cream);color:var(--muted)}
+.set-pill.ok{background:#e3f2e8;color:var(--green-700)}
+.set-save{position:sticky;bottom:0;z-index:5;display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:12px 0 14px;
+  background:linear-gradient(to top,var(--cream) 70%,rgba(250,246,236,0))}
+.set-save .btn{min-width:170px;min-height:44px}
+#setDirty{display:none;font-size:.84rem;color:#8a4b0f;font-weight:600}
+.set-layout.dirty #setDirty{display:inline}
+@media(max-width:860px){
+  .set-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  .set-nav{position:sticky;top:60px;z-index:6;flex-direction:row;overflow-x:auto;scrollbar-width:none;padding:6px;gap:6px;min-width:0}
+  .set-nav::-webkit-scrollbar{display:none}
+  .set-nav button{width:auto;flex-shrink:0;white-space:nowrap;padding:8px 12px}
+  .set-card{padding:16px}
+  .set-save .btn{flex:1}
+}
+@media(prefers-reduced-motion:reduce){.set-sec.on{animation:none}}
 .yb-box{margin-top:9px;padding:10px 12px;border:1px solid #cfe3d6;background:#f3faf5;border-radius:10px;font-size:.84rem;line-height:1.55}
 .yb-box.warn{border-color:#f0c9a8;background:#fff7f0}
 .yb-meta{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:3px;color:var(--ink-soft,#333)}
@@ -984,181 +1039,294 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       </section>
 
       <section class="view" id="view-settings">
-        <div class="page-head"><div><h2>Settings</h2><p>Store configuration — used across your website</p></div></div>
-        <form class="panel" id="settingsForm" style="max-width:680px">
-          <div class="grid2">
-            <div class="field"><label>Store name</label><input id="s_store_name"></div>
-            <div class="field"><label>WhatsApp number (no +, e.g. 2207093900)</label><input id="s_whatsapp_number"></div>
-            <div class="field"><label>Delivery fee (GMD)</label><input id="s_delivery_fee" type="number"></div>
-            <div class="field"><label>Free delivery over (GMD)</label><input id="s_free_delivery_over" type="number"></div>
-            <div class="field"><label>Low-stock alert threshold</label><input id="s_low_stock_threshold" type="number"></div>
-            <div class="field"><label>Largest discount a salesperson may give (%)</label><input id="s_max_staff_discount_pct" type="number" min="0" max="100" step="1"><div class="hint">Applies to the Final discount button when recording a sale. Set 0 to switch staff discounts off. You, as the owner, are never limited.</div></div>
-          </div>
-          <div class="field"><label>Announcement bar — English</label><input id="s_announce_en"></div>
-          <div class="field"><label>Announcement bar — Arabic</label><input id="s_announce_ar" dir="rtl"></div>
-          <div class="grid2">
-            <div class="field"><label>Contact address — English</label><input id="s_contact_address_en"></div>
-            <div class="field"><label>Contact address — Arabic</label><input id="s_contact_address_ar" dir="rtl"></div>
-            <div class="field"><label>Opening hours — English</label><input id="s_contact_hours_en"></div>
-            <div class="field"><label>Opening hours — Arabic</label><input id="s_contact_hours_ar" dir="rtl"></div>
-            <div class="field"><label>Estimated delivery — English</label><input id="s_est_delivery_en" placeholder="Shown on product pages"></div>
-            <div class="field"><label>Estimated delivery — Arabic</label><input id="s_est_delivery_ar" dir="rtl"></div>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Payment details (shown to customers at checkout)</div>
-          <div class="grid2">
-            <div class="field"><label>Account name (receives mobile money)</label><input id="s_pay_account_name" placeholder="e.g. Jeddah Trading"></div>
-            <div class="field"><label>WAVE number</label><input id="s_pay_wave_number" placeholder="e.g. 2207093900"></div>
-            <div class="field"><label>AfriMoney number</label><input id="s_pay_afri_number"></div>
-            <div class="field"><label>QMoney number</label><input id="s_pay_qmoney_number"></div>
-            <div class="field"><label>Bank name</label><input id="s_pay_bank_name" placeholder="Optional"></div>
-            <div class="field"><label>Bank account number</label><input id="s_pay_bank_account" placeholder="Optional"></div>
-          </div>
-          <div class="field"><label>Payment note — English</label><input id="s_pay_note_en" placeholder="e.g. Send the exact total, then upload your screenshot."></div>
-          <div class="field"><label>Payment note — Arabic</label><input id="s_pay_note_ar" dir="rtl"></div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Live chat</div>
-          <div class="grid2">
-            <div class="field"><label>Chat presence</label><select id="s_chat_online"><option value="auto">Auto — online while staff are active</option><option value="on">Always online</option><option value="off">Always offline</option></select></div>
-            <div class="field"><label>Allow image attachments</label><select id="s_chat_upload"><option value="1">Yes</option><option value="0">No</option></select></div>
-            <div class="field"><label>Welcome message (EN)</label><textarea id="s_chat_welcome_en"></textarea></div>
-            <div class="field"><label>Welcome message (AR)</label><textarea id="s_chat_welcome_ar" dir="rtl"></textarea></div>
-            <div class="field"><label>Offline auto-reply (EN)</label><textarea id="s_chat_offline_en"></textarea></div>
-            <div class="field"><label>Offline auto-reply (AR)</label><textarea id="s_chat_offline_ar" dir="rtl"></textarea></div>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Which payment methods the shop offers</div>
-          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Switch a method off and customers stop seeing it at checkout — the shop keeps working and you can switch it straight back on, so an outage at one provider is never a dead end. Cash on delivery means the rider collects; the others mean the customer transfers the money and sends you a screenshot to check by hand.</p>
-          <div id="payMethodBoxes" class="grid2" style="gap:6px 18px"></div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Delivery — Yobal Express</div>
-          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Yobal Express (a LUBEZZ company) can carry your home deliveries. Customers are charged Yobal's price for their location, a courier is booked by itself when you <b>confirm</b> an order, and Yobal's updates move the order to <i>Out for delivery</i> and <i>Delivered</i>. Your "free delivery over" amount still applies — the shop then pays Yobal. Switch back to <b>Own couriers</b> at any time; nothing is lost. Start in <b>Test</b> mode: it uses a practice Yobal inside the shop, so no courier is sent.</p>
-          <div class="grid2">
-            <div class="field"><label>Who delivers home orders</label><select id="s_delivery_provider"><option value="own">Own couriers</option><option value="yobal">Yobal Express</option></select></div>
-            <div class="field"><label>Yobal mode</label><select id="s_yobal_mode"><option value="test">Test — practice, nothing sent</option><option value="live">Live — real couriers</option></select></div>
-            <div class="field"><label>Shop map position — latitude</label><input id="s_yobal_pickup_lat" inputmode="decimal" placeholder="e.g. 13.4180"></div>
-            <div class="field"><label>Shop map position — longitude</label><input id="s_yobal_pickup_lng" inputmode="decimal" placeholder="e.g. -16.6870"></div>
-          </div>
-          <button type="button" class="btn btn-outline btn-sm" id="ybHere" style="margin:-4px 0 12px">📍 Use this device's location (stand in the shop)</button>
-          <div class="grid2">
-            <div class="field"><label>Shop area</label><input id="s_yobal_pickup_area" placeholder="Bundung"></div>
-            <div class="field"><label>Shop landmark (what the courier looks for)</label><input id="s_yobal_pickup_landmark" placeholder="Jeddah Trading, Bundung Kakunda"></div>
-            <div class="field"><label>Shop phone for the courier</label><input id="s_yobal_pickup_phone" placeholder="+2207093900" dir="ltr"></div>
-            <div class="field"><label>Packing time (minutes)</label><input id="s_yobal_prep_minutes" type="number" min="0" max="240" placeholder="30">
-              <small style="color:var(--muted)">The courier is timed to arrive this long after you confirm.</small></div>
-          </div>
-          <div class="grid2">
-            <div class="field"><label>Yobal API address</label><input id="s_yobal_api_url" dir="ltr" placeholder="https://api.…/v1/business"></div>
-            <div class="field"><label>Yobal API key</label><input id="s_yobal_api_key" autocomplete="off" placeholder="yb_live_… (from Yobal Express)"></div>
-            <div class="field"><label>Yobal webhook secret</label><input id="s_yobal_webhook_secret" autocomplete="off" placeholder="from Yobal Express"></div>
-            <div class="field"><label>Webhook address (give this to Yobal)</label>
-              <div style="display:flex;gap:8px"><input id="ybHookUrl" readonly dir="ltr" style="flex:1"><button type="button" class="btn btn-outline btn-sm" data-copy="ybHookUrl">Copy</button></div></div>
-          </div>
-          <button class="btn btn-outline btn-sm" id="ybTest" type="button" style="margin-top:4px">Test the connection</button>
-          <div id="ybTestOut" style="font-size:.86rem;margin-top:9px;line-height:1.6"></div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">          <div class="section-label">Online payments — Modem Pay</div>
-          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Lets customers pay on the spot with Wave, AfriMoney, QMoney, APS, Yonna or a card, instead of transferring the money themselves and sending a screenshot. Cash on delivery and the manual transfers stay exactly as they are. Get the keys from your Modem Pay dashboard, and set the webhook there to <code>https://shopjeddahtrading.com/api/webhooks/modempay</code>. Start with the test keys (<code>sk_test_…</code>) until you have seen a payment go through. The two secrets are never shown again once saved — leave the dots alone to keep the stored value.</p>
-          <div class="grid2">
-            <div class="field"><label>Accept online payments</label><select id="s_modempay_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
-            <div class="field"><label>Public key</label><input id="s_modempay_public_key" placeholder="pk_test_…" autocomplete="off"></div>
-            <div class="field"><label>Secret key</label><input id="s_modempay_secret_key" placeholder="sk_test_…" autocomplete="off"></div>
-            <div class="field"><label>Webhook secret</label><input id="s_modempay_webhook_secret" placeholder="from Developers → Webhooks" autocomplete="off"></div>
-          </div>
-          <button class="btn btn-outline btn-sm" id="mpTest" style="margin-top:4px">Test the connection</button>
-          <div id="mpTestOut" style="font-size:.86rem;margin-top:9px;line-height:1.6"></div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">United Kingdom</div>
-          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your UK partner holds the stock and posts the orders. Their name and full UK address are required by UK food labelling law and are shown to buyers. Nothing here appears on the shop until "Sell in the UK" is on.</p>
-          <div class="grid2">
-            <div class="field"><label>Sell in the UK</label><select id="s_uk_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
-            <div class="field"><label>Partner / importer name</label><input id="s_uk_business_name" placeholder="e.g. Jeddah Trading UK"></div>
-            <div class="field"><label>Delivery charge (£)</label><input id="s_uk_delivery_fee" type="number" min="0" step="0.01" placeholder="3.95"></div>
-            <div class="field"><label>Free delivery over (£)</label><input id="s_uk_free_over" type="number" min="0" step="0.01" placeholder="45"></div>
-          </div>
-          <div class="field"><label>Partner's full UK address</label><input id="s_uk_business_address" placeholder="House, street, town, postcode"></div>
-          <div class="field"><label>Returns address</label><input id="s_uk_returns_address" placeholder="Where a UK customer posts things back"></div>
-          <div class="field"><label>UK VAT number</label><input id="s_uk_vat_number" placeholder="Leave empty until HMRC registration is through"></div>
-          <div class="grid2">
-            <div class="field"><label>Account name</label><input id="s_uk_bank_account_name"></div>
-            <div class="field"><label>Bank</label><input id="s_uk_bank_name" placeholder="e.g. Barclays"></div>
-            <div class="field"><label>Sort code</label><input id="s_uk_sort_code" placeholder="00-00-00"></div>
-            <div class="field"><label>Account number</label><input id="s_uk_account_number" placeholder="8 digits"></div>
-          </div>
-          <div class="field"><label>PayPal link</label><input id="s_uk_paypal_link" placeholder="https://paypal.me/yourname — leave empty to hide PayPal"></div>
-          <div class="field"><label>Delivery note shown at checkout</label><input id="s_uk_dispatch_note"></div>
-          <div class="field"><label>Cancellation &amp; returns wording</label><textarea id="s_uk_returns_policy" rows="4"></textarea>
-            <small style="color:var(--muted)">UK law gives the buyer 14 days to change their mind. If you do not tell them, that becomes 12 months — so leave this filled in.</small></div>
+        <div class="page-head"><div><h2>Settings</h2><p>How your shop works — choose a topic</p></div></div>
+        <!-- One form, in topics. Every field keeps its id, so saving and loading are unchanged;
+             the tabs only decide which topic is on screen. -->
+        <form id="settingsForm" class="set-layout">
+          <nav class="set-nav" aria-label="Settings topics">
+            <button type="button" data-set-tab="shop"><svg viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg><span>Shop</span></button>
+            <button type="button" data-set-tab="website"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg><span>Website text</span></button>
+            <button type="button" data-set-tab="delivery"><svg viewBox="0 0 24 24"><rect x="1" y="5" width="14" height="11"/><path d="M15 9h4l3 3v4h-7z"/><circle cx="5.5" cy="18" r="2"/><circle cx="18.5" cy="18" r="2"/></svg><span>Delivery</span></button>
+            <button type="button" data-set-tab="payments"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span>Payments</span></button>
+            <button type="button" data-set-tab="chat"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></svg><span>Live chat</span></button>
+            <button type="button" data-set-tab="marketing"><svg viewBox="0 0 24 24"><path d="M3 11l15-6v14L3 13z"/><path d="M7 13v5h3"/></svg><span>Facebook &amp; ads</span></button>
+            <button type="button" data-set-tab="uk"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span>United Kingdom</span></button>
+            <button type="button" data-set-tab="security"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Password &amp; backup</span></button>
+          </nav>
 
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Facebook &amp; Instagram ads</div>
-          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Your products are published as a catalogue file that Facebook re-reads on its own, so adverts always show the current price and stock. Paste the two links below into Commerce Manager once.</p>
-          <div class="grid2">
-            <div class="field"><label>Meta Pixel ID</label><input id="s_meta_pixel_id" placeholder="e.g. 123456789012345" inputmode="numeric">
-              <small style="color:var(--muted)">Leave blank and no tracking code is loaded for shoppers at all. With an ID, Facebook can show an advert for the exact item someone looked at.</small></div>
-            <div class="field"><label>Catalogue currency</label>
-              <select id="s_catalog_currency">
-                <option value="GMD">GMD — Gambian Dalasi</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="EUR">EUR — Euro</option>
-                <option value="GBP">GBP — Pound Sterling</option>
-              </select>
-              <small style="color:var(--muted)">Only change this if Facebook rejects the feed over currency.</small></div>
-          </div>
-          <div class="field"><label>Website address</label><input id="s_site_url" placeholder="https://shopjeddahtrading.com">
-            <small style="color:var(--muted)">Used in the catalogue and in link previews. Leave blank to work it out automatically.</small></div>
-          <div class="field"><label>Catalogue links (give these to Facebook)</label>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-              <input id="feedCsvUrl" readonly style="flex:1">
-              <button type="button" class="btn btn-outline btn-sm" data-copy="feedCsvUrl">Copy</button>
+          <div class="set-main">
+            <!-- ============ SHOP ============ -->
+            <div class="set-sec" data-sec="shop">
+              <div class="set-card">
+                <h3>Your shop</h3>
+                <div class="grid2">
+                  <div class="field"><label>Store name</label><input id="s_store_name"></div>
+                  <div class="field"><label>WhatsApp number</label><input id="s_whatsapp_number" dir="ltr" placeholder="2207093900">
+                    <div class="hint">Country code first, no + or spaces.</div></div>
+                </div>
+              </div>
+              <div class="set-card">
+                <h3>Stock &amp; counter sales</h3>
+                <div class="grid2">
+                  <div class="field"><label>Low-stock alert at</label><input id="s_low_stock_threshold" type="number" min="0">
+                    <div class="hint">Warn when an item has this many left (unless it has its own minimum).</div></div>
+                  <div class="field"><label>Largest staff discount (%)</label><input id="s_max_staff_discount_pct" type="number" min="0" max="100" step="1">
+                    <div class="hint">For the Final discount button. 0 switches staff discounts off. The owner is never limited.</div></div>
+                </div>
+              </div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input id="feedXmlUrl" readonly style="flex:1">
-              <button type="button" class="btn btn-outline btn-sm" data-copy="feedXmlUrl">Copy</button>
+
+            <!-- ============ WEBSITE TEXT ============ -->
+            <div class="set-sec" data-sec="website">
+              <div class="set-card">
+                <h3>Announcement bar</h3>
+                <p class="set-sub">The one line at the very top of the shop.</p>
+                <div class="field"><label>English</label><input id="s_announce_en"></div>
+                <div class="field"><label>Arabic</label><input id="s_announce_ar" dir="rtl"></div>
+              </div>
+              <div class="set-card">
+                <h3>Address &amp; opening hours</h3>
+                <p class="set-sub">Shown on the Help page.</p>
+                <div class="grid2">
+                  <div class="field"><label>Address — English</label><input id="s_contact_address_en"></div>
+                  <div class="field"><label>Address — Arabic</label><input id="s_contact_address_ar" dir="rtl"></div>
+                  <div class="field"><label>Opening hours — English</label><input id="s_contact_hours_en"></div>
+                  <div class="field"><label>Opening hours — Arabic</label><input id="s_contact_hours_ar" dir="rtl"></div>
+                </div>
+              </div>
             </div>
-            <small style="color:var(--muted)">Commerce Manager → Catalogue → Data sources → Scheduled feed. Either link works; set it to refresh daily.</small>
+
+            <!-- ============ DELIVERY ============ -->
+            <div class="set-sec" data-sec="delivery">
+              <div class="set-card">
+                <h3>Who delivers home orders</h3>
+                <div class="grid2">
+                  <div class="field"><label>Delivered by</label><select id="s_delivery_provider"><option value="own">Own couriers</option><option value="yobal">Yobal Express</option></select></div>
+                  <div class="field"><label>Free delivery over (GMD)</label><input id="s_free_delivery_over" type="number" min="0">
+                    <div class="hint">Above this the customer pays no delivery.</div></div>
+                </div>
+                <div id="ybState" class="set-state"></div>
+              </div>
+
+              <div class="set-card set-yobal">
+                <h3>Yobal Express</h3>
+                <p class="set-sub">Customers pay Yobal's price for their spot. Confirming an order books the courier; Yobal's updates move it to <i>Out for delivery</i> and <i>Delivered</i>.</p>
+                <div class="grid2">
+                  <div class="field"><label>Mode</label><select id="s_yobal_mode"><option value="live">Live — real couriers</option><option value="test">Test — practice, no courier is sent</option></select></div>
+                  <div class="field"><label>Packing time (minutes)</label><input id="s_yobal_prep_minutes" type="number" min="0" max="240" placeholder="30">
+                    <div class="hint">The courier is timed to arrive this long after you confirm.</div></div>
+                </div>
+                <div class="set-subhead">Where couriers collect</div>
+                <div class="grid2">
+                  <div class="field"><label>Latitude</label><input id="s_yobal_pickup_lat" inputmode="decimal" dir="ltr" placeholder="13.4180"></div>
+                  <div class="field"><label>Longitude</label><input id="s_yobal_pickup_lng" inputmode="decimal" dir="ltr" placeholder="-16.6870"></div>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="ybHere">📍 Use this device's location — stand in the shop</button>
+                <div class="grid2" style="margin-top:14px">
+                  <div class="field"><label>Area</label><input id="s_yobal_pickup_area" placeholder="Bundung"></div>
+                  <div class="field"><label>Phone for the courier</label><input id="s_yobal_pickup_phone" placeholder="+2207093900" dir="ltr"></div>
+                </div>
+                <div class="field"><label>Landmark — what the courier looks for</label><input id="s_yobal_pickup_landmark" placeholder="Jeddah Trading, Bundung Kakunda"></div>
+
+                <details class="set-more" id="ybConn">
+                  <summary>Connection to Yobal Express <span class="set-pill" id="ybKeysPill"></span></summary>
+                  <div class="field"><label>API address</label><input id="s_yobal_api_url" dir="ltr" placeholder="https://api.…/v1/business"></div>
+                  <div class="grid2">
+                    <div class="field"><label>API key</label><input id="s_yobal_api_key" autocomplete="off" placeholder="yb_live_…"></div>
+                    <div class="field"><label>Webhook secret</label><input id="s_yobal_webhook_secret" autocomplete="off" placeholder="from Yobal Express"></div>
+                  </div>
+                  <div class="hint" style="margin:-6px 0 12px">Saved keys show as dots. Leave the dots to keep them.</div>
+                  <div class="field"><label>Webhook address — give this to Yobal</label>
+                    <div class="set-copy"><input id="ybHookUrl" readonly dir="ltr"><button type="button" class="btn btn-outline btn-sm" data-copy="ybHookUrl">Copy</button></div></div>
+                </details>
+                <div class="set-test">
+                  <button class="btn btn-outline btn-sm" id="ybTest" type="button">Test the connection</button>
+                  <div id="ybTestOut"></div>
+                </div>
+              </div>
+
+              <div class="set-card">
+                <h3>Own couriers</h3>
+                <p class="set-sub">Used when "Delivered by" is Own couriers, or when Yobal can't reach an address.</p>
+                <div class="grid2">
+                  <div class="field"><label>Standard delivery fee (GMD)</label><input id="s_delivery_fee" type="number" min="0">
+                    <div class="hint">When the customer's area isn't in the list below.</div></div>
+                  <div class="field"><label>Estimated delivery — English</label><input id="s_est_delivery_en" placeholder="Shown on product pages"></div>
+                  <div class="field"><label>Estimated delivery — Arabic</label><input id="s_est_delivery_ar" dir="rtl"></div>
+                </div>
+              </div>
+
+              <div class="set-card" id="zonesPanel">
+                <h3>Delivery areas</h3>
+                <p class="set-sub">Customers choose their area at checkout. <b>Fee</b> is for own couriers. <b>Map point</b> is the area's centre — Yobal prices from it when a customer doesn't share their location. Stand in the area and press 📍, then Save.</p>
+                <div class="tbl-wrap" style="margin-bottom:14px"><table>
+                  <thead><tr><th>Area</th><th style="width:100px">Fee (GMD)</th><th style="width:200px">Map point (lat, lng)</th><th style="width:66px">Shown</th><th style="width:96px"></th></tr></thead>
+                  <tbody id="zoneRows"></tbody>
+                </table></div>
+                <div class="set-add">
+                  <div class="field"><label>New area</label><input id="nz_name" placeholder="e.g. Tanji"></div>
+                  <div class="field"><label>Fee (GMD)</label><input id="nz_fee" type="number" min="0" step="1" placeholder="200"></div>
+                  <button class="btn btn-gold btn-sm" id="addZone" type="button">Add area</button>
+                </div>
+              </div>
+
+              <div class="set-card" id="ybStmtPanel">
+                <h3>Yobal weekly statement</h3>
+                <p class="set-sub">Monday–Sunday. Yobal pays the shop the cash it collected, minus its fares.</p>
+                <div class="set-add">
+                  <div class="field"><label>Any day in the week</label><input type="date" id="ybWeek"></div>
+                  <button type="button" class="btn btn-outline btn-sm" id="ybStmtGo">Show</button>
+                </div>
+                <div id="ybStmt"></div>
+              </div>
+            </div>
+
+            <!-- ============ PAYMENTS ============ -->
+            <div class="set-sec" data-sec="payments">
+              <div class="set-card">
+                <h3>Payment methods at checkout</h3>
+                <p class="set-sub">Switch a method off and customers stop seeing it. Switch it back on any time.</p>
+                <div id="payMethodBoxes" class="grid2" style="gap:6px 18px"></div>
+              </div>
+              <div class="set-card">
+                <h3>Pay now — Modem Pay</h3>
+                <p class="set-sub">Customers pay on the spot with Wave, AfriMoney, QMoney or a card. Set the webhook in Modem Pay to <code>https://shopjeddahtrading.com/api/webhooks/modempay</code>.</p>
+                <div class="grid2">
+                  <div class="field"><label>Accept online payments</label><select id="s_modempay_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
+                  <div class="field"><label>Public key</label><input id="s_modempay_public_key" placeholder="pk_…" autocomplete="off"></div>
+                  <div class="field"><label>Secret key</label><input id="s_modempay_secret_key" placeholder="sk_…" autocomplete="off"></div>
+                  <div class="field"><label>Webhook secret</label><input id="s_modempay_webhook_secret" placeholder="from Developers → Webhooks" autocomplete="off"></div>
+                </div>
+                <div class="hint" style="margin:-6px 0 12px">Saved secrets show as dots. Leave the dots to keep them.</div>
+                <div class="set-test">
+                  <button class="btn btn-outline btn-sm" id="mpTest">Test the connection</button>
+                  <div id="mpTestOut"></div>
+                </div>
+              </div>
+              <details class="set-card set-more-card">
+                <summary><h3>Mobile money &amp; bank details</h3><span class="set-sub">Only shown when a transfer method (Wave, AfriMoney, QMoney, bank) is switched on.</span></summary>
+                <div class="grid2" style="margin-top:14px">
+                  <div class="field"><label>Account name</label><input id="s_pay_account_name" placeholder="e.g. Jeddah Trading"></div>
+                  <div class="field"><label>Wave number</label><input id="s_pay_wave_number" dir="ltr" placeholder="2207093900"></div>
+                  <div class="field"><label>AfriMoney number</label><input id="s_pay_afri_number" dir="ltr"></div>
+                  <div class="field"><label>QMoney number</label><input id="s_pay_qmoney_number" dir="ltr"></div>
+                  <div class="field"><label>Bank name</label><input id="s_pay_bank_name" placeholder="Optional"></div>
+                  <div class="field"><label>Bank account number</label><input id="s_pay_bank_account" placeholder="Optional"></div>
+                </div>
+                <div class="field"><label>Payment note — English</label><input id="s_pay_note_en" placeholder="e.g. Send the exact total, then upload your screenshot."></div>
+                <div class="field"><label>Payment note — Arabic</label><input id="s_pay_note_ar" dir="rtl"></div>
+              </details>
+            </div>
+
+            <!-- ============ LIVE CHAT ============ -->
+            <div class="set-sec" data-sec="chat">
+              <div class="set-card">
+                <h3>Live chat</h3>
+                <div class="grid2">
+                  <div class="field"><label>Show the shop as</label><select id="s_chat_online"><option value="auto">Auto — online while staff are active</option><option value="on">Always online</option><option value="off">Always offline</option></select></div>
+                  <div class="field"><label>Customers may send photos</label><select id="s_chat_upload"><option value="1">Yes</option><option value="0">No</option></select></div>
+                </div>
+              </div>
+              <div class="set-card">
+                <h3>Messages</h3>
+                <div class="grid2">
+                  <div class="field"><label>Welcome — English</label><textarea id="s_chat_welcome_en"></textarea></div>
+                  <div class="field"><label>Welcome — Arabic</label><textarea id="s_chat_welcome_ar" dir="rtl"></textarea></div>
+                  <div class="field"><label>When nobody is online — English</label><textarea id="s_chat_offline_en"></textarea></div>
+                  <div class="field"><label>When nobody is online — Arabic</label><textarea id="s_chat_offline_ar" dir="rtl"></textarea></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============ FACEBOOK & ADS ============ -->
+            <div class="set-sec" data-sec="marketing">
+              <div class="set-card">
+                <h3>Facebook &amp; Instagram</h3>
+                <div class="grid2">
+                  <div class="field"><label>Meta Pixel ID</label><input id="s_meta_pixel_id" placeholder="123456789012345" inputmode="numeric">
+                    <div class="hint">Leave blank and no tracking code is loaded at all.</div></div>
+                  <div class="field"><label>Catalogue currency</label>
+                    <select id="s_catalog_currency">
+                      <option value="GMD">GMD — Gambian Dalasi</option>
+                      <option value="USD">USD — US Dollar</option>
+                      <option value="EUR">EUR — Euro</option>
+                      <option value="GBP">GBP — Pound Sterling</option>
+                    </select>
+                    <div class="hint">Only change it if Facebook rejects the feed.</div></div>
+                </div>
+                <div class="field"><label>Website address</label><input id="s_site_url" dir="ltr" placeholder="https://shopjeddahtrading.com">
+                  <div class="hint">For the catalogue and link previews. Blank = worked out automatically.</div></div>
+              </div>
+              <div class="set-card">
+                <h3>Product catalogue links</h3>
+                <p class="set-sub">Paste one into Commerce Manager → Catalogue → Data sources → Scheduled feed, refreshing daily.</p>
+                <div class="set-copy" style="margin-bottom:8px"><input id="feedCsvUrl" readonly dir="ltr"><button type="button" class="btn btn-outline btn-sm" data-copy="feedCsvUrl">Copy</button></div>
+                <div class="set-copy"><input id="feedXmlUrl" readonly dir="ltr"><button type="button" class="btn btn-outline btn-sm" data-copy="feedXmlUrl">Copy</button></div>
+              </div>
+              <div class="set-card" id="newsPanel">
+                <h3>Newsletter subscribers <span class="tag green" id="newsCount">0</span></h3>
+                <p class="set-sub">People who signed up on the website.</p>
+                <div class="tbl-wrap"><table>
+                  <thead><tr><th>Email</th><th class="hide-sm">Joined</th><th style="width:80px"></th></tr></thead>
+                  <tbody id="newsRows"></tbody>
+                </table></div>
+              </div>
+            </div>
+
+            <!-- ============ UNITED KINGDOM ============ -->
+            <div class="set-sec" data-sec="uk">
+              <div class="set-card">
+                <h3>Selling in the UK</h3>
+                <p class="set-sub">Your UK partner holds the stock and posts orders. Nothing appears on the shop until this is on.</p>
+                <div class="grid2">
+                  <div class="field"><label>Sell in the UK</label><select id="s_uk_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
+                  <div class="field"><label>Partner / importer name</label><input id="s_uk_business_name" placeholder="e.g. Jeddah Trading UK"></div>
+                  <div class="field"><label>Delivery charge (£)</label><input id="s_uk_delivery_fee" type="number" min="0" step="0.01" placeholder="3.95"></div>
+                  <div class="field"><label>Free delivery over (£)</label><input id="s_uk_free_over" type="number" min="0" step="0.01" placeholder="45"></div>
+                </div>
+              </div>
+              <div class="set-card">
+                <h3>Partner's addresses</h3>
+                <p class="set-sub">Required by UK food labelling law and shown to buyers.</p>
+                <div class="field"><label>Full UK address</label><input id="s_uk_business_address" placeholder="House, street, town, postcode"></div>
+                <div class="field"><label>Returns address</label><input id="s_uk_returns_address" placeholder="Where a UK customer posts things back"></div>
+                <div class="field"><label>UK VAT number</label><input id="s_uk_vat_number" placeholder="Leave empty until HMRC registration is through"></div>
+              </div>
+              <div class="set-card">
+                <h3>How UK buyers pay</h3>
+                <div class="grid2">
+                  <div class="field"><label>Account name</label><input id="s_uk_bank_account_name"></div>
+                  <div class="field"><label>Bank</label><input id="s_uk_bank_name" placeholder="e.g. Barclays"></div>
+                  <div class="field"><label>Sort code</label><input id="s_uk_sort_code" placeholder="00-00-00" dir="ltr"></div>
+                  <div class="field"><label>Account number</label><input id="s_uk_account_number" placeholder="8 digits" dir="ltr"></div>
+                </div>
+                <div class="field"><label>PayPal link</label><input id="s_uk_paypal_link" dir="ltr" placeholder="https://paypal.me/yourname — blank hides PayPal"></div>
+              </div>
+              <div class="set-card">
+                <h3>Delivery &amp; returns wording</h3>
+                <div class="field"><label>Delivery note at checkout</label><input id="s_uk_dispatch_note"></div>
+                <div class="field"><label>Cancellation &amp; returns</label><textarea id="s_uk_returns_policy" rows="4"></textarea>
+                  <div class="hint">UK law gives buyers 14 days to change their mind — keep this filled in, or it becomes 12 months.</div></div>
+              </div>
+            </div>
+
+            <!-- ============ PASSWORD & BACKUP ============ -->
+            <div class="set-sec" data-sec="security">
+              <div class="set-card">
+                <h3>Owner password</h3>
+                <div class="field" style="max-width:340px"><label>New password</label><input id="s_admin_password" type="password" placeholder="Leave blank to keep the current one" autocomplete="new-password"></div>
+              </div>
+              <div class="set-card" id="backupPanel" style="display:none">
+                <h3>Database backup</h3>
+                <p class="set-sub">One file with your whole store — products, orders, customers, payments, investors. Keep it off this server and take one before any big change. Owner only: it holds customer details.</p>
+                <button class="btn btn-gold btn-sm" id="dlBackup" type="button">Download backup</button>
+                <span id="backupNote" style="margin-inline-start:10px;color:var(--muted);font-size:.84rem"></span>
+              </div>
+            </div>
+
+            <div class="set-save"><span id="setDirty">You have unsaved changes</span><button type="submit" class="btn btn-primary">Save settings</button></div>
           </div>
-          <div class="field"><label>Change owner password (leave blank to keep)</label><input id="s_admin_password" type="password" placeholder="New password" autocomplete="new-password"></div>
-          <button type="submit" class="btn btn-primary">Save settings</button>
         </form>
-
-        <div class="panel" id="zonesPanel" style="max-width:680px">
-          <h3>Delivery locations &amp; fees</h3>
-          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Customers pick their location at checkout and the matching fee is applied automatically. With Yobal Express on, the fee is Yobal's price instead, and the <b>map point</b> is where a zone is priced from when the customer doesn't share their own location — stand in the middle of the area and press 📍, or type it in.</p>
-          <div class="tbl-wrap" style="margin-bottom:14px"><table>
-            <thead><tr><th>Location</th><th style="width:100px">Fee (GMD)</th><th style="width:190px" title="The zone's centre — Yobal Express prices from here when a customer does not share their location">Map point (lat, lng)</th><th style="width:70px">Shown</th><th style="width:90px"></th></tr></thead>
-            <tbody id="zoneRows"></tbody>
-          </table></div>
-          <div class="grid2">
-            <div class="field"><label>New location name</label><input id="nz_name" placeholder="e.g. Tanji"></div>
-            <div class="field"><label>Fee (GMD)</label><input id="nz_fee" type="number" min="0" step="1" placeholder="e.g. 200"></div>
-          </div>
-          <button class="btn btn-gold btn-sm" id="addZone" type="button">Add location</button>
-        </div>
-
-        <div class="panel" id="ybStmtPanel" style="max-width:680px">
-          <h3>Yobal Express — weekly statement</h3>
-          <p style="color:var(--muted);font-size:.86rem;margin-bottom:12px">Monday to Sunday. Yobal's couriers hand the cash they collected to Yobal; Yobal keeps its fares and pays the shop the rest every Monday. Compare these figures with Yobal's statement for the same week.</p>
-          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
-            <div class="field" style="margin:0"><label>Any day in the week</label><input type="date" id="ybWeek"></div>
-            <button type="button" class="btn btn-outline btn-sm" id="ybStmtGo">Show</button>
-          </div>
-          <div id="ybStmt"></div>
-        </div>
-        <div class="panel" id="newsPanel" style="max-width:680px">
-          <h3>Newsletter subscribers <span class="tag green" id="newsCount">0</span></h3>
-          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Customers who signed up on your website. Use these emails for promotions and announcements.</p>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Email</th><th class="hide-sm">Joined</th><th style="width:80px"></th></tr></thead>
-            <tbody id="newsRows"></tbody>
-          </table></div>
-        </div>
-
-        <div class="panel" id="backupPanel" style="max-width:680px;display:none">
-          <h3>Database backup</h3>
-          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Downloads one file containing your entire store — every product, order, customer, payment and investor record. Save it somewhere off this server, and always take one before a major change. Because it holds customer details and passwords, only the store owner can download it.</p>
-          <button class="btn btn-gold btn-sm" id="dlBackup" type="button">Download backup</button>
-          <span id="backupNote" style="margin-inline-start:10px;color:var(--muted);font-size:.84rem"></span>
-        </div>
       </section>
 
     </main>
@@ -4279,6 +4447,8 @@ function fillSettings(){
   if($('#ybHere'))$('#ybHere').onclick=()=>hereInto('#s_yobal_pickup_lat','#s_yobal_pickup_lng');
   if($('#ybTest'))$('#ybTest').onclick=yobalTest;
   if($('#ybStmt')&&(can('orders')||can('profit')))loadYobalStatement();
+  renderDeliveryState();
+  if($('#settingsForm'))$('#settingsForm').classList.remove('dirty');
 }
 /* Weekly Yobal statement: what Yobal collected, what it charged, who pays whom. */
 async function loadYobalStatement(){
@@ -4299,6 +4469,47 @@ async function loadYobalStatement(){
   }catch(e){box.innerHTML='<span style="color:var(--danger)">'+esc(e.message)+'</span>';}
 }
 if($('#ybStmtGo'))$('#ybStmtGo').onclick=loadYobalStatement;
+/* ---------- Settings topics ----------
+   One topic on screen at a time; the last one opened is remembered on this device. */
+const SET_TABS=['shop','website','delivery','payments','chat','marketing','uk','security'];
+function setTab(name){
+  if(!SET_TABS.includes(name))name='shop';
+  $$('[data-set-tab]').forEach(b=>{const on=b.dataset.setTab===name;b.classList.toggle('on',on);b.setAttribute('aria-current',on?'page':'false');});
+  $$('#settingsForm .set-sec').forEach(s=>s.classList.toggle('on',s.dataset.sec===name));
+  try{localStorage.setItem('jt_set_tab',name);}catch(e){}
+  // on a phone, slide the topic row (only the row — never the page) so the chosen topic is in view
+  const btn=$('[data-set-tab="'+name+'"]'),nav=$('.set-nav');
+  if(btn&&nav&&innerWidth<=860)nav.scrollLeft=Math.max(0,btn.offsetLeft-(nav.clientWidth-btn.offsetWidth)/2);
+}
+$$('[data-set-tab]').forEach(b=>b.onclick=()=>{setTab(b.dataset.setTab);const v=$('#view-settings');if(v&&innerWidth>860)window.scrollTo({top:0,behavior:'smooth'});});
+setTab((()=>{try{return localStorage.getItem('jt_set_tab')}catch(e){return null}})()||'shop');
+// "You have unsaved changes" next to Save, once a setting is edited
+if($('#settingsForm')){
+  $('#settingsForm').addEventListener('input',e=>{if(e.target.id&&e.target.id.startsWith('s_'))$('#settingsForm').classList.add('dirty');});
+  $('#settingsForm').addEventListener('change',e=>{if(e.target.id&&e.target.id.startsWith('s_')||e.target.matches('[data-paym]'))$('#settingsForm').classList.add('dirty');});
+  // Enter in a helper box (new area, week picker) must not save the whole settings form
+  $('#settingsForm').addEventListener('keydown',e=>{
+    if(e.key!=='Enter'||e.target.tagName==='TEXTAREA')return;
+    if(e.target.id==='nz_name'||e.target.id==='nz_fee'){e.preventDefault();$('#addZone').click();return;}
+    if(!(e.target.id||'').startsWith('s_'))e.preventDefault();
+  });
+}
+/* Plain-words status of delivery under "Who delivers". */
+function renderDeliveryState(){
+  const box=$('#ybState');if(!box)return;
+  const yobal=SETTINGS.delivery_provider==='yobal', live=SETTINGS.yobal_mode==='live';
+  const keys=!!SETTINGS.yobal_api_key&&!!SETTINGS.yobal_webhook_secret;
+  const spot=!!(SETTINGS.yobal_pickup_lat&&SETTINGS.yobal_pickup_lng);
+  const pill=$('#ybKeysPill');if(pill){pill.textContent=keys?'Keys saved ✓':'Not set up';pill.classList.toggle('ok',keys);}
+  const conn=$('#ybConn');if(conn&&!keys)conn.open=true;
+  let cls='',msg;
+  if(!yobal)msg='Your own couriers deliver home orders. Choose <b>Yobal Express</b> above to hand them to Yobal.';
+  else if(!live){cls='warn';msg='<b>Yobal Express — test mode.</b> Prices are practice prices and <b>no courier is sent</b>. Switch the mode to Live for real orders.';}
+  else if(!keys){cls='warn';msg='<b>Yobal Express is chosen but not connected.</b> Add the API key and webhook secret below — until then your own couriers deliver.';}
+  else if(!spot){cls='warn';msg='<b>Set the shop\'s location below</b> so couriers know where to collect.';}
+  else{cls='ok';msg='<b>✓ Yobal Express delivers your home orders.</b> Confirming an order books the courier.';}
+  box.className='set-state'+(cls?' '+cls:'');box.innerHTML=msg;
+}
 /* Fills two latitude/longitude boxes with where this phone or laptop is now. */
 function hereInto(latSel,lngSel,done){
   if(!navigator.geolocation){toast('This device cannot share its location');return;}
@@ -4358,7 +4569,7 @@ $('#dlBackup').onclick=async()=>{
 async function loadNewsletter(){
   try{const d=await api('/admin/newsletter');const subs=d.subscribers||[];
     $('#newsCount').textContent=subs.length;
-    $('#newsRows').innerHTML=subs.map(s=>`<tr><td dir="ltr">${esc(s.email)}</td><td class="hide-sm" style="color:var(--muted)">${(s.created_at||'').slice(0,10)}</td><td><div class="row-actions"><button class="btn btn-danger btn-sm" data-news-del="${s.id}">✕</button></div></td></tr>`).join('')
+    $('#newsRows').innerHTML=subs.map(s=>`<tr><td dir="ltr">${esc(s.email)}</td><td class="hide-sm" style="color:var(--muted)">${(s.created_at||'').slice(0,10)}</td><td><div class="row-actions"><button type="button" class="btn btn-danger btn-sm" data-news-del="${s.id}">✕</button></div></td></tr>`).join('')
       ||`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">No subscribers yet.</td></tr>`;
   }catch(e){}
 }
@@ -4370,8 +4581,9 @@ function renderZones(){
   el.innerHTML=ZONES.map(z=>`<tr>
     <td><input value="${esc(z.name_en)}" data-zn="${z.id}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px"></td>
     <td><input type="number" min="0" step="1" value="${z.fee}" data-zf="${z.id}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px"></td>
+    <td><div class="zone-pt"><input value="${z.lat??''}" data-zlat="${z.id}" placeholder="lat" inputmode="decimal" dir="ltr"><input value="${z.lng??''}" data-zlng="${z.id}" placeholder="lng" inputmode="decimal" dir="ltr"><button type="button" class="btn btn-outline btn-sm" data-zhere="${z.id}" title="Use this device's location" aria-label="Use this device's location">📍</button></div></td>
     <td style="text-align:center"><input type="checkbox" ${z.is_active?'checked':''} data-za="${z.id}" style="width:17px;height:17px"></td>
-    <td><div class="row-actions"><button class="btn btn-outline btn-sm" data-zone-save="${z.id}">Save</button><button class="btn btn-danger btn-sm" data-zone-del="${z.id}">✕</button></div></td>
+    <td><div class="row-actions"><button type="button" class="btn btn-outline btn-sm" data-zone-save="${z.id}">Save</button><button type="button" class="btn btn-danger btn-sm" data-zone-del="${z.id}">✕</button></div></td>
   </tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No locations yet — add one below.</td></tr>`;
 }
 if($('#addZone'))$('#addZone').onclick=async()=>{
@@ -4405,7 +4617,7 @@ document.addEventListener('click',async e=>{
   if(el=x('data-gimg-cut')){openBgPanel(+el.dataset.gimgCut);return;}
   if(el=x('data-invoice')){const o=ORDERS.find(o=>o.id==el.dataset.invoice);if(o)printInvoice(o);return;}
   if(el=x('data-proof')){window.open(el.dataset.proof,'_blank');return;}
-  if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;const lat=$('[data-zlat="'+id+'"]').value.trim(),lng=$('[data-zlng="'+id+'"]').value.trim();try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active,lat,lng})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
+  if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;const le=$('[data-zlat="'+id+'"]'),ge=$('[data-zlng="'+id+'"]');const lat=le?le.value.trim():undefined,lng=ge?ge.value.trim():undefined;try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active,lat,lng})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
   if(el=x('data-zhere')){const id=el.dataset.zhere;hereInto('[data-zlat="'+id+'"]','[data-zlng="'+id+'"]');return;}
   if(el=x('data-zone-del')){if(confirm('Delete this location?')){try{await api('/admin/zones/'+el.dataset.zoneDel,{method:'DELETE'});toast('Deleted');await loadZones();}catch(err){toast(err.message);}}return;}
   if(el=x('data-del-go')){deliveryAction(el.dataset.delGo,'pickup');return;}

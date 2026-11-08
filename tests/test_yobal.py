@@ -166,8 +166,18 @@ try:
         box=apg.inner_text("#ordList")
         chk("the admin order shows Yobal's panel, code and fare", "Yobal Express" in box and "4821" in box and "D65" in box, box[:160].replace("\n"," | "))
         apg.evaluate("document.querySelector('.navbtn[data-view=settings]').click()"); apg.wait_for_timeout(900)
+        apg.evaluate("setTab('delivery')"); apg.wait_for_timeout(300)   # Yobal lives on the Delivery tab
         chk("Settings has the Yobal Express section", apg.is_visible("#s_delivery_provider") and apg.input_value("#s_delivery_provider")=="yobal")
         chk("…and the weekly statement", "Yobal pays the shop" in apg.inner_text("#ybStmt"), apg.inner_text("#ybStmt")[:120])
+        # an area's fee and map point, saved through the screen exactly as the owner would
+        apg.evaluate("setTab('delivery')"); apg.wait_for_timeout(300)
+        zid=str(zone["id"])
+        apg.fill(f"[data-zf='{zid}']","120"); apg.fill(f"[data-zlat='{zid}']","13.4600"); apg.fill(f"[data-zlng='{zid}']","-16.5800")
+        apg.click(f"[data-zone-save='{zid}']"); apg.wait_for_timeout(900)
+        zz=next(z for z in api("/api/admin/zones",t=tok)["zones"] if z["id"]==zone["id"])
+        chk("an area's fee and map point save from the Delivery settings", zz["fee"]==120 and abs(zz["lat"]-13.46)<1e-6 and abs(zz["lng"]+16.58)<1e-6, zz)
+        chk("…without saving the rest of the settings form by accident", api("/api/admin/settings",t=tok)["delivery_provider"]=="yobal")
+        api(f"/api/admin/zones/{zone['id']}",{"fee":zone["fee"],"lat":"13.4549","lng":"-16.5790"},tok,"PATCH")
         apg.screenshot(path=SHOT+"/yobal_admin_settings.png", full_page=False)
         chk("no JavaScript errors", not errs and not aerr, (errs+aerr)[:3])
         br.close()
