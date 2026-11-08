@@ -153,6 +153,8 @@ function publicSettings() {
     free_delivery_over: Number(getSetting('free_delivery_over')),
     delivery_fee: Number(getSetting('delivery_fee')),
     pay_methods: getSetting('pay_methods'),
+    // 'yobal' when Yobal Express prices and carries home deliveries — checkout then asks for the location
+    delivery_provider: YOBAL.enabled() ? 'yobal' : 'own',
     pay_online: (getSetting('modempay_enabled') === '1' && !!(process.env.MODEMPAY_SECRET_KEY || getSetting('modempay_secret_key'))) ? '1' : '0',
     announce_en: getSetting('announce_en'),
     announce_ar: getSetting('announce_ar'),
@@ -457,7 +459,7 @@ async function placeOrder(b, ctx = {}) {
     if (!items.length) return { status: 400, body: { error: 'No valid items' } };
     const isPickup = market === 'gm' && b.delivery_method === 'pickup';
     // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
-    let freeOver, zoneName = '', zoneFee;
+    let freeOver, zoneName = '', zoneFee, zoneRow = null;
     if (market === 'uk') {
       freeOver = Number(getSetting('uk_free_over')) || 0;
       zoneFee = Number(getSetting('uk_delivery_fee')) || 0;
@@ -467,7 +469,21 @@ async function placeOrder(b, ctx = {}) {
       zoneFee = Number(getSetting('delivery_fee')) || 0;
       if (!isPickup && b.delivery_zone_id) {
         const z = queries.zoneById(Number(b.delivery_zone_id));
-        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; }
+        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; zoneRow = z; }
+      }
+    }
+    /* Yobal Express: the fee is Yobal's price for this address (the free-delivery rule below
+       still applies — the shop then pays Yobal). If Yobal cannot price it — outside its area,
+       or unreachable — the order still goes through on the zone fee with the shop's own couriers,
+       so a sale is never lost to a delivery hiccup. */
+    let provider = '', yq = null, yobalNote = '';
+    if (market === 'gm' && !isPickup && YOBAL.enabled()) {
+      try {
+        yq = await yobalPrice({ lat: b.delivery_lat, lng: b.delivery_lng, zone: zoneRow, quoteId: b.yobal_quote_id });
+        provider = 'yobal'; zoneFee = yq.fare;
+      } catch (e) {
+        provider = 'own'; yobalNote = e.message || 'Yobal Express could not price this address';
+        console.error('Yobal quote at checkout:', yobalNote);
       }
     }
     /* ---- discounts: coupon + loyalty points (all validated server-side) ----
@@ -500,7 +516,8 @@ async function placeOrder(b, ctx = {}) {
     const total = goods + fee;
     /* A quote: the exact figures this order would be charged, worked out by the same lines
        above, with nothing written — the WhatsApp assistant shows it before the customer confirms. */
-    if (ctx.dryRun) return { status: 200, body: { items, subtotal, discount, delivery_fee: fee, total, currency, zone: zoneName, pickup: isPickup, free_over: freeOver } };
+    if (ctx.dryRun) return { status: 200, body: { items, subtotal, discount, delivery_fee: fee, total, currency, zone: zoneName, pickup: isPickup, free_over: freeOver,
+      delivery_provider: provider || 'own', yobal_quote_id: yq ? yq.quoteId : '' } };
     // Optional payment proof screenshot (mobile money / bank transfer)
     let proof = '';
     try { if (b.payment_proof_data) proof = saveImage(b.payment_proof_data) || ''; } catch (e) { return { status: 400, body: { error: e.message } }; }
@@ -514,6 +531,14 @@ async function placeOrder(b, ctx = {}) {
         isPickup ? 'pickup' : 'home', String(b.delivery_address||'').slice(0,300),
         String(b.delivery_area||'').slice(0,120), String(zoneName).slice(0,120), String(b.payment_method||'cod').slice(0,30),
         proof, subtotal, discount, couponCode, cust ? cust.id : null, fee, total, String(b.notes||'').slice(0,500), b.language === 'ar' ? 'ar' : 'en', JSON.stringify(items), ['whatsapp', 'messenger'].includes(ctx.channel) ? ctx.channel : 'online');
+    // Who delivers, and — for Yobal — where to and at what fare (what the shop owes Yobal,
+    // even when the customer got free delivery).
+    if (provider) {
+      const pt = yq ? yq.point : yobalPoint(b.delivery_lat, b.delivery_lng, zoneRow);
+      db.prepare(`UPDATE orders SET delivery_provider=?, delivery_lat=?, delivery_lng=?, delivery_loc_src=?, yobal_quote_id=?, yobal_fare=?, yobal_error=? WHERE id=?`)
+        .run(provider, pt ? pt.lat : null, pt ? pt.lng : null, pt ? pt.src : '', yq ? yq.quoteId : '', yq ? yq.fare : 0,
+             yobalNote ? 'Not sent to Yobal Express: ' + yobalNote.slice(0, 200) : '', info.lastInsertRowid);
+    }
     // decrement stock for confirmed inventory + record in the stock ledger
     decrementStockForItems(items, 'order', orderNumber, '', market);
     /* Investors funded stock in dalasi at Gambian cost prices. Feeding a pound sale into that
@@ -540,7 +565,8 @@ async function placeOrder(b, ctx = {}) {
         payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
       }
     }
-    return { status: 201, body: { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError } };
+    return { status: 201, body: { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError,
+      delivery_provider: provider || 'own' } };
 }
 
 /* ---------- WhatsApp assistant ----------
@@ -552,6 +578,225 @@ function wa() {
   return WA || (WA = createWhatsApp({ db, queries, getSetting, setSetting, placeOrder, addChatMessage, newToken,
     ADMIN_STREAMS, sseSend, saveImage, modemOn }));
 }
+/* ---------- Yobal Express deliveries ----------
+   The connection itself is yobal.js. These helpers are the shop's side: price an address at
+   checkout, book the courier when the order is confirmed, call it off if the order is, and turn
+   Yobal's webhook events into the shop's own order statuses. */
+const YOBAL = require('./yobal')({ getSetting });
+
+/** Where the courier goes: the customer's shared location, or else their zone's centre. */
+function yobalPoint(lat, lng, zone) {
+  const own = YOBAL.validPoint(lat, lng);
+  if (own) return { ...own, approximate: false, src: 'gps' };
+  const z = zone && YOBAL.validPoint(zone.lat, zone.lng);
+  return z ? { ...z, approximate: true, src: 'zone' } : null;
+}
+
+/** Yobal's price to one place. A quote the shopper was shown is reused while Yobal still honours
+    it (same spot, under 55 minutes), so the order is charged exactly what checkout showed. The
+    fare always comes from Yobal or this server's record of it — never from the browser. */
+async function yobalPrice({ lat, lng, zone, quoteId }) {
+  const pt = yobalPoint(lat, lng, zone);
+  if (!pt) throw new YOBAL.YobalError('Share your location or choose your area so we can price delivery', 'no_location');
+  if (quoteId) {
+    const q = db.prepare("SELECT * FROM yobal_quotes WHERE quote_id=? AND created_at > datetime('now','-55 minutes')").get(String(quoteId).slice(0, 80));
+    if (q && Math.abs(q.lat - pt.lat) < 1e-6 && Math.abs(q.lng - pt.lng) < 1e-6) return { quoteId: q.quote_id, fare: q.fare, etaMinutes: q.eta_minutes, point: pt };
+  }
+  const q = await YOBAL.quote({ ...pt, area: zone ? zone.name_en : '', landmark: zone ? zone.name_en : 'Customer',
+    contactName: 'Customer', contactPhone: (YOBAL.pickupPlace() || {}).contactPhone || '' });
+  db.prepare("DELETE FROM yobal_quotes WHERE created_at < datetime('now','-2 days')").run();
+  db.prepare('INSERT OR REPLACE INTO yobal_quotes(quote_id,fare,lat,lng,zone_id,eta_minutes) VALUES(?,?,?,?,?,?)')
+    .run(q.quoteId, q.fare, pt.lat, pt.lng, zone ? zone.id : null, q.etaMinutes || 0);
+  return { ...q, point: pt };
+}
+
+const YOBAL_DONE = ['delivered', 'cancelled', 'returned', 'refunded', 'failed'];
+/** Books the Yobal courier for an order. Safe to call again: an order is booked once. */
+async function bookYobal(orderId) {
+  const o = db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
+  if (!o || o.delivery_provider !== 'yobal') return { ok: false, error: "This order isn't a Yobal Express delivery" };
+  if (o.yobal_delivery_id && !['failed', 'cancelled', 'booking_failed'].includes(o.yobal_status)) return { ok: true, already: true };
+  if (YOBAL_DONE.includes(o.status)) return { ok: false, error: 'This order is closed' };
+  const fail = msg => {
+    db.prepare("UPDATE orders SET yobal_status='booking_failed', yobal_error=? WHERE id=?").run(String(msg).slice(0, 300), o.id);
+    logAct(null, 'yobal_booking_failed', o.order_number + ': ' + msg);
+    return { ok: false, error: msg };
+  };
+  if (!YOBAL.enabled()) return fail("Yobal Express isn't switched on in Settings");
+  const pt = YOBAL.validPoint(o.delivery_lat, o.delivery_lng);
+  if (!pt) return fail('This order has no delivery location');
+  /* The courier collects whatever is still owed at the door. An order paid online owes
+     nothing; anything else is collected in full and Yobal pays it over at the weekly statement. */
+  const cod = o.payment_status === 'paid' ? 0 : r2(Number(o.total) || 0);
+  const items = (() => { try { return JSON.parse(o.items_json || '[]'); } catch { return []; } })();
+  const units = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+  const prep = Math.max(0, Math.min(240, Number(getSetting('yobal_prep_minutes', '30')) || 0));
+  try {
+    const d = await YOBAL.book({
+      externalRef: o.order_number,
+      quoteId: o.yobal_quote_id || '',
+      fare: Number(o.yobal_fare) || 0,
+      dropoff: { ...pt, approximate: o.delivery_loc_src !== 'gps',
+        area: o.delivery_zone || o.delivery_area || '', landmark: String(o.delivery_address || o.delivery_area || o.delivery_zone || '').slice(0, 200),
+        contactName: o.customer_name, contactPhone: YOBAL.e164(o.customer_phone) },
+      readyAt: new Date(Date.now() + prep * 60000),
+      parcelDescription: `${getSetting('store_name') || 'Jeddah Trading'} order ${o.order_number} · ${units} ${units === 1 ? 'item' : 'items'}`,
+      cod,
+    });
+    db.prepare(`UPDATE orders SET yobal_delivery_id=?, yobal_status=?, yobal_code=?, yobal_tracking_url=?, yobal_fare=?, yobal_cod=?,
+      yobal_courier_name='', yobal_courier_phone='', yobal_error='', yobal_booked_at=datetime('now') WHERE id=?`)
+      .run(d.deliveryId, d.status || 'searching', d.deliveryCode, d.trackingUrl, d.fare || o.yobal_fare, cod, o.id);
+    logAct(null, 'yobal_booked', `${o.order_number} → ${d.deliveryId} (${YOBAL.mode()})`);
+    return { ok: true };
+  } catch (e) {
+    console.error('Yobal booking:', e.message);
+    if (e.code === 'outside_service_area') return fail('Yobal Express does not deliver to this location');
+    return fail(e.message || 'Booking failed');
+  }
+}
+/** Tells Yobal an order will not be delivered (cancelled before the courier has it). */
+async function cancelYobal(orderId, reason) {
+  const o = db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
+  if (!o || !o.yobal_delivery_id || ['picked_up', 'delivered', 'cancelled', 'failed'].includes(o.yobal_status)) return { ok: true };
+  try {
+    await YOBAL.cancel(o.yobal_delivery_id, 'order_' + (o.status || 'cancelled'));
+    db.prepare("UPDATE orders SET yobal_status='cancelled' WHERE id=?").run(o.id);
+    return { ok: true };
+  } catch (e) {
+    const msg = e.code === 'already_picked_up' ? 'The courier already has the parcel — call Yobal Express' : "Couldn't cancel with Yobal Express — call their operations team";
+    db.prepare('UPDATE orders SET yobal_error=? WHERE id=?').run(msg, o.id);
+    return { ok: false, error: msg };
+  }
+}
+
+/* One place where an order's status changes, whoever changes it: staff in the admin, a courier
+   on their deliveries page, or Yobal Express by webhook. Stock coming back, loyalty points,
+   investor reversals, the delivered date and the customer's WhatsApp update all happen here, so
+   no path can skip one of them. */
+async function changeOrderStatus(id, b, actor, base) {
+  const cur = db.prepare('SELECT * FROM orders WHERE id=?').get(id);
+  if (!cur) return { status: 404, body: { error: 'not found' } };
+  // optional courier (re)assignment — snapshot the name for display
+  let courierId = cur.courier_id, courierName = cur.courier_name;
+  if (b.courier_id !== undefined) {
+    if (b.courier_id === null || b.courier_id === '') { courierId = null; courierName = ''; }
+    else { const u = db.prepare('SELECT id,name,username FROM users WHERE id=?').get(Number(b.courier_id));
+      if (u) { courierId = u.id; courierName = u.name || u.username; } }
+  }
+  const nextStatus = b.status || cur.status;
+  let payStatus = b.payment_status || cur.payment_status;
+  // Order didn't complete (cancelled / returned / refunded): the goods that were
+  // decremented at order time come back onto the shelf. Guard against double-restock
+  // if the order moves between two terminal states (e.g. returned → refunded).
+  const TERMINAL = ['cancelled', 'returned', 'refunded'];
+  if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status)) {
+    try {
+      JSON.parse(cur.items_json || '[]').forEach(it => {
+        // Goods go back exactly where they came from: to the size if the line had one,
+        // to the product otherwise. Restocking the product for a sized line would put the
+        // units somewhere nothing reads and quietly lose them.
+        // ...and back to the right country: a UK order's goods return to the partner's
+        // shelf in Britain, never to the shop in Banjul.
+        const ukOrder = cur.market === 'uk';
+        if (it.variantId) db.prepare(ukOrder ? 'UPDATE product_variants SET uk_stock = uk_stock + ? WHERE id=?'
+                                             : 'UPDATE product_variants SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.variantId);
+        else db.prepare(ukOrder ? 'UPDATE products SET uk_stock = uk_stock + ? WHERE id=?'
+                                : 'UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
+        logMove(it.id, it.qty || 0, (nextStatus === 'returned' ? 'return' : nextStatus) + (ukOrder ? '_uk' : ''), cur.order_number, actor, it.variantId || null);
+      });
+    } catch {}
+  }
+  // Delivered: award loyalty points once, plus the referral bonus on a first delivered order
+  if (nextStatus === 'delivered' && cur.status !== 'delivered' && cur.customer_id && !cur.points_awarded && cur.market !== 'uk') {
+    const earnPer = Number(getSetting('loyalty_earn_per')) || 100;
+    const pts = Math.floor(cur.total / earnPer);
+    if (pts > 0) db.prepare('UPDATE customers SET points = points + ? WHERE id=?').run(pts, cur.customer_id);
+    db.prepare('UPDATE orders SET points_awarded=? WHERE id=?').run(pts || 1, id);
+    const buyer = queries.customerById(cur.customer_id);
+    if (buyer && buyer.referred_by && !buyer.referral_paid) {
+      const bonus = Number(getSetting('referral_bonus_points')) || 0;
+      if (bonus > 0) db.prepare('UPDATE customers SET points = points + ? WHERE id=?').run(bonus, buyer.referred_by);
+      db.prepare('UPDATE customers SET referral_paid=1 WHERE id=?').run(buyer.id);
+    }
+  }
+  if (nextStatus === 'refunded') payStatus = 'refunded';
+  // Cancelled / returned / refunded → reverse any investor profit that this order generated
+  if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status) && cur.market !== 'uk')
+    reverseInvestorSalesForOrder(id);
+  db.prepare('UPDATE orders SET status=?, payment_status=?, courier_id=?, courier_name=? WHERE id=?').run(
+    nextStatus, payStatus, courierId, courierName, id);
+  // Stamp the moment it became a sale, so the day's takings follow the delivery date.
+  // Cleared again if the order is later taken back out of delivered.
+  if (nextStatus === 'delivered' && cur.status !== 'delivered')
+    db.prepare("UPDATE orders SET delivered_at = datetime('now') WHERE id=? AND (delivered_at IS NULL OR delivered_at='')").run(id);
+  if (nextStatus !== 'delivered' && cur.status === 'delivered')
+    db.prepare('UPDATE orders SET delivered_at = NULL WHERE id=?').run(id);
+  if (b.status && b.status !== cur.status) logAct(actor, 'order_status', cur.order_number + ' → ' + nextStatus);
+  /* Yobal Express: confirming the order books the courier (timed to arrive once it is packed);
+     calling the order off before pickup cancels it. A Yobal problem never undoes the status. */
+  let yobal = null;
+  if (cur.delivery_provider === 'yobal' && nextStatus !== cur.status && actor !== 'Yobal Express') {
+    if (['confirmed', 'packed'].includes(nextStatus)) yobal = await bookYobal(id);
+    else if ([...TERMINAL, 'failed'].includes(nextStatus)) yobal = await cancelYobal(id);
+  }
+  // Tell the customer on WhatsApp. A failure here never undoes the status change.
+  let whatsapp = null;
+  if (nextStatus !== cur.status) whatsapp = await wa().notifyOrder(id, nextStatus, base);
+  if (payStatus === 'paid' && cur.payment_status !== 'paid') {
+    const p = await wa().notifyOrder(id, 'paid', base);
+    if (!whatsapp || !whatsapp.sent) whatsapp = p;
+  }
+  return { status: 200, body: { ok: true, whatsapp, yobal } };
+}
+
+/** Applies one Yobal Express event to its order. Each event id is applied once. */
+async function applyYobalEvent(evt, base) {
+  const d = (evt && evt.delivery) || {};
+  const eventId = String(evt.id || '').slice(0, 80), type = String(evt.type || '');
+  const o = d.deliveryId ? db.prepare("SELECT * FROM orders WHERE yobal_delivery_id=? AND yobal_delivery_id!=''").get(String(d.deliveryId)) : null;
+  if (!eventId) return 'no event id';
+  try { db.prepare('INSERT INTO yobal_events(id,type,delivery_id,order_id) VALUES(?,?,?,?)').run(eventId, type, String(d.deliveryId || ''), o ? o.id : null); }
+  catch { return 'duplicate'; }
+  const done = outcome => { db.prepare('UPDATE yobal_events SET outcome=? WHERE id=?').run(outcome, eventId); return outcome; };
+  if (!o) return done('unknown delivery');
+  const track = d.trackingUrl ? String(d.trackingUrl).slice(0, 300) : o.yobal_tracking_url;
+  const set = (fields) => {
+    const keys = Object.keys(fields);
+    db.prepare(`UPDATE orders SET ${keys.map(k => k + '=?').join(', ')}, yobal_tracking_url=? WHERE id=?`).run(...keys.map(k => fields[k]), track, o.id);
+  };
+  const BEFORE_PICKUP = ['new', 'confirmed', 'paid', 'packed'];
+  switch (type) {
+    case 'delivery.courier_assigned':
+      set({ yobal_status: 'courier_assigned', yobal_error: '',
+        yobal_courier_name: String((d.courier && d.courier.name) || '').slice(0, 80),
+        yobal_courier_phone: String((d.courier && d.courier.phone) || '').slice(0, 20) });
+      break;
+    case 'delivery.courier_unassigned':
+      set({ yobal_status: 'searching', yobal_courier_name: '', yobal_courier_phone: '' });
+      break;
+    case 'delivery.picked_up':
+      set({ yobal_status: 'picked_up' });
+      if (BEFORE_PICKUP.includes(o.status)) await changeOrderStatus(o.id, { status: 'out_for_delivery' }, 'Yobal Express', base);
+      break;
+    case 'delivery.delivered':
+      // The code was entered at the door and anything owed was collected — the order is paid.
+      set({ yobal_status: 'delivered' });
+      if (!YOBAL_DONE.includes(o.status)) await changeOrderStatus(o.id, { status: 'delivered', payment_status: 'paid' }, 'Yobal Express', base);
+      break;
+    case 'delivery.failed':
+      set({ yobal_status: 'failed', yobal_courier_name: '', yobal_courier_phone: '',
+        yobal_error: String(d.reason || 'No courier was found').slice(0, 200) });
+      logAct(null, 'yobal_failed', o.order_number + ': ' + (d.reason || 'no courier'));
+      break;
+    case 'delivery.cancelled':
+      set({ yobal_status: 'cancelled' });
+      break;
+    default:
+      return done('ignored');
+  }
+  return done('applied');
+}
+
 /* The webhook body as raw bytes. Meta signs the exact bytes it sent, and customers type emoji:
    joining chunks as strings could split a multi-byte character and break the signature. */
 function readRawBuffer(req) {
@@ -628,6 +873,24 @@ async function api(req, res, url) {
       || null;
     if (!order) return finish('no matching order' + (intentId ? ' for intent ' + intentId : ''));
     return finish(markOrderPaid(order, amount, 'webhook', String(data.transaction_reference || data.id || '')), order.id);
+  }
+
+  /* ---------- Yobal Express webhook ----------
+     Yobal reports each step of a delivery here. Public by necessity, so: the signature is
+     checked over the raw bytes (timing-safe, at most 5 minutes old) before anything is read,
+     each event id is applied once, and an event can only touch the order it was booked for.
+     Answers 2xx for anything safely handled so Yobal stops retrying. */
+  if (r[0] === 'webhooks' && r[1] === 'yobal' && method === 'POST') {
+    // as bytes then UTF-8 in one go: courier names can carry accents a chunk boundary would split
+    const raw = (await readRawBuffer(req)).toString('utf8');
+    if (!YOBAL.hasSecret()) return send(res, 503, { error: 'not configured' });
+    if (!YOBAL.verifySignature(raw, req.headers['yobal-signature'])) {
+      console.error('Yobal webhook: bad signature');
+      return send(res, 401, { error: 'bad signature' });
+    }
+    let evt = {}; try { evt = JSON.parse(raw); } catch { return send(res, 200, { ok: true, ignored: 'unreadable' }); }
+    const outcome = await applyYobalEvent(evt, siteBase(req));
+    return send(res, 200, { ok: true, outcome });
   }
 
   /* Has this order been paid? Nothing else — no name, no amount, no address — so the page a
@@ -1113,7 +1376,29 @@ async function api(req, res, url) {
       delivery_area: o.delivery_area, delivery_zone: o.delivery_zone,
       payment_method: o.payment_method, subtotal: o.subtotal, discount: o.discount || 0, coupon_code: o.coupon_code || '', delivery_fee: o.delivery_fee,
       total: o.total, notes: o.notes, created_at: o.created_at, items,
+      /* Yobal Express: the customer gives the 4-digit code to the courier at the door — so it is
+         shown here, to the person who just proved the order is theirs, and nowhere else. */
+      yobal: o.delivery_provider === 'yobal' && o.yobal_delivery_id ? {
+        status: o.yobal_status, code: YOBAL_DONE.includes(o.status) ? '' : o.yobal_code,
+        courier: o.yobal_courier_name, courier_phone: o.yobal_courier_phone, tracking_url: o.yobal_tracking_url,
+      } : null,
     } });
+  }
+  /* Yobal Express price for checkout: the customer's location (or their zone's centre) → the
+     fare and a quote id the order can cite. Rate-limited: each call may reach Yobal. */
+  if (r[0] === 'delivery' && r[1] === 'quote' && method === 'POST') {
+    if (!YOBAL.enabled()) return send(res, 200, { provider: 'own' });
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (chatRateLimited('yq|' + ip, 40, 10 * 60 * 1000)) return send(res, 429, { error: 'Too many requests — try again shortly' });
+    const b = await readBody(req);
+    const zone = b.zone_id ? queries.zoneById(Number(b.zone_id)) : null;
+    try {
+      const q = await yobalPrice({ lat: b.lat, lng: b.lng, zone, quoteId: b.quote_id });
+      return send(res, 200, { provider: 'yobal', fee: q.fare, quote_id: q.quoteId, eta_minutes: q.etaMinutes || 0, exact: q.point.src === 'gps' });
+    } catch (e) {
+      // The order will still go through on the zone fee with the shop's own couriers.
+      return send(res, 200, { provider: 'own', reason: e.code === 'outside_service_area' ? 'outside' : (e.code || 'error') });
+    }
   }
   if (r[0] === 'reviews' && method === 'POST') {
     const b = await readBody(req);
@@ -1512,72 +1797,91 @@ async function api(req, res, url) {
     if (r[1] === 'orders' && r[2] && method === 'PATCH') {
       if (!requirePerm(req, res, 'orders')) return;
       const id = Number(r[2]); const b = await readBody(req);
-      const cur = db.prepare('SELECT * FROM orders WHERE id=?').get(id);
-      if (!cur) return send(res, 404, { error: 'not found' });
-      // optional courier (re)assignment — snapshot the name for display
-      let courierId = cur.courier_id, courierName = cur.courier_name;
-      if (b.courier_id !== undefined) {
-        if (b.courier_id === null || b.courier_id === '') { courierId = null; courierName = ''; }
-        else { const u = db.prepare('SELECT id,name,username FROM users WHERE id=?').get(Number(b.courier_id));
-          if (u) { courierId = u.id; courierName = u.name || u.username; } }
-      }
-      const nextStatus = b.status || cur.status;
-      let payStatus = b.payment_status || cur.payment_status;
-      // Order didn't complete (cancelled / returned / refunded): the goods that were
-      // decremented at order time come back onto the shelf. Guard against double-restock
-      // if the order moves between two terminal states (e.g. returned → refunded).
-      const TERMINAL = ['cancelled', 'returned', 'refunded'];
-      if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status)) {
-        try {
-          JSON.parse(cur.items_json || '[]').forEach(it => {
-            // Goods go back exactly where they came from: to the size if the line had one,
-            // to the product otherwise. Restocking the product for a sized line would put the
-            // units somewhere nothing reads and quietly lose them.
-            // ...and back to the right country: a UK order's goods return to the partner's
-            // shelf in Britain, never to the shop in Banjul.
-            const ukOrder = cur.market === 'uk';
-            if (it.variantId) db.prepare(ukOrder ? 'UPDATE product_variants SET uk_stock = uk_stock + ? WHERE id=?'
-                                                 : 'UPDATE product_variants SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.variantId);
-            else db.prepare(ukOrder ? 'UPDATE products SET uk_stock = uk_stock + ? WHERE id=?'
-                                    : 'UPDATE products SET stock = stock + ? WHERE id=?').run(it.qty || 0, it.id);
-            logMove(it.id, it.qty || 0, (nextStatus === 'returned' ? 'return' : nextStatus) + (ukOrder ? '_uk' : ''), cur.order_number, me.username, it.variantId || null);
-          });
-        } catch {}
-      }
-      // Delivered: award loyalty points once, plus the referral bonus on a first delivered order
-      if (nextStatus === 'delivered' && cur.status !== 'delivered' && cur.customer_id && !cur.points_awarded && cur.market !== 'uk') {
-        const earnPer = Number(getSetting('loyalty_earn_per')) || 100;
-        const pts = Math.floor(cur.total / earnPer);
-        if (pts > 0) db.prepare('UPDATE customers SET points = points + ? WHERE id=?').run(pts, cur.customer_id);
-        db.prepare('UPDATE orders SET points_awarded=? WHERE id=?').run(pts || 1, id);
-        const buyer = queries.customerById(cur.customer_id);
-        if (buyer && buyer.referred_by && !buyer.referral_paid) {
-          const bonus = Number(getSetting('referral_bonus_points')) || 0;
-          if (bonus > 0) db.prepare('UPDATE customers SET points = points + ? WHERE id=?').run(bonus, buyer.referred_by);
-          db.prepare('UPDATE customers SET referral_paid=1 WHERE id=?').run(buyer.id);
+      const out = await changeOrderStatus(id, b, me.username, siteBase(req));
+      return send(res, out.status, out.body);
+    }
+    /* ---- Yobal Express, per order ----
+       book   — book (again) after a failure, or for an order confirmed before Yobal was on
+       cancel — call the courier off
+       own    — hand the order to the shop's own couriers instead
+       event  — TEST MODE ONLY: play a Yobal step (courier assigned, picked up, delivered…)
+                so staff can watch the whole flow without a real courier. */
+    if (r[1] === 'orders' && r[2] && r[3] === 'yobal' && method === 'POST') {
+      if (!requirePerm(req, res, 'orders')) return;
+      const id = Number(r[2]); const b = await readBody(req);
+      const o = db.prepare('SELECT * FROM orders WHERE id=?').get(id);
+      if (!o) return send(res, 404, { error: 'not found' });
+      if (b.action === 'book') {
+        if (o.delivery_provider !== 'yobal') {
+          // An order that fell back to own couriers can be moved onto Yobal once it can be priced.
+          if (o.market !== 'gm' || o.delivery_method === 'pickup') return send(res, 400, { error: 'Only home deliveries in The Gambia can go by Yobal Express' });
+          const zone = db.prepare('SELECT * FROM delivery_zones WHERE name_en=?').get(o.delivery_zone || '');
+          try {
+            const q = await yobalPrice({ lat: o.delivery_lat, lng: o.delivery_lng, zone });
+            db.prepare("UPDATE orders SET delivery_provider='yobal', delivery_lat=?, delivery_lng=?, delivery_loc_src=?, yobal_quote_id=?, yobal_fare=?, yobal_error='' WHERE id=?")
+              .run(q.point.lat, q.point.lng, q.point.src, q.quoteId, q.fare, id);
+          } catch (e) { return send(res, 400, { error: e.message || 'Yobal Express could not price this address' }); }
         }
+        const out = await bookYobal(id);
+        logAct(me.username, 'yobal_book', o.order_number + (out.ok ? '' : ' — ' + out.error));
+        return send(res, out.ok ? 200 : 400, out.ok ? { ok: true } : { error: out.error });
       }
-      if (nextStatus === 'refunded') payStatus = 'refunded';
-      // Cancelled / returned / refunded → reverse any investor profit that this order generated
-      if (TERMINAL.includes(nextStatus) && !TERMINAL.includes(cur.status) && cur.market !== 'uk')
-        reverseInvestorSalesForOrder(id);
-      db.prepare('UPDATE orders SET status=?, payment_status=?, courier_id=?, courier_name=? WHERE id=?').run(
-        nextStatus, payStatus, courierId, courierName, id);
-      // Stamp the moment it became a sale, so the day's takings follow the delivery date.
-      // Cleared again if the order is later taken back out of delivered.
-      if (nextStatus === 'delivered' && cur.status !== 'delivered')
-        db.prepare("UPDATE orders SET delivered_at = datetime('now') WHERE id=? AND (delivered_at IS NULL OR delivered_at='')").run(id);
-      if (nextStatus !== 'delivered' && cur.status === 'delivered')
-        db.prepare('UPDATE orders SET delivered_at = NULL WHERE id=?').run(id);
-      if (b.status && b.status !== cur.status) logAct(me.username, 'order_status', cur.order_number + ' → ' + nextStatus);
-      // Tell the customer on WhatsApp. A failure here never undoes the status change.
-      let whatsapp = null;
-      if (nextStatus !== cur.status) whatsapp = await wa().notifyOrder(id, nextStatus, siteBase(req));
-      if (payStatus === 'paid' && cur.payment_status !== 'paid') {
-        const p = await wa().notifyOrder(id, 'paid', siteBase(req));
-        if (!whatsapp || !whatsapp.sent) whatsapp = p;
+      if (b.action === 'cancel') {
+        const out = await cancelYobal(id);
+        logAct(me.username, 'yobal_cancel', o.order_number);
+        return send(res, out.ok ? 200 : 400, out.ok ? { ok: true } : { error: out.error });
       }
-      return send(res, 200, { ok: true, whatsapp });
+      if (b.action === 'own') {
+        if (o.yobal_delivery_id && !['failed', 'cancelled', 'booking_failed', 'delivered'].includes(o.yobal_status)) {
+          const c = await cancelYobal(id);
+          if (!c.ok) return send(res, 400, { error: c.error });
+        }
+        db.prepare("UPDATE orders SET delivery_provider='own' WHERE id=?").run(id);
+        logAct(me.username, 'yobal_to_own', o.order_number);
+        return send(res, 200, { ok: true });
+      }
+      if (b.action === 'event') {
+        if (YOBAL.mode() !== 'test' || !String(o.yobal_delivery_id).startsWith('test_'))
+          return send(res, 400, { error: 'Practice steps only work in test mode' });
+        const TYPES = { assigned: 'delivery.courier_assigned', unassigned: 'delivery.courier_unassigned', picked_up: 'delivery.picked_up',
+          delivered: 'delivery.delivered', failed: 'delivery.failed' };
+        const type = TYPES[b.step]; if (!type) return send(res, 400, { error: 'Unknown step' });
+        const outcome = await applyYobalEvent({ id: 'test_evt_' + crypto.randomBytes(6).toString('hex'), type,
+          delivery: { deliveryId: o.yobal_delivery_id, courier: type === 'delivery.courier_assigned' ? { name: 'Test Courier', phone: '+2207000000' } : null,
+            reason: type === 'delivery.failed' ? 'No courier available (practice)' : null } }, siteBase(req));
+        return send(res, 200, { ok: true, outcome });
+      }
+      return send(res, 400, { error: 'Unknown action' });
+    }
+    // Settings → Delivery → "Test the connection": asks Yobal for a real price, shop to 1 km away.
+    if (r[1] === 'yobal' && r[2] === 'test' && method === 'POST') {
+      if (!hasPerm(me, 'settings')) return send(res, 403, { error: 'No permission' });
+      const shop = YOBAL.pickupPlace();
+      if (!shop) return send(res, 400, { error: "Set the shop's map position first" });
+      try {
+        const q = await YOBAL.quote({ lat: shop.lat + 0.009, lng: shop.lng, area: shop.area, landmark: 'Connection test', contactName: 'Test', contactPhone: shop.contactPhone });
+        return send(res, 200, { ok: true, mode: YOBAL.mode(), fare: q.fare, eta_minutes: q.etaMinutes, distance_km: q.distanceKm });
+      } catch (e) { return send(res, 400, { error: e.message, code: e.code }); }
+    }
+    /* Weekly statement (Monday–Sunday, Gambia time = UTC), the same sum Yobal's admin shows:
+       cash Yobal's couriers collected − fares the shop owes = what Yobal pays the shop
+       (negative: the shop pays Yobal). */
+    if (r[1] === 'yobal' && r[2] === 'statement' && method === 'GET') {
+      if (!hasPerm(me, 'orders') && !hasPerm(me, 'profit')) return send(res, 403, { error: 'No permission' });
+      const ref = new Date(url.searchParams.get('week') || Date.now());
+      if (Number.isNaN(ref.getTime())) return send(res, 400, { error: 'week must be a date' });
+      const day = (ref.getUTCDay() + 6) % 7;
+      const from = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() - day));
+      const to = new Date(from.getTime() + 7 * 86400000);
+      const iso = d => d.toISOString().slice(0, 10);
+      const lines = db.prepare(`SELECT order_number, delivered_at, customer_name, delivery_zone, total, delivery_fee, yobal_fare, yobal_cod, yobal_delivery_id
+        FROM orders WHERE delivery_provider='yobal' AND status='delivered' AND yobal_status='delivered'
+          AND date(delivered_at) >= ? AND date(delivered_at) < ? ORDER BY delivered_at`).all(iso(from), iso(to));
+      const fares = r2(lines.reduce((s, l) => s + (Number(l.yobal_fare) || 0), 0));
+      const cod = r2(lines.reduce((s, l) => s + (Number(l.yobal_cod) || 0), 0));
+      const charged = r2(lines.reduce((s, l) => s + (Number(l.delivery_fee) || 0), 0));
+      return send(res, 200, { week_start: iso(from), week_end: iso(new Date(to.getTime() - 86400000)), deliveries: lines.length,
+        cash_collected: cod, fares, yobal_pays_shop: r2(cod - fares), delivery_charged_to_customers: charged, lines });
     }
 
     // ---- COURIERS (for the assignment dropdown) ----
@@ -2034,8 +2338,9 @@ async function api(req, res, url) {
       const next = MAP[b.action];
       if (!next) return send(res, 400, { error: 'Unknown action' });
       const paid = (next === 'delivered' && b.mark_paid) ? 'paid' : o.payment_status;
-      db.prepare('UPDATE orders SET status=?, payment_status=? WHERE id=?').run(next, paid, id);
-      if (next !== o.status) wa().notifyOrder(id, next, siteBase(req)).catch(() => {});
+      // Through the shared path, so a courier's "delivered" also stamps the delivery date and
+      // awards the customer's loyalty points, exactly as when staff mark it in the admin.
+      await changeOrderStatus(id, { status: next, payment_status: paid }, me.username, siteBase(req));
       return send(res, 200, { ok: true, status: next });
     }
 
@@ -2141,6 +2446,13 @@ async function api(req, res, url) {
       db.prepare('UPDATE categories SET name_en=?,name_ar=?,icon=?,image=?,is_active=? WHERE id=?').run(
         b.name_en??cur.name_en, b.name_ar??cur.name_ar, b.icon??cur.icon, image,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
+      if (b.lat !== undefined || b.lng !== undefined) {
+        const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
+        const pt = YOBAL.validPoint(b.lat, b.lng);
+        if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+      }
       return send(res, 200, { ok: true });
     }
     if (r[1] === 'categories' && r[2] && method === 'DELETE') {
@@ -2178,6 +2490,13 @@ async function api(req, res, url) {
       db.prepare('UPDATE suppliers SET name=?,phone=?,email=?,address=?,notes=?,is_active=? WHERE id=?').run(
         b.name??cur.name, b.phone??cur.phone, b.email??cur.email, b.address??cur.address, b.notes??cur.notes,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
+      if (b.lat !== undefined || b.lng !== undefined) {
+        const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
+        const pt = YOBAL.validPoint(b.lat, b.lng);
+        if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+      }
       return send(res, 200, { ok: true });
     }
     if (r[1] === 'suppliers' && r[2] && method === 'DELETE') {
@@ -2210,8 +2529,9 @@ async function api(req, res, url) {
       const b = await readBody(req);
       if (!String(b.name_en||'').trim()) return send(res, 400, { error: 'Zone needs a name' });
       const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 n FROM delivery_zones').get().n;
-      const info = db.prepare('INSERT INTO delivery_zones(name_en,name_ar,fee,sort_order,is_active) VALUES(?,?,?,?,?)')
-        .run(String(b.name_en).slice(0,80), String(b.name_ar||'').slice(0,80), Number(b.fee)||0, sort, b.is_active===false?0:1);
+      const pt = YOBAL.validPoint(b.lat, b.lng);   // the zone's centre, for Yobal Express prices
+      const info = db.prepare('INSERT INTO delivery_zones(name_en,name_ar,fee,sort_order,is_active,lat,lng) VALUES(?,?,?,?,?,?,?)')
+        .run(String(b.name_en).slice(0,80), String(b.name_ar||'').slice(0,80), Number(b.fee)||0, sort, b.is_active===false?0:1, pt ? pt.lat : null, pt ? pt.lng : null);
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
     }
     if (r[1] === 'zones' && r[2] && method === 'PATCH') {
@@ -2222,6 +2542,13 @@ async function api(req, res, url) {
       db.prepare('UPDATE delivery_zones SET name_en=?,name_ar=?,fee=?,is_active=? WHERE id=?').run(
         b.name_en??cur.name_en, b.name_ar??cur.name_ar, b.fee!=null?Number(b.fee):cur.fee,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
+      if (b.lat !== undefined || b.lng !== undefined) {
+        const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
+        const pt = YOBAL.validPoint(b.lat, b.lng);
+        if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+      }
       return send(res, 200, { ok: true });
     }
     if (r[1] === 'zones' && r[2] && method === 'DELETE') {
@@ -2487,6 +2814,13 @@ async function api(req, res, url) {
       db.prepare('UPDATE faqs SET q_en=?,a_en=?,q_ar=?,a_ar=?,is_active=? WHERE id=?').run(
         b.q_en??cur.q_en, b.a_en??cur.a_en, b.q_ar??cur.q_ar, b.a_ar??cur.a_ar,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
+      if (b.lat !== undefined || b.lng !== undefined) {
+        const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
+        const pt = YOBAL.validPoint(b.lat, b.lng);
+        if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+      }
       return send(res, 200, { ok: true });
     }
     if (r[1] === 'faqs' && r[2] && method === 'DELETE') {
@@ -2562,7 +2896,9 @@ async function api(req, res, url) {
       'meta_pixel_id','catalog_currency','site_url',
       'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
       'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
-      'uk_dispatch_note','uk_returns_policy'];
+      'uk_dispatch_note','uk_returns_policy',
+      'delivery_provider','yobal_mode','yobal_api_url','yobal_api_key','yobal_webhook_secret','yobal_prep_minutes',
+      'yobal_pickup_lat','yobal_pickup_lng','yobal_pickup_area','yobal_pickup_landmark','yobal_pickup_phone'];
     /* "Test the connection" in Settings. Asks Modem Pay for a real payment link for the
        smallest amount they accept, and hands back whatever they actually said. Nothing is
        charged — the link is thrown away — but it turns "it did not work" into the provider's
@@ -2588,9 +2924,10 @@ async function api(req, res, url) {
          set, never the value, so a borrowed laptop or a stolen session cannot read the key
          that moves money. Posting the mask back leaves the stored key untouched. */
       const MASK = '••••••••';
-      const SECRET_KEYS = ['modempay_secret_key', 'modempay_webhook_secret'];
+      const SECRET_KEYS = ['modempay_secret_key', 'modempay_webhook_secret', 'yobal_api_key', 'yobal_webhook_secret'];
       const out = {};
       SETTING_KEYS.forEach(k => { out[k] = SECRET_KEYS.includes(k) ? (getSetting(k) ? MASK : '') : getSetting(k); });
+      out.yobal_webhook_url = siteBase(req) + '/api/webhooks/yobal';   // what Yobal Express needs to call back
       return send(res, 200, out);
     }
     if (r[1] === 'settings' && method === 'POST') {

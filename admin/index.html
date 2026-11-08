@@ -227,6 +227,13 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .rc-items td.r{text-align:right;white-space:nowrap;padding-left:10px}
 .rc-items .q{color:#777;font-size:.7rem;margin-top:1px}
 .rc-total{display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:2px solid #111;padding-top:9px;margin-top:2px;color:#0f3a24}
+.yb-box{margin-top:9px;padding:10px 12px;border:1px solid #cfe3d6;background:#f3faf5;border-radius:10px;font-size:.84rem;line-height:1.55}
+.yb-box.warn{border-color:#f0c9a8;background:#fff7f0}
+.yb-meta{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:3px;color:var(--ink-soft,#333)}
+.yb-meta small{color:var(--muted)}
+.yb-err{color:#b42318;margin-top:4px}
+.yb-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.yb-test{font-size:.76rem;color:var(--muted);margin-inline-start:6px}
 .rc-thanks{text-align:center;font-size:.74rem;color:#666;margin-top:12px}
 .img-drop{border:2px dashed var(--border);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s;background:#fff}
 .img-drop:hover{border-color:var(--green-600)}
@@ -1024,7 +1031,32 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Switch a method off and customers stop seeing it at checkout — the shop keeps working and you can switch it straight back on, so an outage at one provider is never a dead end. Cash on delivery means the rider collects; the others mean the customer transfers the money and sends you a screenshot to check by hand.</p>
           <div id="payMethodBoxes" class="grid2" style="gap:6px 18px"></div>
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-          <div class="section-label">Online payments — Modem Pay</div>
+          <div class="section-label">Delivery — Yobal Express</div>
+          <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Yobal Express (a LUBEZZ company) can carry your home deliveries. Customers are charged Yobal's price for their location, a courier is booked by itself when you <b>confirm</b> an order, and Yobal's updates move the order to <i>Out for delivery</i> and <i>Delivered</i>. Your "free delivery over" amount still applies — the shop then pays Yobal. Switch back to <b>Own couriers</b> at any time; nothing is lost. Start in <b>Test</b> mode: it uses a practice Yobal inside the shop, so no courier is sent.</p>
+          <div class="grid2">
+            <div class="field"><label>Who delivers home orders</label><select id="s_delivery_provider"><option value="own">Own couriers</option><option value="yobal">Yobal Express</option></select></div>
+            <div class="field"><label>Yobal mode</label><select id="s_yobal_mode"><option value="test">Test — practice, nothing sent</option><option value="live">Live — real couriers</option></select></div>
+            <div class="field"><label>Shop map position — latitude</label><input id="s_yobal_pickup_lat" inputmode="decimal" placeholder="e.g. 13.4180"></div>
+            <div class="field"><label>Shop map position — longitude</label><input id="s_yobal_pickup_lng" inputmode="decimal" placeholder="e.g. -16.6870"></div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="ybHere" style="margin:-4px 0 12px">📍 Use this device's location (stand in the shop)</button>
+          <div class="grid2">
+            <div class="field"><label>Shop area</label><input id="s_yobal_pickup_area" placeholder="Bundung"></div>
+            <div class="field"><label>Shop landmark (what the courier looks for)</label><input id="s_yobal_pickup_landmark" placeholder="Jeddah Trading, Bundung Kakunda"></div>
+            <div class="field"><label>Shop phone for the courier</label><input id="s_yobal_pickup_phone" placeholder="+2207093900" dir="ltr"></div>
+            <div class="field"><label>Packing time (minutes)</label><input id="s_yobal_prep_minutes" type="number" min="0" max="240" placeholder="30">
+              <small style="color:var(--muted)">The courier is timed to arrive this long after you confirm.</small></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Yobal API address</label><input id="s_yobal_api_url" dir="ltr" placeholder="https://api.…/v1/business"></div>
+            <div class="field"><label>Yobal API key</label><input id="s_yobal_api_key" autocomplete="off" placeholder="yb_live_… (from Yobal Express)"></div>
+            <div class="field"><label>Yobal webhook secret</label><input id="s_yobal_webhook_secret" autocomplete="off" placeholder="from Yobal Express"></div>
+            <div class="field"><label>Webhook address (give this to Yobal)</label>
+              <div style="display:flex;gap:8px"><input id="ybHookUrl" readonly dir="ltr" style="flex:1"><button type="button" class="btn btn-outline btn-sm" data-copy="ybHookUrl">Copy</button></div></div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="ybTest" type="button" style="margin-top:4px">Test the connection</button>
+          <div id="ybTestOut" style="font-size:.86rem;margin-top:9px;line-height:1.6"></div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">          <div class="section-label">Online payments — Modem Pay</div>
           <p style="color:var(--muted);font-size:.86rem;margin:-4px 0 12px">Lets customers pay on the spot with Wave, AfriMoney, QMoney, APS, Yonna or a card, instead of transferring the money themselves and sending a screenshot. Cash on delivery and the manual transfers stay exactly as they are. Get the keys from your Modem Pay dashboard, and set the webhook there to <code>https://shopjeddahtrading.com/api/webhooks/modempay</code>. Start with the test keys (<code>sk_test_…</code>) until you have seen a payment go through. The two secrets are never shown again once saved — leave the dots alone to keep the stored value.</p>
           <div class="grid2">
             <div class="field"><label>Accept online payments</label><select id="s_modempay_enabled"><option value="0">Off</option><option value="1">On</option></select></div>
@@ -1091,9 +1123,9 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 
         <div class="panel" id="zonesPanel" style="max-width:680px">
           <h3>Delivery locations &amp; fees</h3>
-          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Customers pick their location at checkout and the matching fee is applied automatically.</p>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Customers pick their location at checkout and the matching fee is applied automatically. With Yobal Express on, the fee is Yobal's price instead, and the <b>map point</b> is where a zone is priced from when the customer doesn't share their own location — stand in the middle of the area and press 📍, or type it in.</p>
           <div class="tbl-wrap" style="margin-bottom:14px"><table>
-            <thead><tr><th>Location</th><th style="width:120px">Fee (GMD)</th><th style="width:90px">Shown</th><th style="width:90px"></th></tr></thead>
+            <thead><tr><th>Location</th><th style="width:100px">Fee (GMD)</th><th style="width:190px" title="The zone's centre — Yobal Express prices from here when a customer does not share their location">Map point (lat, lng)</th><th style="width:70px">Shown</th><th style="width:90px"></th></tr></thead>
             <tbody id="zoneRows"></tbody>
           </table></div>
           <div class="grid2">
@@ -1103,6 +1135,15 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
           <button class="btn btn-gold btn-sm" id="addZone" type="button">Add location</button>
         </div>
 
+        <div class="panel" id="ybStmtPanel" style="max-width:680px">
+          <h3>Yobal Express — weekly statement</h3>
+          <p style="color:var(--muted);font-size:.86rem;margin-bottom:12px">Monday to Sunday. Yobal's couriers hand the cash they collected to Yobal; Yobal keeps its fares and pays the shop the rest every Monday. Compare these figures with Yobal's statement for the same week.</p>
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+            <div class="field" style="margin:0"><label>Any day in the week</label><input type="date" id="ybWeek"></div>
+            <button type="button" class="btn btn-outline btn-sm" id="ybStmtGo">Show</button>
+          </div>
+          <div id="ybStmt"></div>
+        </div>
         <div class="panel" id="newsPanel" style="max-width:680px">
           <h3>Newsletter subscribers <span class="tag green" id="newsCount">0</span></h3>
           <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Customers who signed up on your website. Use these emails for promotions and announcements.</p>
@@ -3108,13 +3149,14 @@ function renderOrders(){
         <div><div style="font-weight:700;color:var(--green-800);font-size:1.05rem">${o.order_number} <span class="tag ${o.status==='delivered'?'green':o.status==='cancelled'?'red':'gold'}">${STATUS_LABEL[o.status]||o.status}</span> <span class="tag ${o.channel==='onsite'?'blue':o.channel==='whatsapp'?'green':o.channel==='messenger'?'fb':'grey'}">${o.channel==='onsite'?'In-shop':o.channel==='whatsapp'?'WhatsApp':o.channel==='messenger'?'Messenger':'Online'}</span></div>
           <div style="font-size:.86rem;color:var(--muted);margin-top:3px">${esc(o.customer_name)}${o.customer_phone?' · <span dir="ltr">'+esc(o.customer_phone)+'</span>':''} · ${new Date(o.created_at.replace(' ','T')+'Z').toLocaleString()}${o.staff?' · by '+esc(o.staff):''}</div>
           <div style="font-size:.84rem;margin-top:4px">${o.delivery_method==='home'?'Home delivery':'Shop pickup'}${o.delivery_zone?' · <b>'+esc(o.delivery_zone)+'</b>':''}${o.delivery_address?(' — '+esc(o.delivery_address)+(o.delivery_area?', '+esc(o.delivery_area):'')):''} · ${PAY_LABEL[o.payment_method]||o.payment_method}${o.courier_name?' · 🛵 '+esc(o.courier_name):''}</div>
-          ${o.notes?`<div style="font-size:.82rem;color:var(--muted);margin-top:3px">Note: ${esc(o.notes)}</div>`:''}</div>
+          ${o.notes?`<div style="font-size:.82rem;color:var(--muted);margin-top:3px">Note: ${esc(o.notes)}</div>`:''}
+          ${yobalOrderBlock(o,editable)}</div>
         <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--green-800)">${money(o.total)}</div><div style="font-size:.76rem;color:var(--muted)">${money(o.subtotal)} + ${money(o.delivery_fee)} delivery</div>${o.payment_proof?`<img src="${o.payment_proof}" class="pay-proof-thumb" data-proof="${o.payment_proof}" title="Payment proof — click to view" alt="proof">`:''}</div>
       </div>
       <div class="order-items">${items}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
         ${editable?`<label style="font-size:.84rem;color:var(--muted)">Status:</label><select class="status-sel" data-ostatus="${o.id}">${STATUS.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${STATUS_LABEL[s]}</option>`).join('')}</select>`:''}
-        ${(editable&&o.channel!=='onsite')?`<label style="font-size:.84rem;color:var(--muted)">Courier:</label><select class="status-sel" data-assign="${o.id}"><option value="">— Unassigned —</option>${COURIERS.map(c=>`<option value="${c.id}" ${String(o.courier_id)===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`:''}
+        ${(editable&&o.channel!=='onsite'&&o.delivery_provider!=='yobal')?`<label style="font-size:.84rem;color:var(--muted)">Courier:</label><select class="status-sel" data-assign="${o.id}"><option value="">— Unassigned —</option>${COURIERS.map(c=>`<option value="${c.id}" ${String(o.courier_id)===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`:''}
         <button class="btn btn-outline btn-sm" data-invoice="${o.id}">🧾 Invoice</button>
         ${o.payment_proof?`<button class="btn btn-outline btn-sm" data-proof="${o.payment_proof}">View payment proof</button>`:''}
         ${(waPhone&&o.channel!=='onsite')?`<a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/${waPhone}?text=${encodeURIComponent(stMsg)}" title="Send the current status + tracking link on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>🔔 Notify status</a>`:''}
@@ -3127,9 +3169,64 @@ function renderOrders(){
     : '';
   const mb=$('#ordMoreBtn');
   if(mb)mb.onclick=()=>{ORD_SHOWN+=ORD_STEP;renderOrders();};
-  $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{const r=await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast(r.whatsapp&&r.whatsapp.sent?'Order updated — customer notified on WhatsApp ✓':'Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
+  $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{const r=await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast(r.yobal&&!r.yobal.ok?'Order updated — but Yobal Express: '+r.yobal.error:r.yobal&&r.yobal.ok&&!r.yobal.already?'Order updated — Yobal Express courier booked ✓':r.whatsapp&&r.whatsapp.sent?'Order updated — customer notified on WhatsApp ✓':'Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
   $$('[data-assign]').forEach(sel=>sel.onchange=()=>assignCourier(sel.dataset.assign,sel.value));
 }
+/* ---------- Yobal Express on each order ----------
+   Who is carrying it, where the courier is in the job, and what to do when something goes
+   wrong: book again, call it off, or hand it to the shop's own couriers. In test mode the
+   practice buttons play Yobal's steps so the whole flow can be watched without a courier. */
+const YOBAL_LABEL={searching:'Finding a courier',courier_assigned:'Courier on the way to the shop',picked_up:'Courier has the parcel',
+  delivered:'Delivered by Yobal',failed:'Yobal could not deliver',cancelled:'Cancelled with Yobal',booking_failed:'Not booked'};
+function yobalOrderBlock(o,editable){
+  if(o.market==='uk'||o.delivery_method!=='home'||o.channel==='onsite')return '';
+  if(o.delivery_provider!=='yobal'){
+    // Fell back to the shop's couriers at checkout (Yobal couldn't price it) — say why, offer to retry.
+    if(!o.yobal_error)return '';
+    return `<div class="yb-box warn"><b>Own courier</b> · ${esc(o.yobal_error)}
+      ${editable&&!['delivered','cancelled','returned','refunded'].includes(o.status)?`<div class="yb-acts"><button class="btn btn-outline btn-sm" data-yb="${o.id}" data-yb-act="book">Send with Yobal Express</button></div>`:''}</div>`;
+  }
+  const st=o.yobal_status||'';
+  const bad=['failed','booking_failed','cancelled'].includes(st);
+  const open=!['delivered','cancelled','returned','refunded'].includes(o.status);
+  const testing=(o.yobal_delivery_id||'').startsWith('test_');
+  const label=st?(YOBAL_LABEL[st]||st):(o.status==='new'?'Books when you confirm the order':'Not booked yet');
+  let acts='';
+  if(editable&&open){
+    if(!o.yobal_delivery_id||bad)acts+=`<button class="btn btn-primary btn-sm" data-yb="${o.id}" data-yb-act="book">${o.yobal_delivery_id?'Book again':'Book Yobal now'}</button>`;
+    if(o.yobal_delivery_id&&!bad&&!['picked_up','delivered'].includes(st))acts+=`<button class="btn btn-outline btn-sm" data-yb="${o.id}" data-yb-act="cancel">Cancel courier</button>`;
+    if(!['picked_up','delivered'].includes(st))acts+=`<button class="btn btn-outline btn-sm" data-yb="${o.id}" data-yb-act="own" title="Cancel Yobal and choose one of your own couriers">Use own courier</button>`;
+    if(testing&&!bad&&st!=='delivered')acts+=`<span class="yb-test">Practice:</span>`+
+      [['assigned','Courier assigned'],['picked_up','Picked up'],['delivered','Delivered'],['failed','Failed']]
+        .map(([k,t])=>`<button class="btn btn-outline btn-sm" data-yb="${o.id}" data-yb-act="event" data-yb-step="${k}">${t}</button>`).join('');
+  }
+  return `<div class="yb-box${bad?' warn':''}">
+    <div><b>🛵 Yobal Express</b> · ${esc(label)}${testing?' <span class="tag grey">test</span>':''}</div>
+    <div class="yb-meta">
+      ${o.yobal_courier_name?`<span>Courier: <b>${esc(o.yobal_courier_name)}</b>${o.yobal_courier_phone?' <a href="tel:'+esc(o.yobal_courier_phone)+'" dir="ltr">'+esc(o.yobal_courier_phone)+'</a>':''}</span>`:''}
+      ${o.yobal_code?`<span>Delivery code: <b dir="ltr">${esc(o.yobal_code)}</b> <small>(the customer gives it to the courier)</small></span>`:''}
+      ${o.yobal_fare?`<span>Yobal fare: <b>${money(o.yobal_fare)}</b>${!o.delivery_fee?' <small>(free for the customer — the shop pays)</small>':''}</span>`:''}
+      ${o.yobal_delivery_id?`<span>Courier collects: <b>${money(o.yobal_cod||0)}</b>${!o.yobal_cod?' <small>(already paid)</small>':''}</span>`:''}
+      ${o.delivery_loc_src==='zone'?`<span><small>Priced from the zone centre — the customer didn't share their location</small></span>`:''}
+      ${o.yobal_tracking_url?`<a href="${esc(o.yobal_tracking_url)}" target="_blank" rel="noopener">Live tracking ↗</a>`:''}
+    </div>
+    ${o.yobal_error?`<div class="yb-err">${esc(o.yobal_error)}</div>`:''}
+    ${acts?`<div class="yb-acts">${acts}</div>`:''}
+  </div>`;
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-yb]');if(!b)return;
+  const act=b.dataset.ybAct;
+  if(act==='cancel'&&!confirm('Call the Yobal Express courier off this order?'))return;
+  if(act==='own'&&!confirm('Stop using Yobal Express for this order and deliver it with your own courier?'))return;
+  b.disabled=true;
+  try{
+    const r=await api('/admin/orders/'+b.dataset.yb+'/yobal',{method:'POST',body:JSON.stringify({action:act,step:b.dataset.ybStep})});
+    toast(act==='book'?'Yobal Express courier booked ✓':act==='cancel'?'Courier cancelled':act==='own'?'Switched to your own couriers — pick one':'Step applied: '+(r.outcome||'ok'));
+    await loadStats();await loadOrders();
+  }catch(err){toast(err.message);b.disabled=false;}
+});
+
 // Printable invoice/receipt for an order
 function printInvoice(o){
   const items=(o.items||[]).map(i=>`<tr><td>${esc(i.name)} ×${i.qty}</td><td style="text-align:right">${money(i.line)}</td></tr>`).join('');
@@ -4126,7 +4223,9 @@ const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_deliv
 'android_package','android_cert_sha256',
 'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
 'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
-'uk_dispatch_note','uk_returns_policy'];
+'uk_dispatch_note','uk_returns_policy',
+'delivery_provider','yobal_mode','yobal_api_url','yobal_api_key','yobal_webhook_secret','yobal_prep_minutes',
+'yobal_pickup_lat','yobal_pickup_lng','yobal_pickup_area','yobal_pickup_landmark','yobal_pickup_phone'];
 const PAY_METHOD_LIST=[['wave','Wave — transfer + screenshot'],['afri','AfriMoney — transfer + screenshot'],
   ['qmoney','QMoney — transfer + screenshot'],['bank','Bank transfer — screenshot'],
   ['cod','Cash on delivery — rider collects'],['wachat','Arrange on WhatsApp']];
@@ -4173,6 +4272,50 @@ function fillSettings(){
   const base=(SETTINGS.site_url||'').trim().replace(/\/+$/,'')||location.origin;
   if($('#feedCsvUrl'))$('#feedCsvUrl').value=base+'/catalog.csv';
   if($('#feedXmlUrl'))$('#feedXmlUrl').value=base+'/catalog.xml';
+  // Yobal Express: the address Yobal calls back, and the two helper buttons
+  if($('#ybHookUrl'))$('#ybHookUrl').value=SETTINGS.yobal_webhook_url||(base+'/api/webhooks/yobal');
+  if($('#s_delivery_provider')&&!SETTINGS.delivery_provider)$('#s_delivery_provider').value='own';
+  if($('#s_yobal_mode')&&!SETTINGS.yobal_mode)$('#s_yobal_mode').value='test';
+  if($('#ybHere'))$('#ybHere').onclick=()=>hereInto('#s_yobal_pickup_lat','#s_yobal_pickup_lng');
+  if($('#ybTest'))$('#ybTest').onclick=yobalTest;
+  if($('#ybStmt')&&(can('orders')||can('profit')))loadYobalStatement();
+}
+/* Weekly Yobal statement: what Yobal collected, what it charged, who pays whom. */
+async function loadYobalStatement(){
+  const box=$('#ybStmt');if(!box)return;
+  const wk=$('#ybWeek').value;
+  try{
+    const s=await api('/admin/yobal/statement'+(wk?'?week='+encodeURIComponent(wk):''));
+    const net=s.yobal_pays_shop;
+    box.innerHTML=`<div style="font-size:.9rem;line-height:1.8">
+        <div><b>${s.week_start}</b> to <b>${s.week_end}</b> · ${s.deliveries} ${s.deliveries===1?'delivery':'deliveries'}</div>
+        <div>Cash Yobal's couriers collected: <b>${money(s.cash_collected)}</b></div>
+        <div>Yobal fares the shop owes: <b>${money(s.fares)}</b> <small style="color:var(--muted)">(customers were charged ${money(s.delivery_charged_to_customers)} for delivery)</small></div>
+        <div style="font-size:1.02rem;margin-top:4px">${net>=0?`Yobal pays the shop <b style="color:var(--green-700)">${money(net)}</b>`:`The shop pays Yobal <b style="color:var(--danger)">${money(-net)}</b>`}</div></div>
+      ${s.lines.length?`<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>Order</th><th class="hide-sm">Delivered</th><th>Cash collected</th><th>Fare</th></tr></thead><tbody>
+        ${s.lines.map(l=>`<tr><td>${esc(l.order_number)}<div style="font-size:.76rem;color:var(--muted)">${esc(l.customer_name||'')}${l.delivery_zone?' · '+esc(l.delivery_zone):''}</div></td>
+          <td class="hide-sm" style="font-size:.82rem">${esc((l.delivered_at||'').slice(0,16))}</td><td>${money(l.yobal_cod)}</td><td>${money(l.yobal_fare)}</td></tr>`).join('')}
+      </tbody></table></div>`:''}`;
+  }catch(e){box.innerHTML='<span style="color:var(--danger)">'+esc(e.message)+'</span>';}
+}
+if($('#ybStmtGo'))$('#ybStmtGo').onclick=loadYobalStatement;
+/* Fills two latitude/longitude boxes with where this phone or laptop is now. */
+function hereInto(latSel,lngSel,done){
+  if(!navigator.geolocation){toast('This device cannot share its location');return;}
+  toast('Finding your location…');
+  navigator.geolocation.getCurrentPosition(p=>{
+    $(latSel).value=p.coords.latitude.toFixed(6);$(lngSel).value=p.coords.longitude.toFixed(6);
+    toast('Location filled in — accurate to about '+Math.round(p.coords.accuracy)+' m');
+    if(done)done();
+  },err=>toast(err.code===1?'Location permission was refused':'Could not get the location — try again outside'),{enableHighAccuracy:true,timeout:15000});
+}
+/* Saves nothing: asks Yobal for a real price from the shop to 1 km away, and shows its answer. */
+async function yobalTest(){
+  const out=$('#ybTestOut');out.textContent='Asking Yobal Express…';
+  try{
+    const r=await api('/admin/yobal/test',{method:'POST',body:'{}'});
+    out.innerHTML=`✓ Connected (${r.mode==='test'?'test mode — practice prices':'live'}). A 1 km delivery from the shop costs <b>${money(r.fare)}</b>, about ${r.eta_minutes} min. <small style="color:var(--muted)">Save settings first if you just changed them.</small>`;
+  }catch(e){out.innerHTML='<span style="color:var(--danger)">✗ '+esc(e.message)+'</span> <small style="color:var(--muted)">Save settings first if you just changed them.</small>';}
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-copy]');if(!b)return;
@@ -4229,7 +4372,7 @@ function renderZones(){
     <td><input type="number" min="0" step="1" value="${z.fee}" data-zf="${z.id}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px"></td>
     <td style="text-align:center"><input type="checkbox" ${z.is_active?'checked':''} data-za="${z.id}" style="width:17px;height:17px"></td>
     <td><div class="row-actions"><button class="btn btn-outline btn-sm" data-zone-save="${z.id}">Save</button><button class="btn btn-danger btn-sm" data-zone-del="${z.id}">✕</button></div></td>
-  </tr>`).join('')||`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No locations yet — add one below.</td></tr>`;
+  </tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No locations yet — add one below.</td></tr>`;
 }
 if($('#addZone'))$('#addZone').onclick=async()=>{
   const name=$('#nz_name').value.trim(), fee=+$('#nz_fee').value||0;
@@ -4262,7 +4405,8 @@ document.addEventListener('click',async e=>{
   if(el=x('data-gimg-cut')){openBgPanel(+el.dataset.gimgCut);return;}
   if(el=x('data-invoice')){const o=ORDERS.find(o=>o.id==el.dataset.invoice);if(o)printInvoice(o);return;}
   if(el=x('data-proof')){window.open(el.dataset.proof,'_blank');return;}
-  if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
+  if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;const lat=$('[data-zlat="'+id+'"]').value.trim(),lng=$('[data-zlng="'+id+'"]').value.trim();try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active,lat,lng})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
+  if(el=x('data-zhere')){const id=el.dataset.zhere;hereInto('[data-zlat="'+id+'"]','[data-zlng="'+id+'"]');return;}
   if(el=x('data-zone-del')){if(confirm('Delete this location?')){try{await api('/admin/zones/'+el.dataset.zoneDel,{method:'DELETE'});toast('Deleted');await loadZones();}catch(err){toast(err.message);}}return;}
   if(el=x('data-del-go')){deliveryAction(el.dataset.delGo,'pickup');return;}
   if(el=x('data-del-done')){let mark=false;if(el.dataset.cod==='1'){mark=confirm('Did you collect '+money(el.dataset.total)+' cash from the customer?\n\nOK = yes, mark as paid.  Cancel = not collected.');}deliveryAction(el.dataset.delDone,'delivered',{mark_paid:mark});return;}

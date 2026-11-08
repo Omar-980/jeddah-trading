@@ -71,6 +71,14 @@ try:
         api(4596, "/api/settings")["pay_online"] == "0", "")
     chk("and the books are unchanged", api(4596, "/api/admin/reports?type=pl", tok=t2)["revenue"] == 800,
         api(4596, "/api/admin/reports?type=pl", tok=t2)["revenue"])
+    # Yobal Express delivery: new columns arrive empty, and nothing changes until it is switched on
+    chk("the Yobal Express columns were added to orders", orders and all(k in orders[0] for k in
+        ("delivery_provider", "delivery_lat", "yobal_delivery_id", "yobal_status", "yobal_fare", "yobal_code")),
+        orders and [k for k in orders[0] if "yobal" in k or "delivery_" in k][:10])
+    chk("…empty on the old order", orders and not orders[0]["yobal_delivery_id"] and orders[0]["yobal_fare"] == 0)
+    zones = api(4596, "/api/admin/zones", tok=t2)["zones"]
+    chk("delivery zones gained a map point, still empty", zones and "lat" in zones[0] and zones[0]["lat"] is None, zones[:1])
+    chk("own couriers keep delivering until Yobal is switched on", api(4596, "/api/settings")["delivery_provider"] == "own")
 finally:
     for p in (old, new):
         if p:

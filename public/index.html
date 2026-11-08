@@ -1169,6 +1169,19 @@ body.viewing-product .pp-sticky{display:none}
   .fab-wa::after{display:none}
 }
 
+/* Yobal Express at checkout and on the tracking page */
+.yb-loc{margin:-4px 0 14px}
+.yb-gps{display:inline-flex;align-items:center;gap:8px;min-height:44px;width:100%;justify-content:center;font-weight:600}
+.yb-gps svg{width:18px;height:18px}
+.yb-gps.done{border-color:var(--green-700);color:var(--green-700)}
+.yb-price{font-size:.88rem;margin-top:8px;line-height:1.5}
+.yb-price .muted{color:var(--muted);font-size:.8rem}
+.yb-price .ok{color:var(--success,#1c7d4a)}
+.yb-track{margin-top:16px;padding:16px;border-radius:14px;background:#f3faf5;border:1px solid #cfe3d6}
+.yb-track h4{margin:0 0 6px;color:var(--green-800)}
+.yb-code{font-family:ui-monospace,Menlo,monospace;font-size:2rem;font-weight:800;letter-spacing:.3em;color:var(--green-800);margin:4px 0}
+.yb-track small{color:var(--muted);display:block;line-height:1.5}
+.yb-track .yb-c{margin-top:10px;font-size:.92rem}
 /* ================= SIMPLE SHOP =================
    The shop screen shows what a shopper needs to buy and nothing else: search, one row of
    categories, the products, and a bar to pay. The welcome hero, category tiles and deal
@@ -1774,6 +1787,7 @@ const ICONS = {
   dress:'<path d="M8 2l4 3 4-3 1 6-2 2 3 11H6l3-11-2-2z"/>',
   device:'<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
   home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
   gift:'<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M3 12h18M12 8S10 2 7 4s5 4 5 4zm0 0s2-6 5-4-5 4-5 4z"/>',
   box:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',
   grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
@@ -1986,6 +2000,7 @@ const I18N = {
   en:{
     announce:'🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime',
     tagline:'The Gambia', nav_shop:'Shop', nav_cat:'Categories',
+    yb_use_loc:'Use my location — exact price', yb_finding:'Finding your location…', yb_loc_ok:'Location shared ✓', yb_by:'Delivery by Yobal Express', yb_eta:'about {m} min', yb_zone_note:'Price for your area. Share your location for the exact price.', yb_pick_zone:'Choose your area or share your location to see the delivery price.', yb_outside:'Our courier partner doesn’t reach this spot — we’ll deliver with our own rider.', yb_denied:'Location not shared — we’ll price your area instead.', yb_code:'Your delivery code', yb_code_s:'Give these 4 digits to the Yobal Express courier when your parcel arrives — not before.', yb_courier:'Your courier', yb_follow:'Follow your courier', yb_searching:'Finding a Yobal Express courier for you',
     nav_help:'Help', mn_help:'Help', mn_orders:'My orders', help_title:'How can we help?', help_call:'Call us', f_filter:'Filter', chip_deals:'Deals', cbar_go:'Checkout', cbar_items:'{n} items', cbar_item:'1 item', cbar_free_more:'Add {x} for free delivery', cbar_free_ok:'Free delivery ✓', nav_why:'Why Us', nav_testi:'Reviews', nav_faq:'FAQ', nav_contact:'Contact',
     hero_eyebrow:'The Gambia\'s premium Islamic marketplace', hero_h1a:'Your trusted destination for', hero_h1b:'Islamic products, herbs & quality goods',
     hero_lead:'Discover premium herbs, prophetic medicine, perfumes, clothing, electronics and much more — all in one trusted place.',
@@ -2089,6 +2104,7 @@ const I18N = {
   ar:{
     announce:'🌙 توصيل مجاني في منطقة بانجول الكبرى للطلبات فوق <strong>٢٬٥٠٠ دلاسي</strong> · اطلب عبر واتساب في أي وقت',
     tagline:'غامبيا', nav_shop:'المتجر', nav_cat:'الأقسام',
+    yb_use_loc:'استخدم موقعي — سعر دقيق', yb_finding:'جارٍ تحديد موقعك…', yb_loc_ok:'تمت مشاركة الموقع ✓', yb_by:'التوصيل عبر يوبال إكسبريس', yb_eta:'حوالي {m} دقيقة', yb_zone_note:'سعر منطقتك. شارك موقعك للحصول على السعر الدقيق.', yb_pick_zone:'اختر منطقتك أو شارك موقعك لمعرفة سعر التوصيل.', yb_outside:'شريك التوصيل لا يصل إلى هذا المكان — سنوصل طلبك بمندوبنا.', yb_denied:'لم تتم مشاركة الموقع — سنحسب السعر حسب منطقتك.', yb_code:'رمز التسليم', yb_code_s:'أعطِ هذه الأرقام الأربعة لمندوب يوبال إكسبريس عند وصول طلبك — وليس قبل ذلك.', yb_courier:'المندوب', yb_follow:'تتبّع المندوب', yb_searching:'نبحث لك عن مندوب يوبال إكسبريس',
     nav_help:'مساعدة', mn_help:'مساعدة', mn_orders:'طلباتي', help_title:'كيف نساعدك؟', help_call:'اتصل بنا', f_filter:'تصفية', chip_deals:'العروض', cbar_go:'الدفع', cbar_items:'{n} منتجات', cbar_item:'منتج واحد', cbar_free_more:'أضف {x} للتوصيل المجاني', cbar_free_ok:'توصيل مجاني ✓', nav_why:'لماذا نحن', nav_testi:'التقييمات', nav_faq:'الأسئلة', nav_contact:'تواصل',
     hero_eyebrow:'سوق غامبيا الإسلامي الفاخر', hero_h1a:'وجهتك الموثوقة لـ', hero_h1b:'المنتجات الإسلامية والأعشاب والسلع الراقية',
     hero_lead:'اكتشف الأعشاب الفاخرة والطب النبوي والعطور والملابس والإلكترونيات وأكثر — كل ذلك في مكان واحد موثوق.',
@@ -3342,8 +3358,57 @@ function deliveryFee(){
   }
   if(coData.deliv==='pickup')return 0;
   if(FREE_DELIVERY_OVER && sub>=FREE_DELIVERY_OVER)return 0;
+  // Yobal Express: its price for this spot. The server prices the order again on its own.
+  if(yobalOn()&&YQ&&YQ.provider==='yobal')return Number(YQ.fee)||0;
   const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));
   return z?Number(z.fee):DELIVERY_FEE;
+}
+/* ---------- Yobal Express at checkout ----------
+   When the shop delivers with Yobal Express, the delivery fee is Yobal's price for where the
+   customer is: their phone's location if they share it (exact), otherwise their area's centre.
+   YQ holds the latest answer; the order cites its quote id and the server checks it. */
+let YQ=null, YQ_SEQ=0;
+function yobalOn(){return !isUK()&&String((PAYINFO&&PAYINFO.delivery_provider)||'')==='yobal'}
+function yobalPriceLine(){
+  if(!yobalOn())return '';
+  if(YQ&&YQ.loading)return `<span class="muted">${t('yb_finding')}</span>`;
+  if(YQ&&YQ.provider==='yobal'){
+    const free=FREE_DELIVERY_OVER&&(cartSubtotal()-coDiscountTotal())>=FREE_DELIVERY_OVER;
+    return `<b>${t('yb_by')}</b> · ${free?`<s>${money(YQ.fee)}</s> <b class="ok">${t('free')}</b>`:`<b>${money(YQ.fee)}</b>`}${YQ.eta_minutes?' · '+t('yb_eta').replace('{m}',YQ.eta_minutes):''}`+
+      (YQ.exact?'':`<div class="muted">${t('yb_zone_note')}</div>`);
+  }
+  if(YQ&&YQ.reason==='outside')return `<span class="muted">${t('yb_outside')}</span>`;
+  if(YQ&&YQ.denied)return `<span class="muted">${t('yb_denied')}</span>`;
+  return `<span class="muted">${t('yb_pick_zone')}</span>`;
+}
+function paintYobalPrice(){const el=$('#coYbPrice');if(el)el.innerHTML=yobalPriceLine();}
+async function requestYobalQuote(){
+  if(!yobalOn())return;
+  if(!coData.lat&&!coData.zoneId){YQ=null;paintYobalPrice();return;}
+  const seq=++YQ_SEQ;
+  YQ={loading:true};paintYobalPrice();
+  try{
+    const r=await fetch(API+'/api/delivery/quote',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({zone_id:coData.zoneId||null,lat:coData.lat||null,lng:coData.lng||null})}).then(r=>r.json());
+    if(seq!==YQ_SEQ)return;            // a newer request (another area, or the location) won
+    YQ=r&&r.provider?r:{provider:'own'};
+  }catch{ if(seq===YQ_SEQ)YQ={provider:'own',reason:'error'}; }
+  paintYobalPrice();
+}
+function useMyLocation(){
+  if(!navigator.geolocation){YQ={provider:'own',denied:true};paintYobalPrice();requestYobalQuote();return;}
+  const btn=$('#coGps');if(btn)btn.disabled=true;
+  YQ={loading:true};paintYobalPrice();
+  navigator.geolocation.getCurrentPosition(p=>{
+    coData.lat=+p.coords.latitude.toFixed(6);coData.lng=+p.coords.longitude.toFixed(6);
+    const b=$('#coGps');if(b){b.disabled=false;b.classList.add('done');b.querySelector('span').textContent=t('yb_loc_ok');}
+    requestYobalQuote();
+  },()=>{
+    const b=$('#coGps');if(b)b.disabled=false;
+    coData.lat=coData.lng=null;
+    requestYobalQuote().then(()=>{if(!YQ||YQ.provider!=='yobal'){YQ=Object.assign({},YQ||{},{denied:true});paintYobalPrice();}});
+    toast(t('yb_denied'));
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
 }
 function zoneName(){const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));return z?((LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en):''}
 function needsProof(id){return ['wave','afri','qmoney','bank'].includes(id)}
@@ -3445,9 +3510,10 @@ function renderCheckout(){
           <div class="field" style="margin-top:14px"><label>${t('co_location')} *</label>
             <select id="coZone">
               <option value="">${t('co_select_location')}</option>
-              ${ZONES.map(z=>`<option value="${z.id}" ${String(coData.zoneId)===String(z.id)?'selected':''}>${(LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en} — ${money(z.fee)}</option>`).join('')}
+              ${ZONES.map(z=>`<option value="${z.id}" ${String(coData.zoneId)===String(z.id)?'selected':''}>${(LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en}${yobalOn()?'':' — '+money(z.fee)}</option>`).join('')}
             </select>
             <div class="hint" style="font-size:.78rem;color:var(--muted);margin-top:4px">${t('co_location_note')}</div></div>
+          ${yobalOn()?`<div class="yb-loc"><button type="button" class="btn btn-outline yb-gps" id="coGps">${svg('pin')}<span>${coData.lat?t('yb_loc_ok'):t('yb_use_loc')}</span></button><div class="yb-price" id="coYbPrice">${yobalPriceLine()}</div></div>`:''}
           <div class="field"><label>${t('co_address')} *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="${t('co_address')}"></div>
           <div class="field"><label>${t('co_area')}</label><input type="text" id="coArea" value="${coData.area||''}" placeholder="${t('co_area')}"></div>
         </div>
@@ -3512,7 +3578,10 @@ function renderCheckout(){
   if($('#coNext'))$('#coNext').onclick=coNext;
   if($('#coPlace'))$('#coPlace').onclick=placeOrder;
   $$('#checkoutCard [data-deliv]').forEach(el=>el.onclick=()=>{coData.deliv=el.dataset.deliv;$('#addrFields').style.display=coData.deliv==='home'?'block':'none';$$('#checkoutCard [data-deliv]').forEach(x=>x.classList.toggle('sel',x===el))});
-  if($('#coZone'))$('#coZone').onchange=()=>{coData.zoneId=$('#coZone').value||null;};
+  if($('#coZone'))$('#coZone').onchange=()=>{coData.zoneId=$('#coZone').value||null;requestYobalQuote();};
+  if($('#coGps'))$('#coGps').onclick=useMyLocation;
+  // Yobal: show a price as soon as there is an area to price (e.g. a signed-in customer's saved area)
+  if(yobalOn()&&coStep===2&&coData.deliv==='home'&&!YQ&&(coData.zoneId||coData.lat))requestYobalQuote();
   $$('#checkoutCard [data-pay]').forEach(el=>el.onclick=()=>{coData.pay=el.dataset.pay;$$('#checkoutCard [data-pay]').forEach(x=>x.classList.toggle('sel',x===el));const ph=$('#payHint');if(ph)ph.textContent=coData.pay==='online'?t('pay_online_hint'):t('pay_confirm_wa');renderPayDetail();});
   if(coStep===3)renderPayDetail();
   if(coStep===4){
@@ -3636,6 +3705,9 @@ async function placeOrder(){
       customer_name:coData.name, customer_phone:coData.phone, delivery_method:isUK()?'home':coData.deliv,
       customer_email:coData.email||'', postcode:coData.postcode||'',
       delivery_address:coData.addr||'', delivery_area:coData.area||'', delivery_zone_id:isUK()?null:(coData.zoneId||null),
+      // Yobal Express: where the customer is (if shared) and the price they were shown
+      delivery_lat:yobalOn()?(coData.lat||null):null, delivery_lng:yobalOn()?(coData.lng||null):null,
+      yobal_quote_id:(yobalOn()&&YQ&&YQ.quote_id)||null,
       payment_method:coData.pay, payment_proof_data:coData.proof||null,
       coupon:CO_COUPON?CO_COUPON.code:null, redeem_points:CO_REDEEM||0,
       notes:coData.notes||'', language:LANG, items:cart.map(i=>({id:i.id, variant_id:i.vid||0, qty:i.qty}))
@@ -4389,6 +4461,7 @@ async function doTrack(silent){
         <div class="tp-head"><span>${t('track_progress')}</span>${o.payment_status==='paid'?`<span class="tp-paid">✓ ${t('st_paid_badge')}</span>`:''}</div>
         ${orderTimeline(o.status, o.delivery_method)}
       </div>
+      ${trackYobalHtml(o.yobal)}
       <div class="track-actions">
         <button class="btn btn-outline" id="tkReceipt">🧾 ${t('track_view_receipt')}</button>
         <button class="btn btn-gold" id="tkShareImg">${t('co_share_img')}</button>
@@ -4414,6 +4487,19 @@ async function doTrack(silent){
     }
   }catch(e){$('#tkResult').innerHTML=`<div class="track-empty err"><p>${t('track_none')}</p></div>`;}
   btn.disabled=false;btn.style.opacity=1;
+}
+/* Yobal Express on the tracking page: the 4-digit code the customer gives the courier at the
+   door, who the courier is, and the live map. Refreshed with the page's 30-second poll. */
+function trackYobalHtml(y){
+  if(!y)return '';
+  const phone=(y.courier_phone||'').replace(/[^0-9+]/g,'');
+  return `<div class="yb-track">
+    <h4>🛵 ${t('yb_by')}</h4>
+    ${y.code?`<div>${t('yb_code')}</div><div class="yb-code" dir="ltr">${esc(y.code)}</div><small>${t('yb_code_s')}</small>`:''}
+    ${y.courier?`<div class="yb-c">${t('yb_courier')}: <b>${esc(y.courier)}</b>${phone?` · <a href="tel:${phone}" dir="ltr">${esc(y.courier_phone)}</a>`:''}</div>`
+      :(y.status==='searching'?`<div class="yb-c">${t('yb_searching')}…</div>`:'')}
+    ${y.tracking_url&&['courier_assigned','picked_up'].includes(y.status)?`<a class="btn btn-outline btn-sm" style="margin-top:10px" href="${esc(y.tracking_url)}" target="_blank" rel="noopener">${t('yb_follow')} ↗</a>`:''}
+  </div>`;
 }
 /* receipt popup — view / print / save without leaving the page */
 function openReceiptModal(rc){

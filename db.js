@@ -617,6 +617,54 @@ db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_messages_waid ON wa_messages(w
 if (!columnExists('wa_messages', 'tag')) db.exec("ALTER TABLE wa_messages ADD COLUMN tag TEXT DEFAULT ''");
 db.exec("CREATE INDEX IF NOT EXISTS idx_wa_messages_tag ON wa_messages(tag) WHERE tag != ''");
 
+/* ---------- Yobal Express deliveries ----------
+   Yobal Express (a LUBEZZ company) can carry the shop's home deliveries: it prices by map
+   position, books a courier when the order is confirmed and reports each step back by signed
+   webhook. The shop's own couriers stay available — Settings chooses which one delivers.
+   Contract: the same business API OneSac uses (quotes, deliveries, cancel, webhooks). */
+// Each zone's centre, used to price an address when the customer has not shared their location.
+if (!columnExists('delivery_zones', 'lat')) db.exec('ALTER TABLE delivery_zones ADD COLUMN lat REAL');
+if (!columnExists('delivery_zones', 'lng')) db.exec('ALTER TABLE delivery_zones ADD COLUMN lng REAL');
+// Where the customer said they are (their phone's location), when they shared it.
+if (!columnExists('orders', 'delivery_lat'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lat REAL');
+if (!columnExists('orders', 'delivery_lng'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lng REAL');
+// 'gps' = the customer's own location; 'zone' = only their zone's centre (approximate)
+if (!columnExists('orders', 'delivery_loc_src'))    db.exec("ALTER TABLE orders ADD COLUMN delivery_loc_src TEXT DEFAULT ''");
+// Who carries this order: '' or 'own' = the shop's couriers, 'yobal' = Yobal Express.
+if (!columnExists('orders', 'delivery_provider'))   db.exec("ALTER TABLE orders ADD COLUMN delivery_provider TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_quote_id'))      db.exec("ALTER TABLE orders ADD COLUMN yobal_quote_id TEXT DEFAULT ''");
+// Yobal's fare in dalasi — what the shop owes Yobal, even when the customer got free delivery.
+if (!columnExists('orders', 'yobal_fare'))          db.exec('ALTER TABLE orders ADD COLUMN yobal_fare REAL NOT NULL DEFAULT 0');
+if (!columnExists('orders', 'yobal_cod'))           db.exec('ALTER TABLE orders ADD COLUMN yobal_cod REAL NOT NULL DEFAULT 0');
+if (!columnExists('orders', 'yobal_delivery_id'))   db.exec("ALTER TABLE orders ADD COLUMN yobal_delivery_id TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_status'))        db.exec("ALTER TABLE orders ADD COLUMN yobal_status TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_code'))          db.exec("ALTER TABLE orders ADD COLUMN yobal_code TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_tracking_url'))  db.exec("ALTER TABLE orders ADD COLUMN yobal_tracking_url TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_courier_name'))  db.exec("ALTER TABLE orders ADD COLUMN yobal_courier_name TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_courier_phone')) db.exec("ALTER TABLE orders ADD COLUMN yobal_courier_phone TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_error'))         db.exec("ALTER TABLE orders ADD COLUMN yobal_error TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_booked_at'))     db.exec("ALTER TABLE orders ADD COLUMN yobal_booked_at TEXT DEFAULT ''");
+db.exec("CREATE INDEX IF NOT EXISTS idx_orders_yobal ON orders(yobal_delivery_id) WHERE yobal_delivery_id != ''");
+/* Every quote Yobal gave a shopper at checkout, so the order can cite it (Yobal honours a
+   quote for an hour) and the server can check the fare was really Yobal's, never the browser's. */
+db.exec(`CREATE TABLE IF NOT EXISTS yobal_quotes (
+  quote_id TEXT PRIMARY KEY,
+  fare REAL NOT NULL,                        -- dalasi
+  lat REAL, lng REAL,
+  zone_id INTEGER,
+  eta_minutes INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+// Yobal retries webhooks; each event id is applied once.
+db.exec(`CREATE TABLE IF NOT EXISTS yobal_events (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT '',
+  delivery_id TEXT DEFAULT '',
+  order_id INTEGER,
+  outcome TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+
 /* ---------- Default settings ---------- */
 function getSetting(key, def) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -719,6 +767,18 @@ const DEFAULT_SETTINGS = {
   uk_account_number: '',
   uk_paypal_link: '',             // e.g. https://paypal.me/yourname
   uk_dispatch_note: 'Posted from our UK partner by Royal Mail Tracked — usually 2–3 working days.',
+  // Yobal Express. 'own' keeps today's couriers; switch to 'yobal' once the account is set up.
+  delivery_provider: 'own',               // own | yobal
+  yobal_mode: 'test',                     // test = built-in practice Yobal (nothing leaves the shop) | live
+  yobal_api_url: 'https://api.144-126-204-16.sslip.io/v1/business',
+  yobal_api_key: '',
+  yobal_webhook_secret: '',
+  yobal_prep_minutes: '30',               // time to pack an order; the courier is timed to arrive then
+  yobal_pickup_lat: '',                   // the shop's map position (Bundung Kakunda)
+  yobal_pickup_lng: '',
+  yobal_pickup_area: 'Bundung',
+  yobal_pickup_landmark: 'Jeddah Trading, Bundung Kakunda',
+  yobal_pickup_phone: '+2207093900',
   uk_returns_policy: 'You may cancel within 14 days of receiving your order, for any reason, and send it back within 14 days of telling us. Return postage is paid by you unless the item arrived damaged or wrong. We refund within 14 days of the goods coming back, including the standard delivery you paid. Sealed food cannot be returned once opened.',
 };
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
