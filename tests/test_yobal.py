@@ -45,6 +45,7 @@ class Yobal(BaseHTTPRequestHandler):
         self.reply(404, {"message": "not found"})
 ysrv = ThreadingHTTPServer(("127.0.0.1", YPORT), Yobal); threading.Thread(target=ysrv.serve_forever, daemon=True).start()
 
+os.environ["YOBAL_MAP_LOOKUP"]="off"   # never ask OpenStreetMap from a test
 subprocess.run(["pkill","-9","-f","[n]ode server.js"],capture_output=True); time.sleep(1)
 srv=subprocess.Popen(["node","server.js"],cwd=REPO,env=dict(os.environ,DATA_DIR=DATA,PORT=str(PORT)),
                      stdout=subprocess.PIPE,stderr=subprocess.STDOUT); time.sleep(4)
@@ -70,6 +71,19 @@ try:
     tok=api("/api/admin/login",{"username":"owner","password":"jeddah2026"})["token"]
     pid=api("/api/admin/products",{"name_en":"Ajwa Dates","cat":"dates","price":400,"cost":200,"stock":50,"is_active":1},tok)["id"]
     zone=api("/api/zones")["zones"][0]
+    # --- every area is placed automatically, from its name — staff never type a map point
+    time.sleep(1)
+    zs={z["name_en"]:z for z in api("/api/admin/zones",t=tok)["zones"]}
+    chk("Serrekunda is placed at its centre automatically", zs["Serrekunda"]["point_src"]=="list" and abs(zs["Serrekunda"]["lat"]-13.438)<1e-6, zs["Serrekunda"])
+    bf=zs["Bakau / Fajara"]
+    chk("an area covering two places sits between them", bf["point_src"]=="list" and abs(bf["lat"]-13.474)<1e-6 and abs(bf["lng"]+16.687)<1e-6, (bf["lat"],bf["lng"]))
+    chk("a vague area like Other (Greater Banjul) is left unplaced", zs["Other (Greater Banjul)"]["point_src"]=="none" and zs["Other (Greater Banjul)"]["lat"] is None)
+    tz=api("/api/admin/zones",{"name_en":"Tanji","fee":300},tok)["id"]; time.sleep(.5)
+    tzr=next(z for z in api("/api/admin/zones",t=tok)["zones"] if z["id"]==tz)
+    chk("a newly added area is placed by itself", tzr["point_src"]=="list" and abs(tzr["lat"]-13.353)<1e-6, tzr)
+    uz=api("/api/admin/zones",{"name_en":"Nowhereville","fee":300},tok)["id"]; time.sleep(.5)
+    chk("a name that isn't a known place stays unplaced", next(z for z in api("/api/admin/zones",t=tok)["zones"] if z["id"]==uz)["point_src"]=="none")
+    api(f"/api/admin/zones/{tz}",None,tok,"DELETE"); api(f"/api/admin/zones/{uz}",None,tok,"DELETE")
 
     # --- switched off (the default): nothing changes for the shop
     o0=api("/api/orders",{"customer_name":"Own Courier","customer_phone":"7000001","delivery_method":"home","delivery_zone_id":zone["id"],
@@ -172,10 +186,11 @@ try:
         # an area's fee and map point, saved through the screen exactly as the owner would
         apg.evaluate("setTab('delivery')"); apg.wait_for_timeout(300)
         zid=str(zone["id"])
-        apg.fill(f"[data-zf='{zid}']","120"); apg.fill(f"[data-zlat='{zid}']","13.4600"); apg.fill(f"[data-zlng='{zid}']","-16.5800")
-        apg.click(f"[data-zone-save='{zid}']"); apg.wait_for_timeout(900)
+        chk("the areas table has no map boxes to type into", apg.locator("[data-zlat]").count()==0 and apg.locator("[data-zhere]").count()==0)
+        chk("…it says each point was found automatically", "Automatic" in apg.inner_text("#zoneRows") and "Not placed" in apg.inner_text("#zoneRows"))
+        apg.fill(f"[data-zf='{zid}']","120"); apg.click(f"[data-zone-save='{zid}']"); apg.wait_for_timeout(900)
         zz=next(z for z in api("/api/admin/zones",t=tok)["zones"] if z["id"]==zone["id"])
-        chk("an area's fee and map point save from the Delivery settings", zz["fee"]==120 and abs(zz["lat"]-13.46)<1e-6 and abs(zz["lng"]+16.58)<1e-6, zz)
+        chk("an area's fee saves from the Delivery settings, its point untouched", zz["fee"]==120 and zz["lat"] is not None, zz)
         chk("…without saving the rest of the settings form by accident", api("/api/admin/settings",t=tok)["delivery_provider"]=="yobal")
         api(f"/api/admin/zones/{zone['id']}",{"fee":zone["fee"],"lat":"13.4549","lng":"-16.5790"},tok,"PATCH")
         apg.screenshot(path=SHOT+"/yobal_admin_settings.png", full_page=False)

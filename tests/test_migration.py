@@ -77,7 +77,7 @@ try:
         orders and [k for k in orders[0] if "yobal" in k or "delivery_" in k][:10])
     chk("…empty on the old order", orders and not orders[0]["yobal_delivery_id"] and orders[0]["yobal_fare"] == 0)
     zones = api(4596, "/api/admin/zones", tok=t2)["zones"]
-    chk("delivery zones gained a map point, still empty", zones and "lat" in zones[0] and zones[0]["lat"] is None, zones[:1])
+    chk("delivery areas are placed automatically on upgrade", zones and zones[0]["point_src"] == "list" and zones[0]["lat"] is not None, zones[:1])
     chk("own couriers keep delivering until Yobal is switched on", api(4596, "/api/settings")["delivery_provider"] == "own")
 finally:
     for p in (old, new):

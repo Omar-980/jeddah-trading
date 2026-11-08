@@ -625,6 +625,9 @@ db.exec("CREATE INDEX IF NOT EXISTS idx_wa_messages_tag ON wa_messages(tag) WHER
 // Each zone's centre, used to price an address when the customer has not shared their location.
 if (!columnExists('delivery_zones', 'lat')) db.exec('ALTER TABLE delivery_zones ADD COLUMN lat REAL');
 if (!columnExists('delivery_zones', 'lng')) db.exec('ALTER TABLE delivery_zones ADD COLUMN lng REAL');
+// How the centre was found — never typed by staff: 'list' (built-in area centres), 'map'
+// (OpenStreetMap, inside Yobal's area), 'none' (too vague to place, e.g. "Other"), '' = not yet.
+if (!columnExists('delivery_zones', 'point_src')) db.exec("ALTER TABLE delivery_zones ADD COLUMN point_src TEXT DEFAULT ''");
 // Where the customer said they are (their phone's location), when they shared it.
 if (!columnExists('orders', 'delivery_lat'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lat REAL');
 if (!columnExists('orders', 'delivery_lng'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lng REAL');

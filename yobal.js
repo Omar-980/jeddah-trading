@@ -36,7 +36,8 @@ module.exports = function createYobal({ getSetting }) {
   }
   /** The shop, as Yobal's courier will find it. */
   function pickupPlace() {
-    const pt = validPoint(setting('yobal_pickup_lat'), setting('yobal_pickup_lng'));
+    // the exact spot if it was set; otherwise the centre of the shop's area (Bundung)
+    const pt = validPoint(setting('yobal_pickup_lat'), setting('yobal_pickup_lng')) || listedPoint(setting('yobal_pickup_area') || 'Bundung');
     if (!pt) return null;
     return { ...pt, area: setting('yobal_pickup_area') || 'Bundung',
       landmark: setting('yobal_pickup_landmark') || setting('store_name') || 'Jeddah Trading',
@@ -60,6 +61,57 @@ module.exports = function createYobal({ getSetting }) {
   }
   /** Yobal's starting fares (D25 + D12/km, at least D50, rounded up to D5) — the practice price. */
   function testFare(k) { return Math.ceil(Math.max(50, 25 + k * 12) / 5) * 5; }
+
+  /* ---------- Where each delivery area is ----------
+     Staff never type map positions. An area's point comes from this list of area centres — the
+     same one OneSac prices Yobal deliveries with — and an area not on it is looked up once on
+     OpenStreetMap, the map Yobal's own app searches, inside Yobal's service area. Approximate on
+     purpose: a customer who shares their location is always priced from where they really are. */
+  const AREA_CENTRES = {
+    banjul: [13.4549, -16.579], bakau: [13.478, -16.682], fajara: [13.47, -16.692], kotu: [13.457, -16.704],
+    kololi: [13.447, -16.717], senegambia: [13.44, -16.722], bijilo: [13.425, -16.725], brusubi: [13.409, -16.733],
+    brufut: [13.388, -16.746], sukuta: [13.411, -16.709], farato: [13.36, -16.69], serrekunda: [13.438, -16.678],
+    kanifing: [13.447, -16.675], latrikunda: [13.438, -16.665], tallinding: [13.42, -16.66], bundung: [13.418, -16.672],
+    pipeline: [13.455, -16.69], westfield: [13.442, -16.68], 'kerr serign': [13.433, -16.72], abuko: [13.405, -16.656],
+    lamin: [13.38, -16.65], yundum: [13.35, -16.65], busumbala: [13.34, -16.66], brikama: [13.271, -16.648],
+    tanji: [13.353, -16.795], sanyang: [13.27, -16.79], gunjur: [13.2, -16.76], 'cape point': [13.486, -16.664],
+    'kairaba avenue': [13.456, -16.69], 'old jeshwang': [13.444, -16.643], 'new jeshwang': [13.439, -16.655],
+    dippakunda: [13.435, -16.668], ebo: [13.432, -16.688], eboe: [13.432, -16.688], manjai: [13.446, -16.7],
+    'bundung kakunda': [13.418, -16.672], bakoteh: [13.418, -16.697], wellingara: [13.389, -16.688],
+  };
+  // Yobal's Greater Banjul service area (west, north, east, south) — nothing outside it is looked up.
+  const SERVICE_BOX = { w: -16.86, n: 13.52, e: -16.50, s: 13.20 };
+  const inBox = p => p && p.lng >= SERVICE_BOX.w && p.lng <= SERVICE_BOX.e && p.lat >= SERVICE_BOX.s && p.lat <= SERVICE_BOX.n;
+  // "Bakau / Fajara" → ['bakau', 'fajara']; "Other (Greater Banjul)" → ['other', 'greater banjul']
+  const nameParts = name => String(name || '').toLowerCase().split(/[\/,&()+]|\band\b/).map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  /** An area's centre from the built-in list — the midpoint when the name covers several places. */
+  function listedPoint(name) {
+    const hits = nameParts(name).map(p => AREA_CENTRES[p]).filter(Boolean);
+    if (!hits.length) return null;
+    const lat = hits.reduce((s, h) => s + h[0], 0) / hits.length, lng = hits.reduce((s, h) => s + h[1], 0) / hits.length;
+    return { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
+  }
+  /** Not on the list: ask OpenStreetMap once, only inside Yobal's area. Anything vague stays unplaced. */
+  async function mapPoint(name) {
+    if (process.env.YOBAL_MAP_LOOKUP === 'off') return null;
+    const parts = nameParts(name).filter(p => !/^(other|others|upcountry|other regions|greater banjul|rest of .*)$/.test(p));
+    const found = [];
+    for (const part of parts.slice(0, 3)) {
+      try {
+        const u = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gm&bounded=1'
+          + `&viewbox=${SERVICE_BOX.w},${SERVICE_BOX.n},${SERVICE_BOX.e},${SERVICE_BOX.s}&q=` + encodeURIComponent(part);
+        const r = await fetch(u, { headers: { 'User-Agent': 'JeddahTrading/1.0 (shopjeddahtrading.com)', 'Accept-Language': 'en' },
+          signal: AbortSignal.timeout(8000) });
+        const rows = await r.json();
+        const p = rows && rows[0] ? { lat: Number(rows[0].lat), lng: Number(rows[0].lon) } : null;
+        if (inBox(p)) found.push(p);
+      } catch { /* the map is unreachable — the area simply stays unplaced for now */ }
+      await new Promise(res => setTimeout(res, 1100));   // OpenStreetMap asks for at most one search a second
+    }
+    if (!found.length) return null;
+    return { lat: Math.round(found.reduce((s, p) => s + p.lat, 0) / found.length * 1e5) / 1e5,
+             lng: Math.round(found.reduce((s, p) => s + p.lng, 0) / found.length * 1e5) / 1e5 };
+  }
 
   class YobalError extends Error { constructor(msg, code) { super(msg); this.code = code || ''; } }
 
@@ -138,5 +190,6 @@ module.exports = function createYobal({ getSetting }) {
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
 
-  return { enabled, mode, validPoint, pickupPlace, e164, quote, book, cancel, verifySignature, hasSecret: () => !!hookSecret(), YobalError };
+  return { enabled, mode, validPoint, pickupPlace, e164, quote, book, cancel, verifySignature, hasSecret: () => !!hookSecret(), YobalError,
+    listedPoint, mapPoint };
 };

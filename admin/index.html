@@ -246,6 +246,8 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .set-sub{display:block;color:var(--muted);font-size:.86rem;line-height:1.5;margin:0 0 14px}
 .set-subhead{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-600);margin:6px 0 10px}
 .set-card .field:last-child{margin-bottom:0}
+.zp{font-size:.82rem;color:var(--muted);line-height:1.35;display:inline-block}
+.zp.ok{color:var(--green-700);font-weight:600}
 .zone-pt{display:flex;gap:4px;align-items:center}
 .zone-pt input{width:100%;min-width:0;padding:7px 6px;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem}
 .set-copy{display:flex;gap:8px;align-items:center}
@@ -1158,9 +1160,9 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 
               <div class="set-card" id="zonesPanel">
                 <h3>Delivery areas</h3>
-                <p class="set-sub">Customers choose their area at checkout. <b>Fee</b> is for own couriers. <b>Map point</b> is the area's centre — Yobal prices from it when a customer doesn't share their location. Stand in the area and press 📍, then Save.</p>
+                <p class="set-sub">Customers choose their area at checkout. <b>Fee</b> is for own couriers. Each area's <b>map point</b> is found automatically from its name — Yobal prices from it when a customer doesn't share their location. Name areas after real places (e.g. "Tanji", "Bakau / Fajara").</p>
                 <div class="tbl-wrap" style="margin-bottom:14px"><table>
-                  <thead><tr><th>Area</th><th style="width:100px">Fee (GMD)</th><th style="width:200px">Map point (lat, lng)</th><th style="width:66px">Shown</th><th style="width:96px"></th></tr></thead>
+                  <thead><tr><th>Area</th><th style="width:100px">Fee (GMD)</th><th style="width:170px">Map point</th><th style="width:66px">Shown</th><th style="width:96px"></th></tr></thead>
                   <tbody id="zoneRows"></tbody>
                 </table></div>
                 <div class="set-add">
@@ -4506,7 +4508,7 @@ function renderDeliveryState(){
   if(!yobal)msg='Your own couriers deliver home orders. Choose <b>Yobal Express</b> above to hand them to Yobal.';
   else if(!live){cls='warn';msg='<b>Yobal Express — test mode.</b> Prices are practice prices and <b>no courier is sent</b>. Switch the mode to Live for real orders.';}
   else if(!keys){cls='warn';msg='<b>Yobal Express is chosen but not connected.</b> Add the API key and webhook secret below — until then your own couriers deliver.';}
-  else if(!spot){cls='warn';msg='<b>Set the shop\'s location below</b> so couriers know where to collect.';}
+  else if(!spot){cls='ok';msg='<b>✓ Yobal Express delivers your home orders.</b> Couriers are sent to the centre of '+esc(SETTINGS.yobal_pickup_area||'Bundung')+' — for the shop\'s exact door, press 📍 in the shop once.';}
   else{cls='ok';msg='<b>✓ Yobal Express delivers your home orders.</b> Confirming an order books the courier.';}
   box.className='set-state'+(cls?' '+cls:'');box.innerHTML=msg;
 }
@@ -4575,13 +4577,22 @@ async function loadNewsletter(){
 }
 
 /* ---------- Delivery zones (Settings) ---------- */
+/* How an area's centre was found — staff never set it. */
+function zonePointLabel(z){
+  const where=z.lat!=null?` title="${(+z.lat).toFixed(4)}, ${(+z.lng).toFixed(4)}"`:'';
+  if(z.point_src==='list')return `<span class="zp ok"${where}>✓ Automatic</span>`;
+  if(z.point_src==='map')return `<span class="zp ok"${where}>✓ Found on the map</span>`;
+  if(z.point_src==='manual')return `<span class="zp ok"${where}>✓ Set</span>`;
+  if(z.point_src==='none')return `<span class="zp" title="Too general to place. Customers here are priced from their own location when they share it; otherwise your own couriers deliver.">Not placed — customer's location used</span>`;
+  return `<span class="zp">Finding…</span>`;
+}
 async function loadZones(){try{const d=await api('/admin/zones');ZONES=d.zones||[];renderZones();}catch(e){}}
 function renderZones(){
   const el=$('#zoneRows'); if(!el)return;
   el.innerHTML=ZONES.map(z=>`<tr>
     <td><input value="${esc(z.name_en)}" data-zn="${z.id}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px"></td>
     <td><input type="number" min="0" step="1" value="${z.fee}" data-zf="${z.id}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px"></td>
-    <td><div class="zone-pt"><input value="${z.lat??''}" data-zlat="${z.id}" placeholder="lat" inputmode="decimal" dir="ltr"><input value="${z.lng??''}" data-zlng="${z.id}" placeholder="lng" inputmode="decimal" dir="ltr"><button type="button" class="btn btn-outline btn-sm" data-zhere="${z.id}" title="Use this device's location" aria-label="Use this device's location">📍</button></div></td>
+    <td>${zonePointLabel(z)}</td>
     <td style="text-align:center"><input type="checkbox" ${z.is_active?'checked':''} data-za="${z.id}" style="width:17px;height:17px"></td>
     <td><div class="row-actions"><button type="button" class="btn btn-outline btn-sm" data-zone-save="${z.id}">Save</button><button type="button" class="btn btn-danger btn-sm" data-zone-del="${z.id}">✕</button></div></td>
   </tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No locations yet — add one below.</td></tr>`;
@@ -4589,7 +4600,7 @@ function renderZones(){
 if($('#addZone'))$('#addZone').onclick=async()=>{
   const name=$('#nz_name').value.trim(), fee=+$('#nz_fee').value||0;
   if(!name){toast('Enter a location name');return;}
-  try{await api('/admin/zones',{method:'POST',body:JSON.stringify({name_en:name,fee})});$('#nz_name').value='';$('#nz_fee').value='';toast('Location added');await loadZones();}catch(err){toast(err.message);}
+  try{await api('/admin/zones',{method:'POST',body:JSON.stringify({name_en:name,fee})});$('#nz_name').value='';$('#nz_fee').value='';toast('Area added — finding it on the map');await loadZones();setTimeout(loadZones,5000);}catch(err){toast(err.message);}
 };
 
 /* ---------- Modal helpers + delegated clicks ---------- */

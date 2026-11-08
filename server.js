@@ -584,6 +584,29 @@ function wa() {
    Yobal's webhook events into the shop's own order statuses. */
 const YOBAL = require('./yobal')({ getSetting });
 
+/* Each delivery area's centre is found automatically — from the built-in list of area centres,
+   or once on OpenStreetMap — and never typed by staff. Runs at start-up for any area not yet
+   placed, and again when an area is added or renamed. The first start of this version places
+   every area afresh, replacing any point that was set by hand before. */
+async function placeZone(z, force) {
+  if (!z || (!force && z.point_src)) return;
+  const listed = YOBAL.listedPoint(z.name_en);
+  if (listed) { db.prepare("UPDATE delivery_zones SET lat=?, lng=?, point_src='list' WHERE id=?").run(listed.lat, listed.lng, z.id); return; }
+  db.prepare("UPDATE delivery_zones SET lat=NULL, lng=NULL, point_src='pending' WHERE id=?").run(z.id);
+  const found = await YOBAL.mapPoint(z.name_en);
+  // the area may have been renamed while the map was being asked — only write if it is still the same name
+  db.prepare("UPDATE delivery_zones SET lat=?, lng=?, point_src=? WHERE id=? AND name_en=?")
+    .run(found ? found.lat : null, found ? found.lng : null, found ? 'map' : 'none', z.id, z.name_en);
+}
+async function placeZones() {
+  const fresh = getSetting('zone_points_auto', '') !== '1';
+  if (fresh) setSetting('zone_points_auto', '1');
+  for (const z of db.prepare('SELECT * FROM delivery_zones ORDER BY id').all()) {
+    try { await placeZone(z, fresh || z.point_src === 'pending'); } catch (e) { console.error('Placing area', z.name_en, e.message); }
+  }
+}
+setImmediate(() => placeZones().catch(e => console.error('Placing areas:', e.message)));
+
 /** Where the courier goes: the customer's shared location, or else their zone's centre. */
 function yobalPoint(lat, lng, zone) {
   const own = YOBAL.validPoint(lat, lng);
@@ -2446,12 +2469,14 @@ async function api(req, res, url) {
       db.prepare('UPDATE categories SET name_en=?,name_ar=?,icon=?,image=?,is_active=? WHERE id=?').run(
         b.name_en??cur.name_en, b.name_ar??cur.name_ar, b.icon??cur.icon, image,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // a renamed area is placed again from its new name
+      if (b.name_en != null && String(b.name_en) !== cur.name_en && b.lat === undefined) placeZone(queries.zoneById(id), true).catch(() => {});
       // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
       if (b.lat !== undefined || b.lng !== undefined) {
         const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
         const pt = YOBAL.validPoint(b.lat, b.lng);
         if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
-        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=?, point_src=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, pt ? 'manual' : '', id);
       }
       return send(res, 200, { ok: true });
     }
@@ -2490,12 +2515,14 @@ async function api(req, res, url) {
       db.prepare('UPDATE suppliers SET name=?,phone=?,email=?,address=?,notes=?,is_active=? WHERE id=?').run(
         b.name??cur.name, b.phone??cur.phone, b.email??cur.email, b.address??cur.address, b.notes??cur.notes,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // a renamed area is placed again from its new name
+      if (b.name_en != null && String(b.name_en) !== cur.name_en && b.lat === undefined) placeZone(queries.zoneById(id), true).catch(() => {});
       // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
       if (b.lat !== undefined || b.lng !== undefined) {
         const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
         const pt = YOBAL.validPoint(b.lat, b.lng);
         if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
-        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=?, point_src=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, pt ? 'manual' : '', id);
       }
       return send(res, 200, { ok: true });
     }
@@ -2532,6 +2559,7 @@ async function api(req, res, url) {
       const pt = YOBAL.validPoint(b.lat, b.lng);   // the zone's centre, for Yobal Express prices
       const info = db.prepare('INSERT INTO delivery_zones(name_en,name_ar,fee,sort_order,is_active,lat,lng) VALUES(?,?,?,?,?,?,?)')
         .run(String(b.name_en).slice(0,80), String(b.name_ar||'').slice(0,80), Number(b.fee)||0, sort, b.is_active===false?0:1, pt ? pt.lat : null, pt ? pt.lng : null);
+      placeZone(queries.zoneById(info.lastInsertRowid), !pt).catch(() => {});   // find its centre automatically
       return send(res, 201, { ok: true, id: info.lastInsertRowid });
     }
     if (r[1] === 'zones' && r[2] && method === 'PATCH') {
@@ -2542,12 +2570,14 @@ async function api(req, res, url) {
       db.prepare('UPDATE delivery_zones SET name_en=?,name_ar=?,fee=?,is_active=? WHERE id=?').run(
         b.name_en??cur.name_en, b.name_ar??cur.name_ar, b.fee!=null?Number(b.fee):cur.fee,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // a renamed area is placed again from its new name
+      if (b.name_en != null && String(b.name_en) !== cur.name_en && b.lat === undefined) placeZone(queries.zoneById(id), true).catch(() => {});
       // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
       if (b.lat !== undefined || b.lng !== undefined) {
         const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
         const pt = YOBAL.validPoint(b.lat, b.lng);
         if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
-        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=?, point_src=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, pt ? 'manual' : '', id);
       }
       return send(res, 200, { ok: true });
     }
@@ -2814,12 +2844,14 @@ async function api(req, res, url) {
       db.prepare('UPDATE faqs SET q_en=?,a_en=?,q_ar=?,a_ar=?,is_active=? WHERE id=?').run(
         b.q_en??cur.q_en, b.a_en??cur.a_en, b.q_ar??cur.q_ar, b.a_ar??cur.a_ar,
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // a renamed area is placed again from its new name
+      if (b.name_en != null && String(b.name_en) !== cur.name_en && b.lat === undefined) placeZone(queries.zoneById(id), true).catch(() => {});
       // The zone's centre for Yobal Express. Blank clears it; anything outside The Gambia is refused.
       if (b.lat !== undefined || b.lng !== undefined) {
         const blank = (b.lat === '' || b.lat === null) && (b.lng === '' || b.lng === null);
         const pt = YOBAL.validPoint(b.lat, b.lng);
         if (!blank && !pt) return send(res, 400, { error: 'That map position is not in The Gambia' });
-        db.prepare('UPDATE delivery_zones SET lat=?, lng=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, id);
+        db.prepare('UPDATE delivery_zones SET lat=?, lng=?, point_src=? WHERE id=?').run(pt ? pt.lat : null, pt ? pt.lng : null, pt ? 'manual' : '', id);
       }
       return send(res, 200, { ok: true });
     }
@@ -2876,6 +2908,8 @@ async function api(req, res, url) {
         b.name??cur.name, cur.role==='owner'?'owner':(b.role??cur.role),
         cur.role==='owner'?JSON.stringify(ALL_PERMS):(perms!=null?JSON.stringify(perms):cur.permissions),
         b.is_active!=null?(b.is_active?1:0):cur.is_active, id);
+      // a renamed area is placed again from its new name
+      if (b.name_en != null && String(b.name_en) !== cur.name_en && b.lat === undefined) placeZone(queries.zoneById(id), true).catch(() => {});
       if (b.password) db.prepare('UPDATE users SET pass_hash=? WHERE id=?').run(hashPassword(b.password), id);
       return send(res, 200, { ok: true });
     }
