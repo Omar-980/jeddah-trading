@@ -192,8 +192,10 @@ module.exports = function createYobal({ getSetting }) {
     }
     return data;
   }
-  const wirePlace = p => ({ lat: p.lat, lng: p.lng, approximate: !!p.approximate, area: p.area, landmark: p.landmark,
-    details: p.details || undefined, contactName: p.contactName, contactPhone: p.contactPhone });
+  // Within Yobal's limits (area 80, landmark 160, details 200, name 80), so a long address is never refused.
+  const cut = (v, n) => String(v || '').trim().slice(0, n);
+  const wirePlace = p => ({ lat: p.lat, lng: p.lng, approximate: !!p.approximate, area: cut(p.area, 80), landmark: cut(p.landmark, 160),
+    details: cut(p.details, 200) || undefined, contactName: cut(p.contactName, 80) || 'Customer', contactPhone: cut(p.contactPhone, 20) });
 
   /** Price for one parcel from the shop to `dropoff`. → { quoteId, fare (D), etaMinutes, distanceKm } */
   async function quote(dropoff) {

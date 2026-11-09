@@ -1,5 +1,5 @@
 """Yobal Express carries home deliveries: checkout shows Yobal's price for the customer's spot,
-confirming the order books the courier, Yobal's signed webhooks move the order along, and the
+a cash-on-delivery order books the courier as soon as it is placed (online payments once paid), Yobal's signed webhooks move the order along, and the
 weekly statement adds up. A stand-in Yobal business API runs here, checks the API key and
 records every booking, the way OneSac's joint test did against the real one."""
 import os as _os, pathlib as _pl
@@ -146,11 +146,12 @@ try:
         row=order(tok,o1["order_number"])
         chk("…from the customer's own location", abs(row["delivery_lat"]-13.44)<1e-6 and row["delivery_loc_src"]=="gps", (row["delivery_lat"],row["delivery_loc_src"]))
         chk("…citing the quote they were shown", row["yobal_quote_id"].startswith("q_") and row["yobal_fare"]==65)
-        chk("no courier is booked before the order is confirmed", not any(p.endswith("/deliveries") for _,p,_,_ in SEEN))
+        time.sleep(.8)
+        chk("a cash-on-delivery order books the Yobal courier as soon as it is placed", any(p.endswith("/deliveries") and b["externalRef"]==o1["order_number"] for _,p,b,_ in SEEN))
 
-        # --- confirm → booked
+        # --- confirming it afterwards changes nothing
         r=api(f"/api/admin/orders/{o1['id']}",{"status":"confirmed"},tok,"PATCH")
-        chk("confirming the order books the Yobal courier", r.get("yobal",{}).get("ok") is True, r.get("yobal"))
+        chk("confirming the order keeps that one booking", r.get("yobal",{}).get("ok") is True and len(DELIVERIES)==1, r.get("yobal"))
         bk=[b for m,p,b,a in SEEN if p.endswith("/deliveries")][-1]
         chk("…with the shop's API key", [a for m,p,b,a in SEEN if p.endswith("/deliveries")][-1]=="Bearer "+KEY)
         chk("…by order number, at the quoted fare", bk["externalRef"]==o1["order_number"] and bk["fareButut"]==6500 and bk["quoteId"]==row["yobal_quote_id"], bk)
@@ -222,12 +223,14 @@ try:
 
     # --- free delivery: the customer pays nothing, the shop still owes Yobal's fare
     o2=api("/api/orders",{"customer_name":"Big Basket","customer_phone":"7000002","delivery_method":"home","delivery_zone_id":zone["id"],
-        "delivery_address":"Shop 3","payment_method":"cod","items":[{"id":pid,"qty":7}]})
+        "delivery_address":"Shop 3, "+"behind the big mango tree past the second mosque, "*6,"payment_method":"cod","items":[{"id":pid,"qty":7}]})
     r2=order(tok,o2["order_number"])
     chk("over the free-delivery amount the customer pays no delivery", o2["delivery_fee"]==0 and o2["total"]==2800, o2)
     chk("…but the shop owes Yobal the fare, priced from the zone centre", r2["yobal_fare"]==65 and r2["delivery_loc_src"]=="zone", (r2["yobal_fare"],r2["delivery_loc_src"]))
     api(f"/api/admin/orders/{o2['id']}",{"status":"confirmed"},tok,"PATCH")
-    chk("…and the zone-centre drop-off is marked approximate", [b for m,p,b,a in SEEN if p.endswith("/deliveries")][-1]["dropoff"]["approximate"] is True)
+    b2=[b for m,p,b,a in SEEN if p.endswith("/deliveries")][-1]
+    chk("…and the zone-centre drop-off is marked approximate", b2["dropoff"]["approximate"] is True)
+    chk("a long address is trimmed to Yobal's 160 characters, not refused", b2["externalRef"]==o2["order_number"] and len(b2["dropoff"]["landmark"])==160, len(b2["dropoff"]["landmark"]))
 
     # --- cancelled before pickup: the courier is called off
     api(f"/api/admin/orders/{o2['id']}",{"status":"cancelled"},tok,"PATCH")
@@ -247,6 +250,19 @@ try:
     chk("the place search finds landmarks", any(p["name"]=="Westfield Junction" for p in pl), pl[:2])
     q=api("/api/delivery/quote",{"zone_id":zone["id"],"lat":13.90,"lng":-15.0})
     chk("…and checkout says so", q.get("provider")=="own" and q.get("reason")=="outside", q)
+
+    # --- paid online: booked only once the payment lands, and the courier collects nothing
+    api("/api/admin/settings",{"modempay_webhook_secret":"whsec_modem_test"},tok)
+    o6=api("/api/orders",{"customer_name":"Paid Online","customer_phone":"7000006","delivery_method":"home","delivery_zone_id":zone["id"],
+        "delivery_address":"Gate 6","payment_method":"online","items":[{"id":pid,"qty":1}]})
+    time.sleep(.8)
+    booked6=lambda: [b for m,p,b,a in SEEN if p.endswith("/deliveries") and b["externalRef"]==o6["order_number"]]
+    chk("an online-payment order is not booked before it is paid", not booked6())
+    raw=json.dumps({"event":"charge.succeeded","id":"evt_o6","payload":{"amount":o6["total"],"metadata":{"order_id":o6["id"]}}})
+    sig=hmac.new(b"whsec_modem_test",raw.encode(),hashlib.sha512).hexdigest()
+    rq=urllib.request.Request(BASE+"/api/webhooks/modempay",data=raw.encode(),headers={"Content-Type":"application/json","x-modem-signature":sig})
+    urllib.request.urlopen(rq).read(); time.sleep(.8)
+    chk("…once the payment lands the courier is booked, collecting nothing", len(booked6())==1 and booked6()[0]["codButut"]==0, booked6())
 
     # --- a failed delivery leaves the order open for staff, and Book again works
     o4=api("/api/orders",{"customer_name":"Retry","customer_phone":"7000004","delivery_method":"home","delivery_zone_id":zone["id"],

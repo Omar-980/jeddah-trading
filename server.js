@@ -143,6 +143,7 @@ function markOrderPaid(order, amount, via, ref) {
     .run(order.id);
   logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay (${via}${ref ? ' ' + ref : ''})`);
   wa().notifyOrder(order.id, 'paid').catch(() => {});   // "we received your payment" on WhatsApp
+  if (order.delivery_provider === 'yobal') queueYobalBooking(order.id);   // paid online: book the courier now
   return 'paid';
 }
 
@@ -570,6 +571,10 @@ async function placeOrder(b, ctx = {}) {
         payError = 'We could not open the payment page. Your order is saved — pay on delivery or send us a transfer.';
       }
     }
+    /* Yobal Express: a cash-on-delivery order books the courier straight away. An order paid
+       online is booked once the payment lands (markOrderPaid), so the courier never collects
+       money already paid; other payment methods are booked when staff confirm the order. */
+    if (provider === 'yobal' && autoBooksOnPlacing(b.payment_method)) queueYobalBooking(info.lastInsertRowid);
     return { status: 201, body: { ok: true, order_number: orderNumber, id: info.lastInsertRowid, subtotal, discount, redeemed, delivery_fee: fee, total, currency, market, payment_link: payLink, payment_error: payError,
       delivery_provider: provider || 'own' } };
 }
@@ -657,6 +662,13 @@ async function yobalPrice({ lat, lng, zone, quoteId }) {
 }
 
 const YOBAL_DONE = ['delivered', 'cancelled', 'returned', 'refunded', 'failed'];
+/** Payment methods whose orders book the Yobal courier as soon as they are placed. */
+function autoBooksOnPlacing(method) { return ['cod', 'cash'].includes(String(method || 'cod')); }
+/** Books in the background, so the customer's checkout never waits on Yobal. Problems are kept
+    on the order (yobal_error) and staff can book again from the order, or by confirming it. */
+function queueYobalBooking(orderId) {
+  setImmediate(() => bookYobal(orderId).catch(e => console.error('Yobal booking:', e.message)));
+}
 /** Books the Yobal courier for an order. Safe to call again: an order is booked once. */
 async function bookYobal(orderId) {
   const o = db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
