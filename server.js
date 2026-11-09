@@ -155,6 +155,7 @@ function publicSettings() {
     pay_methods: getSetting('pay_methods'),
     // 'yobal' when Yobal Express prices and carries home deliveries — checkout then asks for the location
     delivery_provider: YOBAL.enabled() ? 'yobal' : 'own',
+    checkout_area_list: getSetting('checkout_area_list', '0'),   // show the area list link at checkout
     pay_online: (getSetting('modempay_enabled') === '1' && !!(process.env.MODEMPAY_SECRET_KEY || getSetting('modempay_secret_key'))) ? '1' : '0',
     announce_en: getSetting('announce_en'),
     announce_ar: getSetting('announce_ar'),
@@ -2964,7 +2965,7 @@ async function api(req, res, url) {
       'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
       'uk_dispatch_note','uk_returns_policy',
       'delivery_provider','yobal_mode','yobal_api_url','yobal_api_key','yobal_webhook_secret','yobal_prep_minutes',
-      'yobal_pickup_lat','yobal_pickup_lng','yobal_pickup_area','yobal_pickup_landmark','yobal_pickup_phone'];
+      'yobal_pickup_lat','yobal_pickup_lng','yobal_pickup_area','yobal_pickup_landmark','yobal_pickup_phone','checkout_area_list'];
     /* "Test the connection" in Settings. Asks Modem Pay for a real payment link for the
        smallest amount they accept, and hands back whatever they actually said. Nothing is
        charged — the link is thrown away — but it turns "it did not work" into the provider's

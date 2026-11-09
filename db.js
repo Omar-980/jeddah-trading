@@ -782,6 +782,7 @@ const DEFAULT_SETTINGS = {
   yobal_pickup_area: 'Bundung',
   yobal_pickup_landmark: 'Jeddah Trading, Bundung Kakunda',
   yobal_pickup_phone: '+2207093900',
+  checkout_area_list: '0',               // 1 = checkout also offers "Choose from the list of areas instead"
   uk_returns_policy: 'You may cancel within 14 days of receiving your order, for any reason, and send it back within 14 days of telling us. Return postage is paid by you unless the item arrived damaged or wrong. We refund within 14 days of the goods coming back, including the standard delivery you paid. Sealed food cannot be returned once opened.',
 };
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {

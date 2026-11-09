@@ -3607,7 +3607,7 @@ function renderCheckout(){
                 placeholder="${t('co_place_ph')}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="coLocList">
               <ul class="place-list" id="coLocList" role="listbox" hidden></ul>
             </div>
-            <div class="place-alt"><a href="#" id="coZoneShow">${t('co_place_list')}</a></div>
+            ${String((PAYINFO&&PAYINFO.checkout_area_list)||'0')==='1'?`<div class="place-alt"><a href="#" id="coZoneShow">${t('co_place_list')}</a></div>`:''}
           </div>
           <div class="field" id="coZoneWrap" style="${coData.zoneAsk?'':'display:none'}"><label for="coZone" id="coZoneLbl">${coData.zoneAsk==='which'?t('co_place_which'):t('co_location')}</label>
             <select id="coZone">
