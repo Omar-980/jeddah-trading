@@ -470,6 +470,10 @@ async function placeOrder(b, ctx = {}) {
       if (!isPickup && b.delivery_zone_id) {
         const z = queries.zoneById(Number(b.delivery_zone_id));
         if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; zoneRow = z; }
+      } else if (!isPickup && YOBAL.validPoint(b.delivery_lat, b.delivery_lng)) {
+        // a place picked from the search: its delivery area is worked out here, never taken on trust
+        const z = nearestZone(b.delivery_lat, b.delivery_lng);
+        if (z) { zoneName = z.name_en; zoneFee = Number(z.fee) || 0; zoneRow = z; }
       }
     }
     /* Yobal Express: the fee is Yobal's price for this address (the free-delivery rule below
@@ -606,6 +610,24 @@ async function placeZones() {
   }
 }
 setImmediate(() => placeZones().catch(e => console.error('Placing areas:', e.message)));
+
+/* Which delivery area a picked place belongs to: the nearest placed area within 8 km. Further
+   than that, an area named for everything else ("Upcountry", "Other …") if the shop has one.
+   null means the customer is asked to choose. Used for the own-courier fee and the order's area. */
+function nearestZone(lat, lng) {
+  const pt = YOBAL.validPoint(lat, lng); if (!pt) return null;
+  const zones = queries.activeZones().map(z => queries.zoneById(z.id)).filter(Boolean);
+  let best = null, bestKm = Infinity;
+  for (const z of zones) {
+    const zp = YOBAL.validPoint(z.lat, z.lng); if (!zp) continue;
+    const d = YOBAL.distanceKm(pt, zp);
+    if (d < bestKm) { best = z; bestKm = d; }
+  }
+  if (best && bestKm <= 8) return best;
+  const greater = pt.lng < -16.5 && pt.lat > 13.2;   // inside Greater Banjul, just far from any named area
+  return zones.find(z => (greater ? /other|greater banjul/i : /upcountry|other region/i).test(z.name_en))
+      || zones.find(z => /other|upcountry/i.test(z.name_en)) || null;
+}
 
 /** Where the courier goes: the customer's shared location, or else their zone's centre. */
 function yobalPoint(lat, lng, zone) {
@@ -1410,18 +1432,28 @@ async function api(req, res, url) {
   /* Yobal Express price for checkout: the customer's location (or their zone's centre) → the
      fare and a quote id the order can cite. Rate-limited: each call may reach Yobal. */
   if (r[0] === 'delivery' && r[1] === 'quote' && method === 'POST') {
-    if (!YOBAL.enabled()) return send(res, 200, { provider: 'own' });
     const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     if (chatRateLimited('yq|' + ip, 40, 10 * 60 * 1000)) return send(res, 429, { error: 'Too many requests — try again shortly' });
     const b = await readBody(req);
-    const zone = b.zone_id ? queries.zoneById(Number(b.zone_id)) : null;
+    // A place picked from the search (or the customer's location) finds its own delivery area.
+    let zone = b.zone_id ? queries.zoneById(Number(b.zone_id)) : null;
+    if (!zone && YOBAL.validPoint(b.lat, b.lng)) zone = nearestZone(b.lat, b.lng);
+    const area = zone ? { zone_id: zone.id, zone_name: zone.name_en, zone_name_ar: zone.name_ar || '', zone_fee: Number(zone.fee) || 0 } : { zone_id: null };
+    if (!YOBAL.enabled()) return send(res, 200, { provider: 'own', ...area });
     try {
       const q = await yobalPrice({ lat: b.lat, lng: b.lng, zone, quoteId: b.quote_id });
-      return send(res, 200, { provider: 'yobal', fee: q.fare, quote_id: q.quoteId, eta_minutes: q.etaMinutes || 0, exact: q.point.src === 'gps' });
+      return send(res, 200, { provider: 'yobal', fee: q.fare, quote_id: q.quoteId, eta_minutes: q.etaMinutes || 0, exact: q.point.src === 'gps', ...area });
     } catch (e) {
       // The order will still go through on the zone fee with the shop's own couriers.
-      return send(res, 200, { provider: 'own', reason: e.code === 'outside_service_area' ? 'outside' : (e.code || 'error') });
+      return send(res, 200, { provider: 'own', reason: e.code === 'outside_service_area' ? 'outside' : (e.code || 'error'), ...area });
     }
+  }
+  /* Place search for checkout — the list under "Search your area, street or landmark".
+     Rate-limited per visitor; results are cached for a day (see yobal.js). */
+  if (r[0] === 'places' && method === 'GET') {
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (chatRateLimited('pl|' + ip, 60, 10 * 60 * 1000)) return send(res, 429, { error: 'Too many searches — try again shortly' });
+    return send(res, 200, { places: await YOBAL.searchPlaces(url.searchParams.get('q') || '') });
   }
   if (r[0] === 'reviews' && method === 'POST') {
     const b = await readBody(req);

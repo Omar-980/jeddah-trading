@@ -1169,6 +1169,23 @@ body.viewing-product .pp-sticky{display:none}
   .fab-wa::after{display:none}
 }
 
+/* Location search at checkout (like Yobal Express) */
+.place-box{position:relative}
+.place-box .place-ic{position:absolute;inset-inline-start:13px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--green-700);pointer-events:none}
+.place-box input{width:100%;min-height:50px;padding-inline-start:42px;font-size:1rem}
+.place-list{position:absolute;z-index:30;inset-inline:0;top:calc(100% + 4px);margin:0;padding:6px;list-style:none;background:#fff;
+  border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 34px rgba(7,38,23,.16);max-height:min(340px,52vh);overflow-y:auto}
+.place-list .pl-head{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-600);padding:8px 10px 4px}
+.place-list .pl-item{display:flex;align-items:center;gap:11px;min-height:48px;padding:7px 10px;border-radius:10px;cursor:pointer}
+.place-list .pl-item:hover,.place-list .pl-item.on{background:var(--cream,#faf6ec)}
+.place-list .pl-ic{width:32px;height:32px;border-radius:50%;background:rgba(28,125,74,.1);color:var(--green-700);display:grid;place-items:center;flex-shrink:0}
+.place-list .pl-ic svg{width:16px;height:16px}
+.place-list .pl-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.place-list .pl-txt b{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.place-list .pl-txt small{color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.place-list .pl-note{padding:12px 10px;color:var(--muted);font-size:.86rem;line-height:1.45}
+.place-alt{margin-top:7px;font-size:.84rem}
+.place-alt a{color:var(--green-700);text-decoration:underline;text-underline-offset:3px}
 /* Yobal Express at checkout and on the tracking page */
 .yb-loc{margin:-4px 0 14px}
 .yb-gps{display:inline-flex;align-items:center;gap:8px;min-height:44px;width:100%;justify-content:center;font-weight:600}
@@ -2000,6 +2017,7 @@ const I18N = {
   en:{
     announce:'🌙 Free delivery in Greater Banjul on orders over <strong>D2,500</strong> · Order on WhatsApp anytime',
     tagline:'The Gambia', nav_shop:'Shop', nav_cat:'Categories',
+    co_place_ph:'Search your area, street or landmark…', co_place_list:'Choose from the list of areas instead', co_place_which:'Which delivery area is this in?', co_place_here:'My current location', co_place_area:'Delivery area', co_place_areas:'Delivery areas', co_place_places:'Places', co_place_searching:'Searching…', co_place_none:'Nothing found — try another spelling, a nearby landmark, or use your location.', co_use_loc:'Use my location',
     yb_use_loc:'Use my location — exact price', yb_finding:'Finding your location…', yb_loc_ok:'Location shared ✓', yb_by:'Delivery by Yobal Express', yb_eta:'about {m} min', yb_zone_note:'Price for your area. Share your location for the exact price.', yb_pick_zone:'Choose your area or share your location to see the delivery price.', yb_outside:'Our courier partner doesn’t reach this spot — we’ll deliver with our own rider.', yb_denied:'Location not shared — we’ll price your area instead.', yb_code:'Your delivery code', yb_code_s:'Give these 4 digits to the Yobal Express courier when your parcel arrives — not before.', yb_courier:'Your courier', yb_follow:'Follow your courier', yb_searching:'Finding a Yobal Express courier for you',
     nav_help:'Help', mn_help:'Help', mn_orders:'My orders', help_title:'How can we help?', help_call:'Call us', f_filter:'Filter', chip_deals:'Deals', cbar_go:'Checkout', cbar_items:'{n} items', cbar_item:'1 item', cbar_free_more:'Add {x} for free delivery', cbar_free_ok:'Free delivery ✓', nav_why:'Why Us', nav_testi:'Reviews', nav_faq:'FAQ', nav_contact:'Contact',
     hero_eyebrow:'The Gambia\'s premium Islamic marketplace', hero_h1a:'Your trusted destination for', hero_h1b:'Islamic products, herbs & quality goods',
@@ -2104,6 +2122,7 @@ const I18N = {
   ar:{
     announce:'🌙 توصيل مجاني في منطقة بانجول الكبرى للطلبات فوق <strong>٢٬٥٠٠ دلاسي</strong> · اطلب عبر واتساب في أي وقت',
     tagline:'غامبيا', nav_shop:'المتجر', nav_cat:'الأقسام',
+    co_place_ph:'ابحث عن منطقتك أو شارعك أو معلم قريب…', co_place_list:'اختر من قائمة المناطق بدلاً من ذلك', co_place_which:'في أي منطقة توصيل يقع هذا المكان؟', co_place_here:'موقعي الحالي', co_place_area:'منطقة توصيل', co_place_areas:'مناطق التوصيل', co_place_places:'أماكن', co_place_searching:'جارٍ البحث…', co_place_none:'لم نجد شيئاً — جرّب كتابة أخرى أو معلماً قريباً أو استخدم موقعك.', co_use_loc:'استخدم موقعي',
     yb_use_loc:'استخدم موقعي — سعر دقيق', yb_finding:'جارٍ تحديد موقعك…', yb_loc_ok:'تمت مشاركة الموقع ✓', yb_by:'التوصيل عبر يوبال إكسبريس', yb_eta:'حوالي {m} دقيقة', yb_zone_note:'سعر منطقتك. شارك موقعك للحصول على السعر الدقيق.', yb_pick_zone:'اختر منطقتك أو شارك موقعك لمعرفة سعر التوصيل.', yb_outside:'شريك التوصيل لا يصل إلى هذا المكان — سنوصل طلبك بمندوبنا.', yb_denied:'لم تتم مشاركة الموقع — سنحسب السعر حسب منطقتك.', yb_code:'رمز التسليم', yb_code_s:'أعطِ هذه الأرقام الأربعة لمندوب يوبال إكسبريس عند وصول طلبك — وليس قبل ذلك.', yb_courier:'المندوب', yb_follow:'تتبّع المندوب', yb_searching:'نبحث لك عن مندوب يوبال إكسبريس',
     nav_help:'مساعدة', mn_help:'مساعدة', mn_orders:'طلباتي', help_title:'كيف نساعدك؟', help_call:'اتصل بنا', f_filter:'تصفية', chip_deals:'العروض', cbar_go:'الدفع', cbar_items:'{n} منتجات', cbar_item:'منتج واحد', cbar_free_more:'أضف {x} للتوصيل المجاني', cbar_free_ok:'توصيل مجاني ✓', nav_why:'لماذا نحن', nav_testi:'التقييمات', nav_faq:'الأسئلة', nav_contact:'تواصل',
     hero_eyebrow:'سوق غامبيا الإسلامي الفاخر', hero_h1a:'وجهتك الموثوقة لـ', hero_h1b:'المنتجات الإسلامية والأعشاب والسلع الراقية',
@@ -3369,48 +3388,120 @@ function deliveryFee(){
    YQ holds the latest answer; the order cites its quote id and the server checks it. */
 let YQ=null, YQ_SEQ=0;
 function yobalOn(){return !isUK()&&String((PAYINFO&&PAYINFO.delivery_provider)||'')==='yobal'}
+/* The line under the location: what delivery will cost there, or what to do next. */
 function yobalPriceLine(){
-  if(!yobalOn())return '';
   if(YQ&&YQ.loading)return `<span class="muted">${t('yb_finding')}</span>`;
-  if(YQ&&YQ.provider==='yobal'){
-    const free=FREE_DELIVERY_OVER&&(cartSubtotal()-coDiscountTotal())>=FREE_DELIVERY_OVER;
-    return `<b>${t('yb_by')}</b> · ${free?`<s>${money(YQ.fee)}</s> <b class="ok">${t('free')}</b>`:`<b>${money(YQ.fee)}</b>`}${YQ.eta_minutes?' · '+t('yb_eta').replace('{m}',YQ.eta_minutes):''}`+
-      (YQ.exact?'':`<div class="muted">${t('yb_zone_note')}</div>`);
+  const free=FREE_DELIVERY_OVER&&(cartSubtotal()-coDiscountTotal())>=FREE_DELIVERY_OVER;
+  const fee=f=>free?`<s>${money(f)}</s> <b class="ok">${t('free')}</b>`:`<b>${money(f)}</b>`;
+  if(yobalOn()&&YQ&&YQ.provider==='yobal'){
+    return `<b>${t('yb_by')}</b> · ${fee(YQ.fee)}${YQ.eta_minutes?' · '+t('yb_eta').replace('{m}',YQ.eta_minutes):''}`+
+      (YQ.exact||coData.placeKind==='place'?'':`<div class="muted">${t('yb_zone_note')}</div>`);
   }
-  if(YQ&&YQ.reason==='outside')return `<span class="muted">${t('yb_outside')}</span>`;
-  if(YQ&&YQ.denied)return `<span class="muted">${t('yb_denied')}</span>`;
+  if(YQ&&YQ.reason==='outside')return `<span class="muted">${t('yb_outside')}</span>${coData.zoneId?' '+fee(zoneFee()):''}`;
+  if(YQ&&YQ.denied&&!coData.zoneId)return `<span class="muted">${t('yb_denied')}</span>`;
+  if(coData.zoneId)return `${t('delivery')}: ${fee(zoneFee())} <span class="muted">· ${esc(zoneName())}</span>`;
   return `<span class="muted">${t('yb_pick_zone')}</span>`;
 }
+function zoneFee(){const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));return z?Number(z.fee):DELIVERY_FEE}
 function paintYobalPrice(){const el=$('#coYbPrice');if(el)el.innerHTML=yobalPriceLine();}
+/* Ask the shop: which delivery area is this, and (with Yobal) what is Yobal's price here. */
 async function requestYobalQuote(){
-  if(!yobalOn())return;
+  if(isUK())return;
   if(!coData.lat&&!coData.zoneId){YQ=null;paintYobalPrice();return;}
   const seq=++YQ_SEQ;
   YQ={loading:true};paintYobalPrice();
   try{
     const r=await fetch(API+'/api/delivery/quote',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({zone_id:coData.zoneId||null,lat:coData.lat||null,lng:coData.lng||null})}).then(r=>r.json());
-    if(seq!==YQ_SEQ)return;            // a newer request (another area, or the location) won
+      body:JSON.stringify({zone_id:coData.lat?null:(coData.zoneId||null),lat:coData.lat||null,lng:coData.lng||null})}).then(r=>r.json());
+    if(seq!==YQ_SEQ)return;            // a newer request (another place, or the location) won
     YQ=r&&r.provider?r:{provider:'own'};
+    // a place found its own area; if it couldn't, the customer chooses one
+    if(coData.lat){
+      if(YQ.zone_id){coData.zoneId=YQ.zone_id;coData.zoneAsk='';}
+      else{coData.zoneId=null;coData.zoneAsk='which';}
+      showZonePicker(coData.zoneAsk==='which');
+    }
   }catch{ if(seq===YQ_SEQ)YQ={provider:'own',reason:'error'}; }
   paintYobalPrice();
 }
+function showZonePicker(on,ask){
+  const w=$('#coZoneWrap');if(!w)return;
+  w.style.display=on?'':'none';
+  const l=$('#coZoneLbl');if(l)l.textContent=coData.zoneAsk==='which'?t('co_place_which'):t('co_location');
+  const s=$('#coZone');if(s){s.value=coData.zoneId?String(coData.zoneId):'';if(on&&coData.zoneAsk==='which')s.classList.add('invalid');}
+}
+/* The customer chose something: a delivery area, a place from the search, or their own location. */
+function pickPlace(p){
+  if(p.kind==='zone'){
+    coData.zoneId=p.id;coData.lat=coData.lng=null;coData.placeKind='zone';coData.zoneAsk='';
+  }else{
+    coData.lat=p.lat;coData.lng=p.lng;coData.placeKind=p.kind;coData.zoneId=null;
+  }
+  coData.placeName=p.name;
+  const i=$('#coLoc');if(i){i.value=p.name;i.classList.remove('invalid');}
+  closePlaceList();
+  const b=$('#coGps');if(b){b.classList.toggle('done',p.kind==='gps');b.querySelector('span').textContent=p.kind==='gps'?t('yb_loc_ok'):(yobalOn()?t('yb_use_loc'):t('co_use_loc'));}
+  if(p.kind==='zone')showZonePicker(false);
+  requestYobalQuote();
+}
 function useMyLocation(){
-  if(!navigator.geolocation){YQ={provider:'own',denied:true};paintYobalPrice();requestYobalQuote();return;}
+  if(!navigator.geolocation){YQ={provider:'own',denied:true};paintYobalPrice();return;}
   const btn=$('#coGps');if(btn)btn.disabled=true;
   YQ={loading:true};paintYobalPrice();
   navigator.geolocation.getCurrentPosition(p=>{
-    coData.lat=+p.coords.latitude.toFixed(6);coData.lng=+p.coords.longitude.toFixed(6);
-    const b=$('#coGps');if(b){b.disabled=false;b.classList.add('done');b.querySelector('span').textContent=t('yb_loc_ok');}
-    requestYobalQuote();
+    const b=$('#coGps');if(b)b.disabled=false;
+    pickPlace({kind:'gps',name:t('co_place_here'),lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)});
   },()=>{
     const b=$('#coGps');if(b)b.disabled=false;
-    coData.lat=coData.lng=null;
-    requestYobalQuote().then(()=>{if(!YQ||YQ.provider!=='yobal'){YQ=Object.assign({},YQ||{},{denied:true});paintYobalPrice();}});
+    YQ={provider:'own',denied:true};paintYobalPrice();
     toast(t('yb_denied'));
   },{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
 }
-function zoneName(){const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));return z?((LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en):''}
+/* ---------- The search list under the location box ----------
+   Delivery areas that match show at once; places (landmarks and the map) follow a moment later. */
+let PL_SEQ=0, PL_TIMER=null, PL_ITEMS=[], PL_ACTIVE=-1;
+function closePlaceList(){const l=$('#coLocList');if(l){l.hidden=true;l.innerHTML='';}const i=$('#coLoc');if(i)i.setAttribute('aria-expanded','false');PL_ITEMS=[];PL_ACTIVE=-1;}
+function renderPlaceList(q,places,loading){
+  const l=$('#coLocList');if(!l)return;
+  const k=q.toLowerCase();
+  const zones=ZONES.filter(z=>(z.name_en+' '+(z.name_ar||'')).toLowerCase().includes(k)).slice(0,6)
+    .map(z=>({kind:'zone',id:z.id,name:(LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en,detail:t('co_place_area')}));
+  PL_ITEMS=[...zones,...(places||[]).map(p=>({kind:'place',name:p.name,detail:p.detail,lat:p.lat,lng:p.lng}))];
+  PL_ACTIVE=-1;
+  const row=(it,i)=>`<li role="option" id="pl_${i}" data-pl="${i}" class="pl-item"><span class="pl-ic">${svg(it.kind==='zone'?'home':'pin')}</span><span class="pl-txt"><b>${esc(it.name)}</b>${it.detail?`<small>${esc(it.detail)}</small>`:''}</span></li>`;
+  let html='';
+  if(zones.length)html+=`<li class="pl-head" role="presentation">${t('co_place_areas')}</li>`+zones.map(row).join('');
+  const pl=PL_ITEMS.slice(zones.length);
+  if(pl.length)html+=`<li class="pl-head" role="presentation">${t('co_place_places')}</li>`+pl.map((it,j)=>row(it,j+zones.length)).join('');
+  if(loading)html+=`<li class="pl-note" role="presentation">${t('co_place_searching')}</li>`;
+  else if(!PL_ITEMS.length)html+=`<li class="pl-note" role="presentation">${t('co_place_none')}</li>`;
+  l.innerHTML=html;l.hidden=false;
+  const i=$('#coLoc');if(i)i.setAttribute('aria-expanded','true');
+}
+function onPlaceInput(){
+  const q=($('#coLoc').value||'').trim();
+  coData.placeName='';   // typing again means nothing is chosen until a row is picked
+  clearTimeout(PL_TIMER);
+  if(q.length<2){closePlaceList();return;}
+  renderPlaceList(q,[],q.length>=2);
+  const seq=++PL_SEQ;
+  PL_TIMER=setTimeout(async()=>{
+    try{
+      const r=await fetch(API+'/api/places?q='+encodeURIComponent(q)).then(r=>r.json());
+      if(seq!==PL_SEQ)return;
+      renderPlaceList(q,(r&&r.places)||[],false);
+    }catch{ if(seq===PL_SEQ)renderPlaceList(q,[],false); }
+  },300);
+}
+function onPlaceKey(e){
+  const l=$('#coLocList');if(!l||l.hidden||!PL_ITEMS.length){if(e.key==='Enter')e.preventDefault();return;}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();PL_ACTIVE=(PL_ACTIVE+(e.key==='ArrowDown'?1:-1)+PL_ITEMS.length)%PL_ITEMS.length;
+    $$('#coLocList .pl-item').forEach(li=>li.classList.toggle('on',+li.dataset.pl===PL_ACTIVE));
+    $('#coLoc').setAttribute('aria-activedescendant','pl_'+PL_ACTIVE);
+  }else if(e.key==='Enter'){e.preventDefault();pickPlace(PL_ITEMS[Math.max(0,PL_ACTIVE)]);}
+  else if(e.key==='Escape')closePlaceList();
+}function zoneName(){const z=ZONES.find(z=>String(z.id)===String(coData.zoneId));return z?((LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en):''}
 function needsProof(id){return ['wave','afri','qmoney','bank'].includes(id)}
 function payDetails(id){
   const name=PAYINFO.pay_account_name||STORE_NAME;
@@ -3507,14 +3598,24 @@ function renderCheckout(){
         <div class="pay-opt ${coData.deliv==='home'?'sel':''}" data-deliv="home"><div class="po-logo" style="background:var(--green-700)">${svg('home')}</div><div class="po-main"><b>${t('co_home')}</b><small>${t('co_home_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
         <div class="pay-opt ${coData.deliv==='pickup'?'sel':''}" data-deliv="pickup"><div class="po-logo" style="background:var(--gold-600)">${svg('box')}</div><div class="po-main"><b>${t('co_pickup')}</b><small>${t('co_pickup_s')}</small></div><div class="po-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div></div>
         <div id="addrFields" style="${coData.deliv==='home'?'':'display:none'}">
-          <div class="field" style="margin-top:14px"><label>${t('co_location')} *</label>
+          <!-- Location: search like Yobal Express — type a few letters, pick the place from the list.
+               The delivery area is worked out from the place; the area list stays one tap away. -->
+          <div class="field place-field" style="margin-top:14px"><label for="coLoc">${t('co_location')} *</label>
+            <div class="place-box">
+              ${svg('pin','place-ic')}
+              <input type="search" id="coLoc" autocomplete="off" enterkeyhint="search" value="${esc(coData.placeName||(coData.zoneId&&!coData.lat?zoneName():''))}"
+                placeholder="${t('co_place_ph')}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="coLocList">
+              <ul class="place-list" id="coLocList" role="listbox" hidden></ul>
+            </div>
+            <div class="place-alt"><a href="#" id="coZoneShow">${t('co_place_list')}</a></div>
+          </div>
+          <div class="field" id="coZoneWrap" style="${coData.zoneAsk?'':'display:none'}"><label for="coZone" id="coZoneLbl">${coData.zoneAsk==='which'?t('co_place_which'):t('co_location')}</label>
             <select id="coZone">
               <option value="">${t('co_select_location')}</option>
               ${ZONES.map(z=>`<option value="${z.id}" ${String(coData.zoneId)===String(z.id)?'selected':''}>${(LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en}${yobalOn()?'':' — '+money(z.fee)}</option>`).join('')}
-            </select>
-            <div class="hint" style="font-size:.78rem;color:var(--muted);margin-top:4px">${t('co_location_note')}</div></div>
-          ${yobalOn()?`<div class="yb-loc"><button type="button" class="btn btn-outline yb-gps" id="coGps">${svg('pin')}<span>${coData.lat?t('yb_loc_ok'):t('yb_use_loc')}</span></button><div class="yb-price" id="coYbPrice">${yobalPriceLine()}</div></div>`:''}
-          <div class="field"><label>${t('co_address')} *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="${t('co_address')}"></div>
+            </select></div>
+          <div class="yb-loc"><button type="button" class="btn btn-outline yb-gps${coData.placeKind==='gps'?' done':''}" id="coGps">${svg('pin')}<span>${coData.placeKind==='gps'?t('yb_loc_ok'):(yobalOn()?t('yb_use_loc'):t('co_use_loc'))}</span></button>
+            <div class="yb-price" id="coYbPrice">${yobalPriceLine()}</div></div>          <div class="field"><label>${t('co_address')} *</label><input type="text" id="coAddr" value="${coData.addr||''}" placeholder="${t('co_address')}"></div>
           <div class="field"><label>${t('co_area')}</label><input type="text" id="coArea" value="${coData.area||''}" placeholder="${t('co_area')}"></div>
         </div>
 
@@ -3578,10 +3679,17 @@ function renderCheckout(){
   if($('#coNext'))$('#coNext').onclick=coNext;
   if($('#coPlace'))$('#coPlace').onclick=placeOrder;
   $$('#checkoutCard [data-deliv]').forEach(el=>el.onclick=()=>{coData.deliv=el.dataset.deliv;$('#addrFields').style.display=coData.deliv==='home'?'block':'none';$$('#checkoutCard [data-deliv]').forEach(x=>x.classList.toggle('sel',x===el))});
-  if($('#coZone'))$('#coZone').onchange=()=>{coData.zoneId=$('#coZone').value||null;requestYobalQuote();};
+  // the area list: either the customer's choice instead of searching, or the answer to "which area is this place in?"
+  if($('#coZone'))$('#coZone').onchange=()=>{const v=$('#coZone').value||null;$('#coZone').classList.remove('invalid');
+    if(coData.zoneAsk==='which'){coData.zoneId=v;coData.zoneAsk=v?'':'which';paintYobalPrice();return;}
+    const z=ZONES.find(z=>String(z.id)===String(v));if(z)pickPlace({kind:'zone',id:z.id,name:(LANG==='ar'&&z.name_ar)?z.name_ar:z.name_en});};
+  if($('#coLoc')){$('#coLoc').oninput=onPlaceInput;$('#coLoc').onkeydown=onPlaceKey;$('#coLoc').onblur=()=>setTimeout(closePlaceList,180);}
+  // mousedown, not click: the row must be picked before the box loses focus and the list closes
+  if($('#coLocList'))$('#coLocList').onmousedown=e=>{const li=e.target.closest('[data-pl]');if(!li)return;e.preventDefault();pickPlace(PL_ITEMS[+li.dataset.pl]);};
+  if($('#coZoneShow'))$('#coZoneShow').onclick=e=>{e.preventDefault();coData.zoneAsk=coData.zoneAsk||'list';showZonePicker(true);const s=$('#coZone');if(s)s.focus();};
   if($('#coGps'))$('#coGps').onclick=useMyLocation;
   // Yobal: show a price as soon as there is an area to price (e.g. a signed-in customer's saved area)
-  if(yobalOn()&&coStep===2&&coData.deliv==='home'&&!YQ&&(coData.zoneId||coData.lat))requestYobalQuote();
+  if(coStep===2&&coData.deliv==='home'&&!isUK()&&!YQ&&(coData.zoneId||coData.lat))requestYobalQuote();
   $$('#checkoutCard [data-pay]').forEach(el=>el.onclick=()=>{coData.pay=el.dataset.pay;$$('#checkoutCard [data-pay]').forEach(x=>x.classList.toggle('sel',x===el));const ph=$('#payHint');if(ph)ph.textContent=coData.pay==='online'?t('pay_online_hint'):t('pay_confirm_wa');renderPayDetail();});
   if(coStep===3)renderPayDetail();
   if(coStep===4){
@@ -3628,7 +3736,7 @@ function renderPayDetail(){
 function captureStep(){
   if(coStep===1){coData.name=$('#coName').value.trim();coData.phone=$('#coPhone').value.trim();}
   if(coStep===1&&$('#coEmail'))coData.email=$('#coEmail').value.trim();
-  if(coStep===2){if($('#coZone'))coData.zoneId=$('#coZone').value||null;coData.addr=$('#coAddr')?.value.trim();coData.area=$('#coArea')?.value.trim();coData.notes=$('#coNotes').value.trim();
+  if(coStep===2){if($('#coZone')&&$('#coZoneWrap')&&$('#coZoneWrap').style.display!=='none'&&$('#coZone').value)coData.zoneId=$('#coZone').value;coData.addr=$('#coAddr')?.value.trim();coData.area=$('#coArea')?.value.trim();coData.notes=$('#coNotes').value.trim();
     if($('#coPostcode'))coData.postcode=$('#coPostcode').value.trim().toUpperCase();}
 }
 function coNext(){
@@ -3656,7 +3764,9 @@ function coNext(){
     if(!coData.addr||!coData.area||!pcOk){toast(pcOk?'Enter your address and town':'Enter a valid UK postcode');return;}
   }
   else if(coStep===2&&coData.deliv==='home'){
-    if(!coData.zoneId){const ze=$('#coZone');if(ze)ze.classList.add('invalid');toast(LANG==='ar'?'اختر منطقة التوصيل':'Choose your delivery location');return;}
+    if(!coData.zoneId){
+      if(coData.lat){coData.zoneAsk='which';showZonePicker(true);toast(t('co_place_which'));return;}
+      const pe=$('#coLoc');if(pe){pe.classList.add('invalid');pe.focus();}toast(LANG==='ar'?'ابحث عن موقعك واختره من القائمة':'Search for your location and pick it from the list');return;}
     if(!coData.addr){const ae=$('#coAddr');if(ae)ae.classList.add('invalid');toast(LANG==='ar'?'أدخل عنوان التوصيل':'Enter your delivery address');return;}
   }
   coStep++; renderCheckout();

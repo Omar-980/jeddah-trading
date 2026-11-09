@@ -113,6 +113,65 @@ module.exports = function createYobal({ getSetting }) {
              lng: Math.round(found.reduce((s, p) => s + p.lng, 0) / found.length * 1e5) / 1e5 };
   }
 
+  /* ---------- Place search for checkout ----------
+     Like Yobal Express's own app: the customer types a few letters and picks the place from a
+     list — Yobal's well-known landmarks, the area centres above, and OpenStreetMap results
+     (preferring Greater Banjul, but anywhere in The Gambia). Answers are kept for a day, and the
+     map is asked at most once a second, as OpenStreetMap requires. */
+  const LANDMARKS = [
+    ['Banjul International Airport', 'Yundum', 13.338, -16.6522], ['Westfield Junction', 'Serrekunda', 13.4446, -16.6789],
+    ['Serrekunda Market', 'Serrekunda', 13.438, -16.6781], ['Senegambia Strip', 'Kololi', 13.441, -16.733],
+    ['Kairaba Avenue', 'Pipeline', 13.456, -16.69], ['Arch 22', 'Banjul', 13.4531, -16.5779],
+    ['Banjul Ferry Terminal', 'Banjul', 13.4466, -16.5752], ['Bakau Fish Market', 'Bakau', 13.48, -16.683],
+    ['Brusubi Turntable', 'Brusubi', 13.412, -16.746], ['Brikama Market', 'Brikama', 13.2717, -16.6481],
+    ['Sukuta Traffic Lights', 'Sukuta', 13.4105, -16.7085], ['Tipper Garage', 'Bakoteh', 13.4245, -16.6935],
+    ['Old Jeshwang', 'Kanifing', 13.444, -16.643], ['Coastal Road', 'Brufut / Sanyang', 13.37, -16.77],
+  ];
+  const title = s => s.replace(/\b\w/g, c => c.toUpperCase());
+  const PLACE_CACHE = new Map();   // query → { t, rows }
+  let lastMapCall = 0;
+  async function mapSearch(q) {
+    if (process.env.YOBAL_MAP_LOOKUP === 'off') return [];
+    const wait = lastMapCall + 1100 - Date.now();
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    lastMapCall = Date.now();
+    try {
+      const u = 'https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=gm&addressdetails=0'
+        + `&viewbox=${SERVICE_BOX.w},${SERVICE_BOX.n},${SERVICE_BOX.e},${SERVICE_BOX.s}&q=` + encodeURIComponent(q);
+      const r = await fetch(u, { headers: { 'User-Agent': 'JeddahTrading/1.0 (shopjeddahtrading.com)', 'Accept-Language': 'en' },
+        signal: AbortSignal.timeout(8000) });
+      const rows = await r.json();
+      return (Array.isArray(rows) ? rows : []).map(x => {
+        const [name, ...rest] = String(x.display_name || '').split(', ');
+        return { name, detail: rest.filter(p => p !== 'The Gambia' && p !== 'Gambia').slice(0, 2).join(', '), lat: Number(x.lat), lng: Number(x.lon) };
+      }).filter(p => p.name && validPoint(p.lat, p.lng));
+    } catch { return []; }
+  }
+  async function searchPlaces(query) {
+    const q = String(query || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (q.length < 2) return [];
+    const key = q.toLowerCase();
+    const hit = PLACE_CACHE.get(key);
+    if (hit && Date.now() - hit.t < 86400000) return hit.rows;
+    const local = [
+      ...LANDMARKS.filter(l => (l[0] + ' ' + l[1]).toLowerCase().includes(key)).map(l => ({ name: l[0], detail: l[1], lat: l[2], lng: l[3] })),
+      ...Object.entries(AREA_CENTRES).filter(([n]) => n.includes(key)).map(([n, p]) => ({ name: title(n), detail: 'Area', lat: p[0], lng: p[1] })),
+    ];
+    const remote = q.length >= 3 ? await mapSearch(q) : [];
+    // one entry per place: drop map results sitting on top of a landmark of the same name
+    const rows = [];
+    for (const p of [...local, ...remote]) {
+      if (rows.some(r => r.name.toLowerCase() === p.name.toLowerCase() && Math.abs(r.lat - p.lat) < 0.01 && Math.abs(r.lng - p.lng) < 0.01)) continue;
+      rows.push({ name: p.name.slice(0, 80), detail: String(p.detail || '').slice(0, 80), lat: Math.round(p.lat * 1e5) / 1e5, lng: Math.round(p.lng * 1e5) / 1e5 });
+      if (rows.length >= 10) break;
+    }
+    PLACE_CACHE.set(key, { t: Date.now(), rows });
+    if (PLACE_CACHE.size > 2000) PLACE_CACHE.delete(PLACE_CACHE.keys().next().value);
+    return rows;
+  }
+  /** Straight-line km between two points (exported for "which area is this in"). */
+  function distanceKm(a, b) { return km(a, b); }
+
   class YobalError extends Error { constructor(msg, code) { super(msg); this.code = code || ''; } }
 
   async function call(method, path, body) {
@@ -191,5 +250,5 @@ module.exports = function createYobal({ getSetting }) {
   }
 
   return { enabled, mode, validPoint, pickupPlace, e164, quote, book, cancel, verifySignature, hasSecret: () => !!hookSecret(), YobalError,
-    listedPoint, mapPoint };
+    listedPoint, mapPoint, searchPlaces, distanceKm };
 };
