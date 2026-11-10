@@ -459,6 +459,10 @@ async function placeOrder(b, ctx = {}) {
     let subtotal = resolved.subtotal;
     if (!items.length) return { status: 400, body: { error: 'No valid items' } };
     const isPickup = market === 'gm' && b.delivery_method === 'pickup';
+    // A digital address is decoded here; its point replaces any position the browser sent.
+    const plus = (market === 'gm' && !isPickup) ? PLUS.fromOrder(b.delivery_plus_code) : null;
+    if (plus && YOBAL.validPoint(plus.lat, plus.lng)) { b.delivery_lat = plus.lat; b.delivery_lng = plus.lng; }
+    else if (plus) return { status: 400, body: { error: 'That digital address is outside The Gambia' } };
     // Delivery fee comes from the chosen zone (authoritative, server-side); free over the threshold.
     let freeOver, zoneName = '', zoneFee, zoneRow = null;
     if (market === 'uk') {
@@ -484,7 +488,7 @@ async function placeOrder(b, ctx = {}) {
     let provider = '', yq = null, yobalNote = '';
     if (market === 'gm' && !isPickup && YOBAL.enabled()) {
       try {
-        yq = await yobalPrice({ lat: b.delivery_lat, lng: b.delivery_lng, zone: zoneRow, quoteId: b.yobal_quote_id });
+        yq = await yobalPrice({ lat: b.delivery_lat, lng: b.delivery_lng, zone: zoneRow, quoteId: b.yobal_quote_id, src: plus ? 'code' : 'gps' });
         provider = 'yobal'; zoneFee = yq.fare;
       } catch (e) {
         provider = 'own'; yobalNote = e.message || 'Yobal Express could not price this address';
@@ -539,10 +543,15 @@ async function placeOrder(b, ctx = {}) {
     // Who delivers, and — for Yobal — where to and at what fare (what the shop owes Yobal,
     // even when the customer got free delivery).
     if (provider) {
-      const pt = yq ? yq.point : yobalPoint(b.delivery_lat, b.delivery_lng, zoneRow);
+      const pt = yq ? yq.point : yobalPoint(b.delivery_lat, b.delivery_lng, zoneRow, plus ? 'code' : 'gps');
       db.prepare(`UPDATE orders SET delivery_provider=?, delivery_lat=?, delivery_lng=?, delivery_loc_src=?, yobal_quote_id=?, yobal_fare=?, yobal_error=? WHERE id=?`)
         .run(provider, pt ? pt.lat : null, pt ? pt.lng : null, pt ? pt.src : '', yq ? yq.quoteId : '', yq ? yq.fare : 0,
              yobalNote ? 'Not sent to Yobal Express: ' + yobalNote.slice(0, 200) : '', info.lastInsertRowid);
+    }
+    // The digital address is kept with every delivery, whoever carries it — staff and couriers open it on the map.
+    if (plus) {
+      db.prepare("UPDATE orders SET delivery_plus_code=?, delivery_lat=?, delivery_lng=?, delivery_loc_src='code' WHERE id=?")
+        .run(plus.code, plus.lat, plus.lng, info.lastInsertRowid);
     }
     // decrement stock for confirmed inventory + record in the stock ledger
     decrementStockForItems(items, 'order', orderNumber, '', market);
@@ -588,6 +597,7 @@ function wa() {
    checkout, book the courier when the order is confirmed, call it off if the order is, and turn
    Yobal's webhook events into the shop's own order statuses. */
 const YOBAL = require('./yobal')({ getSetting });
+const PLUS = require('./pluscode');   // customers' digital addresses (Google Plus Codes)
 
 /* Each delivery area's centre is found automatically — from the built-in list of area centres,
    or once on OpenStreetMap — and never typed by staff. Runs at start-up for any area not yet
@@ -631,9 +641,9 @@ function nearestZone(lat, lng) {
 }
 
 /** Where the courier goes: the customer's shared location, or else their zone's centre. */
-function yobalPoint(lat, lng, zone) {
+function yobalPoint(lat, lng, zone, src = 'gps') {
   const own = YOBAL.validPoint(lat, lng);
-  if (own) return { ...own, approximate: false, src: 'gps' };
+  if (own) return { ...own, approximate: false, src };
   const z = zone && YOBAL.validPoint(zone.lat, zone.lng);
   return z ? { ...z, approximate: true, src: 'zone' } : null;
 }
@@ -641,8 +651,8 @@ function yobalPoint(lat, lng, zone) {
 /** Yobal's price to one place. A quote the shopper was shown is reused while Yobal still honours
     it (same spot, under 55 minutes), so the order is charged exactly what checkout showed. The
     fare always comes from Yobal or this server's record of it — never from the browser. */
-async function yobalPrice({ lat, lng, zone, quoteId }) {
-  const pt = yobalPoint(lat, lng, zone);
+async function yobalPrice({ lat, lng, zone, quoteId, src }) {
+  const pt = yobalPoint(lat, lng, zone, src);
   if (!pt) throw new YOBAL.YobalError('Share your location or choose your area so we can price delivery', 'no_location');
   if (quoteId) {
     const q = db.prepare("SELECT * FROM yobal_quotes WHERE quote_id=? AND created_at > datetime('now','-55 minutes')").get(String(quoteId).slice(0, 80));
@@ -682,8 +692,9 @@ async function bookYobal(orderId) {
       externalRef: o.order_number,
       quoteId: o.yobal_quote_id || '',
       fare: Number(o.yobal_fare) || 0,
-      dropoff: { ...pt, approximate: o.delivery_loc_src !== 'gps',
+      dropoff: { ...pt, approximate: !['gps', 'code'].includes(o.delivery_loc_src),
         area: o.delivery_zone || o.delivery_area || '', landmark: String(o.delivery_address || o.delivery_area || o.delivery_zone || '').slice(0, 200),
+        details: o.delivery_plus_code ? 'Digital address (Plus Code): ' + o.delivery_plus_code : undefined,
         contactName: o.customer_name, contactPhone: YOBAL.e164(o.customer_phone) },
       readyAt: new Date(Date.now() + prep * 60000),
       parcelDescription: `${getSetting('store_name') || 'Jeddah Trading'} order ${o.order_number} · ${units} ${units === 1 ? 'item' : 'items'}`,
@@ -1419,7 +1430,7 @@ async function api(req, res, url) {
       order_number: o.order_number, status: o.status, payment_status: o.payment_status,
       customer_name: o.customer_name, customer_phone: o.customer_phone,
       delivery_method: o.delivery_method, delivery_address: o.delivery_address,
-      delivery_area: o.delivery_area, delivery_zone: o.delivery_zone,
+      delivery_area: o.delivery_area, delivery_zone: o.delivery_zone, delivery_plus_code: o.delivery_plus_code || '',
       payment_method: o.payment_method, subtotal: o.subtotal, discount: o.discount || 0, coupon_code: o.coupon_code || '', delivery_fee: o.delivery_fee,
       total: o.total, notes: o.notes, created_at: o.created_at, items,
       /* Yobal Express: the customer gives the 4-digit code to the courier at the door — so it is
@@ -1454,7 +1465,12 @@ async function api(req, res, url) {
   if (r[0] === 'places' && method === 'GET') {
     const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     if (chatRateLimited('pl|' + ip, 60, 10 * 60 * 1000)) return send(res, 429, { error: 'Too many searches — try again shortly' });
-    return send(res, 200, { places: await YOBAL.searchPlaces(url.searchParams.get('q') || '') });
+    const q = url.searchParams.get('q') || '';
+    // a pasted digital address (Plus Code / map coordinates) is the place itself — no map search
+    const da = YOBAL.digitalAddress(q);
+    if (da && da.outside) return send(res, 200, { places: [], digital: 'outside' });
+    if (da) return send(res, 200, { places: [da], digital: 'ok' });
+    return send(res, 200, { places: await YOBAL.searchPlaces(q) });
   }
   if (r[0] === 'reviews' && method === 'POST') {
     const b = await readBody(req);
@@ -1873,7 +1889,7 @@ async function api(req, res, url) {
           if (o.market !== 'gm' || o.delivery_method === 'pickup') return send(res, 400, { error: 'Only home deliveries in The Gambia can go by Yobal Express' });
           const zone = db.prepare('SELECT * FROM delivery_zones WHERE name_en=?').get(o.delivery_zone || '');
           try {
-            const q = await yobalPrice({ lat: o.delivery_lat, lng: o.delivery_lng, zone });
+            const q = await yobalPrice({ lat: o.delivery_lat, lng: o.delivery_lng, zone, src: o.delivery_loc_src === 'code' ? 'code' : 'gps' });
             db.prepare("UPDATE orders SET delivery_provider='yobal', delivery_lat=?, delivery_lng=?, delivery_loc_src=?, yobal_quote_id=?, yobal_fare=?, yobal_error='' WHERE id=?")
               .run(q.point.lat, q.point.lng, q.point.src, q.quoteId, q.fare, id);
           } catch (e) { return send(res, 400, { error: e.message || 'Yobal Express could not price this address' }); }

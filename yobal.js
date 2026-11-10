@@ -12,6 +12,7 @@
 
    Money crosses this file in dalasi; Yobal counts in bututs (D1 = 100 bututs). */
 const crypto = require('node:crypto');
+const PLUS = require('./pluscode');
 
 module.exports = function createYobal({ getSetting }) {
   const setting = (k, d = '') => String(getSetting(k, d) ?? d).trim();
@@ -169,6 +170,22 @@ module.exports = function createYobal({ getSetting }) {
     if (PLACE_CACHE.size > 2000) PLACE_CACHE.delete(PLACE_CACHE.keys().next().value);
     return rows;
   }
+  /** A digital address (Plus Code, or pasted map coordinates) typed in the search box.
+      → null when it isn't one, { outside: true } when it points outside The Gambia, else one place row. */
+  function digitalAddress(query) {
+    const townPoint = name => {
+      const k = String(name || '').toLowerCase().trim();
+      const l = LANDMARKS.find(l => l[0].toLowerCase() === k || l[1].toLowerCase() === k);
+      return listedPoint(name) || (l ? { lat: l[2], lng: l[3] } : null);
+    };
+    const d = PLUS.parse(query, townPoint);
+    if (!d) return null;
+    if (!validPoint(d.lat, d.lng)) return { outside: true, typed: d.typed };
+    // which area it sits in, for the second line
+    let near = '', best = 6;
+    for (const [n, p] of Object.entries(AREA_CENTRES)) { const k = km(d, { lat: p[0], lng: p[1] }); if (k < best) { best = k; near = title(n); } }
+    return { name: d.coords ? d.code : (d.typed + (d.town ? ' ' + d.town : '')).slice(0, 80), detail: near, lat: d.lat, lng: d.lng, code: d.code, kind: 'code' };
+  }
   /** Straight-line km between two points (exported for "which area is this in"). */
   function distanceKm(a, b) { return km(a, b); }
 
@@ -250,5 +267,5 @@ module.exports = function createYobal({ getSetting }) {
   }
 
   return { enabled, mode, validPoint, pickupPlace, e164, quote, book, cancel, verifySignature, hasSecret: () => !!hookSecret(), YobalError,
-    listedPoint, mapPoint, searchPlaces, distanceKm };
+    listedPoint, mapPoint, searchPlaces, digitalAddress, distanceKm };
 };
