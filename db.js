@@ -631,8 +631,10 @@ if (!columnExists('delivery_zones', 'point_src')) db.exec("ALTER TABLE delivery_
 // Where the customer said they are (their phone's location), when they shared it.
 if (!columnExists('orders', 'delivery_lat'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lat REAL');
 if (!columnExists('orders', 'delivery_lng'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lng REAL');
-// 'gps' = the customer's own location; 'zone' = only their zone's centre (approximate)
+// 'gps' = the customer's own location; 'code' = their digital address; 'zone' = only their zone's centre (approximate)
 if (!columnExists('orders', 'delivery_loc_src'))    db.exec("ALTER TABLE orders ADD COLUMN delivery_loc_src TEXT DEFAULT ''");
+// The customer's digital address — a full Google Plus Code, e.g. 7C55C8VC+RC ('' = none given).
+if (!columnExists('orders', 'delivery_plus_code'))  db.exec("ALTER TABLE orders ADD COLUMN delivery_plus_code TEXT DEFAULT ''");
 // Who carries this order: '' or 'own' = the shop's couriers, 'yobal' = Yobal Express.
 if (!columnExists('orders', 'delivery_provider'))   db.exec("ALTER TABLE orders ADD COLUMN delivery_provider TEXT DEFAULT ''");
 if (!columnExists('orders', 'yobal_quote_id'))      db.exec("ALTER TABLE orders ADD COLUMN yobal_quote_id TEXT DEFAULT ''");
@@ -1116,6 +1118,7 @@ function deleteCustomerData(customerId) {
     tally.orders = orders.length;
     const scrub = db.prepare(`UPDATE orders SET customer_name='Deleted customer', customer_phone='',
       customer_email='', delivery_address='', delivery_area='', postcode='', notes='',
+      delivery_plus_code='', delivery_lat=NULL, delivery_lng=NULL,
       payment_proof='', customer_id=NULL WHERE id=?`);
     for (const o of orders) scrub.run(o.id);
 

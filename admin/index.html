@@ -3320,7 +3320,7 @@ function renderOrders(){
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
         <div><div style="font-weight:700;color:var(--green-800);font-size:1.05rem">${o.order_number} <span class="tag ${o.status==='delivered'?'green':o.status==='cancelled'?'red':'gold'}">${STATUS_LABEL[o.status]||o.status}</span> <span class="tag ${o.channel==='onsite'?'blue':o.channel==='whatsapp'?'green':o.channel==='messenger'?'fb':'grey'}">${o.channel==='onsite'?'In-shop':o.channel==='whatsapp'?'WhatsApp':o.channel==='messenger'?'Messenger':'Online'}</span></div>
           <div style="font-size:.86rem;color:var(--muted);margin-top:3px">${esc(o.customer_name)}${o.customer_phone?' · <span dir="ltr">'+esc(o.customer_phone)+'</span>':''} · ${new Date(o.created_at.replace(' ','T')+'Z').toLocaleString()}${o.staff?' · by '+esc(o.staff):''}</div>
-          <div style="font-size:.84rem;margin-top:4px">${o.delivery_method==='home'?'Home delivery':'Shop pickup'}${o.delivery_zone?' · <b>'+esc(o.delivery_zone)+'</b>':''}${o.delivery_address?(' — '+esc(o.delivery_address)+(o.delivery_area?', '+esc(o.delivery_area):'')):''} · ${PAY_LABEL[o.payment_method]||o.payment_method}${o.courier_name?' · 🛵 '+esc(o.courier_name):''}</div>
+          <div style="font-size:.84rem;margin-top:4px">${o.delivery_method==='home'?'Home delivery':'Shop pickup'}${o.delivery_zone?' · <b>'+esc(o.delivery_zone)+'</b>':''}${o.delivery_address?(' — '+esc(o.delivery_address)+(o.delivery_area?', '+esc(o.delivery_area):'')):''}${plusCodeLink(o)} · ${PAY_LABEL[o.payment_method]||o.payment_method}${o.courier_name?' · 🛵 '+esc(o.courier_name):''}</div>
           ${o.notes?`<div style="font-size:.82rem;color:var(--muted);margin-top:3px">Note: ${esc(o.notes)}</div>`:''}
           ${yobalOrderBlock(o,editable)}</div>
         <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--green-800)">${money(o.total)}</div><div style="font-size:.76rem;color:var(--muted)">${money(o.subtotal)} + ${money(o.delivery_fee)} delivery</div>${o.payment_proof?`<img src="${o.payment_proof}" class="pay-proof-thumb" data-proof="${o.payment_proof}" title="Payment proof — click to view" alt="proof">`:''}</div>
@@ -3400,9 +3400,14 @@ document.addEventListener('click',async e=>{
 });
 
 // Printable invoice/receipt for an order
+/* The customer's digital address (Google Plus Code), opening at the exact spot in Google Maps. */
+function plusCodeLink(o){
+  if(!o||!o.delivery_plus_code||o.delivery_method==='pickup')return '';
+  return ` · <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.delivery_plus_code)}" target="_blank" rel="noopener" title="Digital address — open in Google Maps">📍 <span dir="ltr">${esc(o.delivery_plus_code)}</span></a>`;
+}
 function printInvoice(o){
   const items=(o.items||[]).map(i=>`<tr><td>${esc(i.name)} ×${i.qty}</td><td style="text-align:right">${money(i.line)}</td></tr>`).join('');
-  const deliv=o.delivery_method==='home'?('Home delivery'+(o.delivery_zone?' · '+o.delivery_zone:'')+(o.delivery_address?' · '+o.delivery_address:'')+(o.delivery_area?', '+o.delivery_area:'')):'Shop pickup';
+  const deliv=o.delivery_method==='home'?('Home delivery'+(o.delivery_zone?' · '+o.delivery_zone:'')+(o.delivery_address?' · '+o.delivery_address:'')+(o.delivery_area?', '+o.delivery_area:'')+(o.delivery_plus_code?' · Digital address '+o.delivery_plus_code:'')):'Shop pickup';
   const store=SETTINGS.store_name||'Jeddah Trading';
   const date=o.created_at?new Date(o.created_at.replace(' ','T')+'Z').toLocaleString():'';
   const w=window.open('','_blank','width=460,height=700');
@@ -3730,7 +3735,7 @@ function renderDeliveries(){
     return `<div class="panel del-card">
       <div class="del-head"><div><b>${o.order_number}</b> <span class="tag ${onWay?'blue':'gold'}">${onWay?'On the way':'To collect'}</span></div><div class="del-total">${money(o.total)} ${payTag}</div></div>
       <div class="del-cust">${esc(o.customer_name||'Customer')} · <span dir="ltr">${esc(o.customer_phone||'')}</span></div>
-      <div class="del-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${loc||'—'}</div>
+      <div class="del-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${loc||'—'}${plusCodeLink(o)}</div>
       <div class="del-items">${items}</div>
       <div class="del-actions">
         <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}">WhatsApp</a>
