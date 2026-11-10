@@ -1115,8 +1115,7 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
                 <p class="set-sub">Customers pay Yobal's price for their spot. Confirming an order books the courier; Yobal's updates move it to <i>Out for delivery</i> and <i>Delivered</i>.</p>
                 <div class="grid2">
                   <div class="field"><label>Mode</label><select id="s_yobal_mode"><option value="live">Live — real couriers</option><option value="test">Test — practice, no courier is sent</option></select></div>
-                  <div class="field"><label>Packing time (minutes)</label><input id="s_yobal_prep_minutes" type="number" min="0" max="240" placeholder="30">
-                    <div class="hint">The courier is timed to arrive this long after you confirm.</div></div>
+                  <div class="field"><label>When the courier is called</label><div class="hint" style="margin-top:8px">Straight away — the moment you confirm an order, Yobal starts looking for a courier.</div></div>
                 </div>
                 <div class="set-subhead">Where couriers collect</div>
                 <div class="grid2">
@@ -4401,7 +4400,7 @@ const SETTINGS_FIELDS=['store_name','whatsapp_number','delivery_fee','free_deliv
 'uk_enabled','uk_delivery_fee','uk_free_over','uk_business_name','uk_business_address','uk_returns_address',
 'uk_vat_number','uk_bank_account_name','uk_bank_name','uk_sort_code','uk_account_number','uk_paypal_link',
 'uk_dispatch_note','uk_returns_policy',
-'delivery_provider','yobal_mode','yobal_api_url','yobal_api_key','yobal_webhook_secret','yobal_prep_minutes',
+'delivery_provider','yobal_mode','yobal_api_url','yobal_api_key','yobal_webhook_secret',
 'yobal_pickup_lat','yobal_pickup_lng','yobal_pickup_area','yobal_pickup_landmark','yobal_pickup_phone','checkout_area_list'];
 const PAY_METHOD_LIST=[['wave','Wave — transfer + screenshot'],['afri','AfriMoney — transfer + screenshot'],
   ['qmoney','QMoney — transfer + screenshot'],['bank','Bank transfer — screenshot'],
