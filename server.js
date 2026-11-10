@@ -686,7 +686,6 @@ async function bookYobal(orderId) {
   const cod = o.payment_status === 'paid' ? 0 : r2(Number(o.total) || 0);
   const items = (() => { try { return JSON.parse(o.items_json || '[]'); } catch { return []; } })();
   const units = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
-  const prep = Math.max(0, Math.min(240, Number(getSetting('yobal_prep_minutes', '30')) || 0));
   try {
     const d = await YOBAL.book({
       externalRef: o.order_number,
@@ -696,7 +695,9 @@ async function bookYobal(orderId) {
         area: o.delivery_zone || o.delivery_area || '', landmark: String(o.delivery_address || o.delivery_area || o.delivery_zone || '').slice(0, 200),
         details: o.delivery_plus_code ? 'Digital address (Plus Code): ' + o.delivery_plus_code : undefined,
         contactName: o.customer_name, contactPhone: YOBAL.e164(o.customer_phone) },
-      readyAt: new Date(Date.now() + prep * 60000),
+      /* Ready now: Yobal starts looking for a courier the moment the order is confirmed. (A later
+         time made Yobal hold the job until 15 minutes before it, so orders sat "Finding a courier".) */
+      readyAt: new Date(),
       parcelDescription: `${getSetting('store_name') || 'Jeddah Trading'} order ${o.order_number} · ${units} ${units === 1 ? 'item' : 'items'}`,
       cod,
     });

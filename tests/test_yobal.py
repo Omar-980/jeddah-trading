@@ -157,6 +157,9 @@ try:
         chk("…cash on delivery for the full total, billed to the shop", bk["codButut"]==86500 and bk["payer"]=="business", (bk["codButut"],bk["payer"]))
         chk("…picking up at the shop and dropping at the customer's spot", abs(bk["pickup"]["lat"]-SHOP[0])<1e-6 and abs(bk["dropoff"]["lat"]-13.44)<1e-6 and bk["dropoff"]["approximate"] is False)
         chk("…with Gambian phone numbers in full", bk["dropoff"]["contactPhone"]=="+2207012345", bk["dropoff"]["contactPhone"])
+        from datetime import datetime, timezone
+        ready=datetime.fromisoformat(bk["readyAt"].replace("Z","+00:00"))
+        chk("…ready now, so Yobal looks for a courier straight away", abs((ready-datetime.now(timezone.utc)).total_seconds())<120, bk["readyAt"])
         row=order(tok,o1["order_number"])
         chk("the order holds Yobal's delivery and code", row["yobal_delivery_id"]=="d_1" and row["yobal_code"]=="4821" and row["yobal_status"]=="searching")
         api(f"/api/admin/orders/{o1['id']}",{"status":"packed"},tok,"PATCH")
