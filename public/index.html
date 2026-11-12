@@ -5050,7 +5050,14 @@ function showOfflineBar(){
   requestAnimationFrame(()=>bar.classList.add('show'));
   addEventListener('online',()=>location.reload(),{once:true});
 }
-const STANDALONE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+/* Already an app: installed from the browser, or the Google Play app (which opens with ?src=play,
+   from android-app://com.shopjeddahtrading.app). Remembered for the visit, so it holds even when
+   the Play app falls back to showing an address bar. Then nothing offers to install the app. */
+const IN_PLAY_APP=(()=>{try{
+  if(/[?&]src=play\b/.test(location.search)||/^android-app:\/\//.test(document.referrer))sessionStorage.setItem('jt_play_app','1');
+  return sessionStorage.getItem('jt_play_app')==='1';
+}catch{return /[?&]src=play\b/.test(location.search)}})();
+const STANDALONE=()=>IN_PLAY_APP||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 let INSTALL_EVT=null;
 function installDismissed(){try{return localStorage.getItem('jt_install_x')==='1'}catch{return false}}
 function dismissInstall(){try{localStorage.setItem('jt_install_x','1')}catch{}
