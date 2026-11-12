@@ -1096,6 +1096,14 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
                   <div class="field"><label>Opening hours — Arabic</label><input id="s_contact_hours_ar" dir="rtl"></div>
                 </div>
               </div>
+              <div class="set-card">
+                <h3>Android app (Google Play)</h3>
+                <p class="set-sub">Links the Play Store app to this website, so the app opens full screen with no browser address bar.</p>
+                <div class="field"><label>App package name</label><input id="s_android_package" dir="ltr" placeholder="com.shopjeddahtrading.app"></div>
+                <div class="field"><label>Certificate fingerprints (SHA-256)</label>
+                  <textarea id="s_android_cert_sha256" dir="ltr" rows="3" placeholder="AB:CD:12:…" style="font-family:ui-monospace,Consolas,monospace;font-size:.82rem"></textarea>
+                  <div class="hint">From Play Console → your app → Test and release → App integrity → App signing. Paste the <b>App signing key</b> SHA-256, and the <b>Upload key</b> one on a new line. Check it worked at <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a>.</div></div>
+              </div>
             </div>
 
             <!-- ============ DELIVERY ============ -->
