@@ -633,6 +633,29 @@ if (!columnExists('orders', 'delivery_lat'))        db.exec('ALTER TABLE orders 
 if (!columnExists('orders', 'delivery_lng'))        db.exec('ALTER TABLE orders ADD COLUMN delivery_lng REAL');
 // 'gps' = the customer's own location; 'code' = their digital address; 'zone' = only their zone's centre (approximate)
 if (!columnExists('orders', 'delivery_loc_src'))    db.exec("ALTER TABLE orders ADD COLUMN delivery_loc_src TEXT DEFAULT ''");
+/* Editing an order after it was placed (customer adds or drops something).
+   amount_paid: what the customer has actually paid so far. 0 on older rows — for those a 'paid'
+   order counts as paid in full (its total), so nothing changes for them.
+   payment_status 'partial' = paid something, but the edited order now costs more.
+   yobal_ref_seq: Yobal keeps one delivery per reference, so a re-booking after an edit goes out
+   as JT-2026-0042-1, -2 … */
+if (!columnExists('orders', 'amount_paid'))   db.exec('ALTER TABLE orders ADD COLUMN amount_paid REAL NOT NULL DEFAULT 0');
+if (!columnExists('orders', 'edit_count'))    db.exec('ALTER TABLE orders ADD COLUMN edit_count INTEGER NOT NULL DEFAULT 0');
+if (!columnExists('orders', 'edited_at'))     db.exec("ALTER TABLE orders ADD COLUMN edited_at TEXT DEFAULT ''");
+if (!columnExists('orders', 'yobal_ref_seq')) db.exec('ALTER TABLE orders ADD COLUMN yobal_ref_seq INTEGER NOT NULL DEFAULT 0');
+// Every change to an order's items: who, when, what it was and what it became.
+db.exec(`CREATE TABLE IF NOT EXISTS order_edits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  order_number TEXT DEFAULT '',
+  by_user TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  before_json TEXT DEFAULT '[]',
+  after_json TEXT DEFAULT '[]',
+  old_total REAL NOT NULL DEFAULT 0,
+  new_total REAL NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
 // The customer's digital address — a full Google Plus Code, e.g. 7C55C8VC+RC ('' = none given).
 if (!columnExists('orders', 'delivery_plus_code'))  db.exec("ALTER TABLE orders ADD COLUMN delivery_plus_code TEXT DEFAULT ''");
 // Who carries this order: '' or 'own' = the shop's couriers, 'yobal' = Yobal Express.
@@ -1184,16 +1207,22 @@ function recordInvestorSalesForOrder(orderId, orderNumber, items, byRef = '') {
     }
   }
 }
-// Order cancelled / returned / refunded → reverse the profit rows exactly once.
+/* Order cancelled / returned / refunded, or its items edited → take back the profit it still
+   holds. It reverses what is left standing (each stake, at each price), so calling it twice
+   reverses nothing the second time, and an order that was edited and later cancelled is
+   reversed exactly once in total. */
 function reverseInvestorSalesForOrder(orderId) {
-  const already = db.prepare('SELECT COUNT(*) c FROM investor_sales WHERE order_id=? AND qty<0').get(orderId).c;
-  if (already) return;
-  const rows = db.prepare('SELECT * FROM investor_sales WHERE order_id=? AND qty>0').all(orderId);
+  const rows = db.prepare(`SELECT investment_id, investor_id, order_number, product_id, variant_id, unit_price,
+      SUM(qty) qty, SUM(revenue) revenue, SUM(cost) cost, SUM(gross_profit) gross_profit,
+      SUM(investor_profit) investor_profit, SUM(business_profit) business_profit
+    FROM investor_sales WHERE order_id=?
+    GROUP BY investment_id, investor_id, product_id, COALESCE(variant_id,0), unit_price
+    HAVING SUM(qty) > 0`).all(orderId);
   for (const s of rows) {
     db.prepare(`INSERT INTO investor_sales(investment_id,investor_id,order_id,order_number,product_id,variant_id,qty,unit_price,revenue,cost,gross_profit,investor_profit,business_profit)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(s.investment_id, s.investor_id, s.order_id, s.order_number, s.product_id, s.variant_id || null, -s.qty, s.unit_price,
-           -s.revenue, -s.cost, -s.gross_profit, -s.investor_profit, -s.business_profit);
+      .run(s.investment_id, s.investor_id, orderId, s.order_number, s.product_id, s.variant_id || null, -s.qty, s.unit_price,
+           -r2(s.revenue), -r2(s.cost), -r2(s.gross_profit), -r2(s.investor_profit), -r2(s.business_profit));
     db.prepare("UPDATE investments SET status='active' WHERE id=? AND status='completed'").run(s.investment_id);
   }
 }

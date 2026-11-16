@@ -139,8 +139,8 @@ function markOrderPaid(order, amount, via, ref) {
     logAct(null, 'payment_short', `${order.order_number}: paid ${amount} against ${order.total} (${via})`);
     return `underpaid ${amount} of ${order.total}`;
   }
-  db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now') WHERE id=? AND payment_status!='paid'")
-    .run(order.id);
+  db.prepare("UPDATE orders SET payment_status='paid', paid_at=datetime('now'), amount_paid=? WHERE id=? AND payment_status!='paid'")
+    .run(r2(amount), order.id);
   logAct(null, 'payment_received', `${order.order_number} paid ${amount} via Modem Pay (${via}${ref ? ' ' + ref : ''})`);
   wa().notifyOrder(order.id, 'paid').catch(() => {});   // "we received your payment" on WhatsApp
   return 'paid';
@@ -667,6 +667,14 @@ async function yobalPrice({ lat, lng, zone, quoteId, src }) {
 }
 
 const YOBAL_DONE = ['delivered', 'cancelled', 'returned', 'refunded', 'failed'];
+/* What the customer has paid so far, and what is still owed. Older orders have no amount_paid:
+   for them 'paid' means paid in full. */
+function amountPaid(o) {
+  if (o.payment_status === 'paid') return Number(o.amount_paid) > 0 ? Number(o.amount_paid) : Number(o.total) || 0;
+  if (o.payment_status === 'partial') return Number(o.amount_paid) || 0;
+  return 0;
+}
+const balanceDue = o => Math.max(0, r2((Number(o.total) || 0) - amountPaid(o)));
 /** Books the Yobal courier for an order. Safe to call again: an order is booked once. */
 async function bookYobal(orderId) {
   const o = db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
@@ -681,14 +689,23 @@ async function bookYobal(orderId) {
   if (!YOBAL.enabled()) return fail("Yobal Express isn't switched on in Settings");
   const pt = YOBAL.validPoint(o.delivery_lat, o.delivery_lng);
   if (!pt) return fail('This order has no delivery location');
-  /* The courier collects whatever is still owed at the door. An order paid online owes
-     nothing; anything else is collected in full and Yobal pays it over at the weekly statement. */
-  const cod = o.payment_status === 'paid' ? 0 : r2(Number(o.total) || 0);
+  /* The courier collects whatever is still owed at the door: nothing on an order paid in full,
+     the difference on one that grew after it was paid, the whole total otherwise. Yobal pays
+     it over at the weekly statement. */
+  const cod = balanceDue(o);
   const items = (() => { try { return JSON.parse(o.items_json || '[]'); } catch { return []; } })();
   const units = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+  /* Yobal keeps one delivery per reference and hands the same one back if asked again. A delivery
+     that was cancelled (an edit, or "book again" after a failure) is re-booked under a new
+     reference: JT-2026-0042-1, -2 … */
+  let seq = Number(o.yobal_ref_seq) || 0;
+  if (o.yobal_delivery_id) {
+    seq += 1;
+    db.prepare('UPDATE orders SET yobal_ref_seq=? WHERE id=?').run(seq, o.id);
+  }
   try {
     const d = await YOBAL.book({
-      externalRef: o.order_number,
+      externalRef: o.order_number + (seq ? '-' + seq : ''),
       quoteId: o.yobal_quote_id || '',
       fare: Number(o.yobal_fare) || 0,
       dropoff: { ...pt, approximate: !['gps', 'code'].includes(o.delivery_loc_src),
@@ -783,6 +800,9 @@ async function changeOrderStatus(id, b, actor, base) {
     reverseInvestorSalesForOrder(id);
   db.prepare('UPDATE orders SET status=?, payment_status=?, courier_id=?, courier_name=? WHERE id=?').run(
     nextStatus, payStatus, courierId, courierName, id);
+  // Marked paid by staff or the courier: the customer has now paid the whole (current) total.
+  if (payStatus === 'paid' && cur.payment_status !== 'paid')
+    db.prepare('UPDATE orders SET amount_paid=total WHERE id=?').run(id);
   // Stamp the moment it became a sale, so the day's takings follow the delivery date.
   // Cleared again if the order is later taken back out of delivered.
   if (nextStatus === 'delivered' && cur.status !== 'delivered')
@@ -806,6 +826,151 @@ async function changeOrderStatus(id, b, actor, base) {
   }
   return { status: 200, body: { ok: true, whatsapp, yobal } };
 }
+
+/* ---------- Editing an order's items ----------
+   A customer orders, then rings to add or drop something. Staff change the lines; everything
+   that hangs off them follows, worked out here and never taken from the browser:
+   - prices: a line already on the order keeps the price the customer was charged; anything new
+     is priced as the shop sells it today;
+   - stock: only the difference moves (added units out, removed units back), in the ledger as
+     "order_edit";
+   - investors: the order's profit rows are reversed and recorded again for the new lines;
+   - totals: the subtotal, the delivery fee (free-delivery rule included) and the total; the
+     order's discount stays, capped at the new subtotal;
+   - payment: a paid order that now costs more becomes 'partial' with the difference to collect;
+     one that costs less stays paid and shows the refund owed;
+   - Yobal Express: if a courier is already booked, the job is cancelled and booked again so the
+     courier collects the right cash.
+   Once the goods have left the shop (out for delivery, or Yobal's courier has them) the order is
+   closed to edits. `preview` returns the new figures without changing anything. */
+const EDITABLE_STATUSES = ['new', 'confirmed', 'paid', 'packed'];
+async function editOrderItems(id, b, actor, preview) {
+  const o = db.prepare('SELECT * FROM orders WHERE id=?').get(id);
+  if (!o) return { status: 404, body: { error: 'not found' } };
+  if (!EDITABLE_STATUSES.includes(o.status))
+    return { status: 400, body: { error: o.status === 'out_for_delivery' || o.status === 'delivered'
+      ? 'The goods have left the shop — this order can no longer be changed'
+      : 'This order is closed and can no longer be changed' } };
+  if (o.delivery_provider === 'yobal' && ['picked_up', 'delivered'].includes(o.yobal_status))
+    return { status: 400, body: { error: "Yobal's courier already has the parcel — this order can no longer be changed" } };
+  const market = o.market === 'uk' ? 'uk' : 'gm';
+  const oldItems = (() => { try { return JSON.parse(o.items_json || '[]'); } catch { return []; } })();
+  const key = (pid, vid) => Number(pid) + ':' + (Number(vid) || 0);
+  const oldByKey = new Map(oldItems.map(it => [key(it.id, it.variantId), it]));
+
+  // Merge the requested lines (the same product and size twice counts once) and drop zero lines.
+  const want = new Map();
+  for (const it of Array.isArray(b.items) ? b.items : []) {
+    const k = key(it.id, it.variant_id || it.variantId);
+    const qty = Math.max(0, Math.min(9999, Math.trunc(Number(it.qty) || 0)));
+    want.set(k, (want.get(k) || 0) + qty);
+  }
+  const items = [];
+  for (const [k, qty] of want) {
+    if (qty <= 0) continue;
+    const [pid, vid] = k.split(':').map(Number);
+    const had = oldByKey.get(k);
+    if (had) {
+      // Already on the order: same price, same cost as when it was bought.
+      const unit = Number(had.price) || 0;
+      items.push({ ...had, qty, line: r2(unit * qty) });
+    } else {
+      const r = resolveSaleItems([{ id: pid, variant_id: vid, qty }], market);
+      if (!r.items.length) {
+        const p = queries.productById(pid);
+        return { status: 400, body: { error: (p ? p.en.name : 'That product') + " can't be added — it is not for sale" + (market === 'uk' ? ' in the UK' : '') } };
+      }
+      items.push(r.items[0]);
+    }
+  }
+  if (!items.length) return { status: 400, body: { error: 'An order needs at least one item — to call it off, set the status to Cancelled' } };
+
+  // Stock: only added units need to be on the shelf.
+  const uk = market === 'uk';
+  const deltas = [];
+  for (const it of items) {
+    const had = oldByKey.get(key(it.id, it.variantId));
+    const d = it.qty - (had ? Number(had.qty) || 0 : 0);
+    if (d) deltas.push({ it, d });
+  }
+  for (const it of oldItems) if (!want.get(key(it.id, it.variantId))) deltas.push({ it, d: -(Number(it.qty) || 0) });
+  for (const { it, d } of deltas) {
+    if (d <= 0) continue;
+    const row = it.variantId
+      ? db.prepare(`SELECT ${uk ? 'uk_stock' : 'stock'} s FROM product_variants WHERE id=?`).get(it.variantId)
+      : db.prepare(`SELECT ${uk ? 'uk_stock' : 'stock'} s FROM products WHERE id=?`).get(it.id);
+    const left = row ? Number(row.s) || 0 : 0;
+    if (left < d) {
+      const label = it.name + (it.variant_label ? ' · ' + it.variant_label : '');
+      return { status: 400, body: { error: `Only ${left} more of ${label} in stock` } };
+    }
+  }
+
+  // Totals, the same way checkout works them out.
+  const subtotal = r2(items.reduce((s, it) => s + it.line, 0));
+  const discount = Math.min(Number(o.discount) || 0, subtotal);
+  const goods = r2(subtotal - discount);
+  let fee = 0;
+  if (o.delivery_method !== 'pickup') {
+    const freeOver = Number(getSetting(uk ? 'uk_free_over' : 'free_delivery_over')) || 0;
+    // The fee this address costs before any free-delivery rule.
+    let base = Number(o.delivery_fee) || 0;
+    if (!base) {
+      if (uk) base = Number(getSetting('uk_delivery_fee')) || 0;
+      else if (o.delivery_provider === 'yobal' && Number(o.yobal_fare) > 0) base = Number(o.yobal_fare);
+      else {
+        const z = db.prepare('SELECT fee FROM delivery_zones WHERE name_en=?').get(o.delivery_zone || '');
+        base = z ? Number(z.fee) || 0 : Number(getSetting('delivery_fee')) || 0;
+      }
+    }
+    fee = (uk ? (freeOver > 0 && goods >= freeOver) : goods >= freeOver) ? 0 : base;
+  }
+  const total = r2(goods + fee);
+  const paid = amountPaid(o);
+  const payStatus = o.payment_status === 'refunded' ? 'refunded'
+    : paid <= 0 ? (o.payment_status || 'unpaid')
+    : paid + 0.01 >= total ? 'paid' : 'partial';
+  const summary = { items, subtotal, discount, delivery_fee: fee, total, old_total: Number(o.total) || 0,
+    paid, balance_due: Math.max(0, r2(total - paid)), refund_due: Math.max(0, r2(paid - total)), payment_status: payStatus };
+  if (preview) return { status: 200, body: { ok: true, preview: true, ...summary } };
+  if (!deltas.length && total === Number(o.total)) return { status: 200, body: { ok: true, unchanged: true, ...summary } };
+
+  // Write it all.
+  const by = String(actor || '');
+  for (const { it, d } of deltas) {
+    if (it.variantId) db.prepare(`UPDATE product_variants SET ${uk ? 'uk_stock' : 'stock'} = MAX(0, ${uk ? 'uk_stock' : 'stock'} - ?) WHERE id=?`).run(d, it.variantId);
+    else db.prepare(`UPDATE products SET ${uk ? 'uk_stock' : 'stock'} = MAX(0, ${uk ? 'uk_stock' : 'stock'} - ?) WHERE id=?`).run(d, it.id);
+    logMove(it.id, -d, uk ? 'order_edit_uk' : 'order_edit', o.order_number, by, it.variantId || null);
+  }
+  if (!uk) { reverseInvestorSalesForOrder(o.id); recordInvestorSalesForOrder(o.id, o.order_number, items); }
+  db.prepare(`UPDATE orders SET items_json=?, subtotal=?, discount=?, delivery_fee=?, total=?, payment_status=?,
+      amount_paid=?, edit_count=edit_count+1, edited_at=datetime('now') WHERE id=?`)
+    .run(JSON.stringify(items), subtotal, discount, fee, total, payStatus, paid, o.id);
+  const note = String(b.note || '').trim().slice(0, 300);
+  db.prepare('INSERT INTO order_edits(order_id,order_number,by_user,note,before_json,after_json,old_total,new_total) VALUES(?,?,?,?,?,?,?,?)')
+    .run(o.id, o.order_number, by, note, o.items_json || '[]', JSON.stringify(items), Number(o.total) || 0, total);
+  logAct(by, 'order_edit', `${o.order_number}: ${money(o.total, o.currency)} → ${money(total, o.currency)}${note ? ' — ' + note : ''}`);
+
+  // Yobal Express: a booked courier must collect the new amount.
+  let yobal = null;
+  if (o.delivery_provider === 'yobal' && o.yobal_delivery_id && !['failed', 'cancelled', 'booking_failed'].includes(o.yobal_status)) {
+    const fresh = db.prepare('SELECT * FROM orders WHERE id=?').get(o.id);
+    if (r2(balanceDue(fresh)) !== r2(Number(o.yobal_cod) || 0)) {
+      try {
+        if (YOBAL.mode() !== 'test' && !String(o.yobal_delivery_id).startsWith('test_')) await YOBAL.cancel(o.yobal_delivery_id, 'order_changed');
+        db.prepare("UPDATE orders SET yobal_status='cancelled', yobal_quote_id='' WHERE id=?").run(o.id);
+        yobal = await bookYobal(o.id);
+      } catch (e) {
+        const msg = e.code === 'already_picked_up' ? "Yobal's courier already has the parcel — tell them the new amount: " + money(balanceDue(fresh), o.currency)
+          : "Couldn't change the Yobal booking — tell their operations team the courier should collect " + money(balanceDue(fresh), o.currency);
+        db.prepare('UPDATE orders SET yobal_error=? WHERE id=?').run(msg, o.id);
+        yobal = { ok: false, error: msg };
+      }
+    }
+  }
+  return { status: 200, body: { ok: true, ...summary, yobal } };
+}
+const money = (n, cur) => (cur === 'GBP' ? '£' : 'D') + (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 /** Applies one Yobal Express event to its order. Each event id is applied once. */
 async function applyYobalEvent(evt, base) {
@@ -1858,6 +2023,21 @@ async function api(req, res, url) {
     }
 
     // ---- ORDERS ----
+    /* Change an order's items after it was placed. { items:[{id, variant_id, qty}], note,
+       preview } — with preview the new totals come back and nothing is saved. */
+    if (r[1] === 'orders' && r[2] && r[3] === 'items' && method === 'PUT') {
+      if (!requirePerm(req, res, 'orders')) return;
+      const b = await readBody(req);
+      const out = await editOrderItems(Number(r[2]), b, me.username, !!b.preview);
+      return send(res, out.status, out.body);
+    }
+    // The history of item changes on one order, newest first.
+    if (r[1] === 'orders' && r[2] && r[3] === 'edits' && method === 'GET') {
+      if (!hasPerm(me, 'orders')) return send(res, 403, { error: 'No permission' });
+      const rows = db.prepare('SELECT * FROM order_edits WHERE order_id=? ORDER BY id DESC').all(Number(r[2]));
+      rows.forEach(e => { for (const k of ['before_json', 'after_json']) { try { e[k.replace('_json', '')] = JSON.parse(e[k]); } catch { e[k.replace('_json', '')] = []; } delete e[k]; } });
+      return send(res, 200, { edits: rows });
+    }
     if (r[1] === 'orders' && method === 'GET') {
       if (!hasPerm(me, 'orders')) return send(res, 403, { error: 'No permission' });
       const status = url.searchParams.get('status');

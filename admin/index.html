@@ -347,6 +347,23 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
 .pay-proof-thumb:hover{border-color:var(--green-600)}
 .order-items{background:#fbf8f0;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;font-size:.86rem}
 .order-items .oi{display:flex;justify-content:space-between;padding:3px 0}
+/* Edit order items */
+.oe-lines{display:flex;flex-direction:column;gap:8px}
+.oe-line{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:10px;padding:9px 10px}
+.oe-line.new{border-color:var(--green-500);background:#f3faf5}
+.oe-line.gone{opacity:.5}.oe-line.gone .oe-name{text-decoration:line-through}
+.oe-name{font-size:.88rem;font-weight:600;min-width:0}.oe-name small{display:block;font-weight:400;color:var(--muted)}
+.oe-qty{display:flex;align-items:center;gap:4px}
+.oe-qty button{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--cream);font-size:1rem;cursor:pointer}
+.oe-qty input{width:46px;text-align:center;padding:5px;border:1px solid var(--border);border-radius:8px}
+.oe-x{border:0;background:none;color:#b42318;font-size:.8rem;cursor:pointer;padding:4px}
+.oe-add{display:grid;grid-template-columns:minmax(0,1fr) 64px auto;gap:8px;margin-top:12px}
+.oe-add select,.oe-add input{padding:8px;border:1px solid var(--border);border-radius:8px;min-width:0}
+.oe-sum{margin:12px 0;background:#fbf8f0;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:.88rem}
+.oe-sum .r{display:flex;justify-content:space-between;padding:2px 0}.oe-sum .t{font-weight:700;font-size:1rem;border-top:1px dashed var(--border);margin-top:4px;padding-top:6px}
+.oe-sum .due{color:#9a5b00;font-weight:600}.oe-sum .ref{color:#1c7d4a;font-weight:600}.oe-sum .err{color:#b42318}
+.oe-hist{font-size:.8rem;color:var(--muted);margin-bottom:12px}.oe-hist div{padding:3px 0;border-top:1px solid var(--border)}
+.pay-note{font-size:.76rem;font-weight:600;margin-top:2px}.pay-note.due{color:#9a5b00}.pay-note.ref{color:#1c7d4a}
 .hint{font-size:.78rem;color:var(--muted);margin-top:4px}
 .perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .perm-grid label{display:flex;align-items:center;gap:8px;font-size:.88rem;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;cursor:pointer}
@@ -1695,6 +1712,23 @@ select.status-sel{padding:7px 10px;border:1.5px solid var(--border);border-radiu
       </div>
       <p id="lrNoPhone" style="display:none;font-size:.8rem;color:var(--muted);margin:0">No phone number on this loan — add one to send it on WhatsApp.</p>
     </div>
+  </div>
+</div></div>
+
+<!-- EDIT ORDER ITEMS — the customer adds or drops something after ordering -->
+<div class="modal" id="orderEditModal"><div class="modal-card" style="max-width:560px">
+  <div class="modal-head"><h3 id="oeTitle">Edit order</h3><button class="close-x" data-close="orderEditModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="modal-body">
+    <div id="oeLines" class="oe-lines"></div>
+    <div class="oe-add">
+      <select id="oeAddSel"><option value="">+ Add a product…</option></select>
+      <input id="oeAddQty" type="number" min="1" value="1" aria-label="Quantity to add">
+      <button class="btn btn-outline btn-sm" id="oeAddBtn" type="button">Add</button>
+    </div>
+    <div class="field" style="margin-top:12px"><label for="oeNote">Reason (optional)</label><input id="oeNote" maxlength="300" placeholder="e.g. Customer called to add 1 Zamzam"></div>
+    <div id="oeSum" class="oe-sum"></div>
+    <div id="oeHistory" class="oe-hist"></div>
+    <button class="btn btn-primary btn-block" id="oeSave" type="button">Save changes</button>
   </div>
 </div></div>
 
@@ -3330,12 +3364,13 @@ function renderOrders(){
           <div style="font-size:.84rem;margin-top:4px">${o.delivery_method==='home'?'Home delivery':'Shop pickup'}${o.delivery_zone?' · <b>'+esc(o.delivery_zone)+'</b>':''}${o.delivery_address?(' — '+esc(o.delivery_address)+(o.delivery_area?', '+esc(o.delivery_area):'')):''}${plusCodeLink(o)} · ${PAY_LABEL[o.payment_method]||o.payment_method}${o.courier_name?' · 🛵 '+esc(o.courier_name):''}</div>
           ${o.notes?`<div style="font-size:.82rem;color:var(--muted);margin-top:3px">Note: ${esc(o.notes)}</div>`:''}
           ${yobalOrderBlock(o,editable)}</div>
-        <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--green-800)">${money(o.total)}</div><div style="font-size:.76rem;color:var(--muted)">${money(o.subtotal)} + ${money(o.delivery_fee)} delivery</div>${o.payment_proof?`<img src="${o.payment_proof}" class="pay-proof-thumb" data-proof="${o.payment_proof}" title="Payment proof — click to view" alt="proof">`:''}</div>
+        <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--green-800)">${money(o.total)}</div><div style="font-size:.76rem;color:var(--muted)">${money(o.subtotal)} + ${money(o.delivery_fee)} delivery</div>${payNote(o)}${o.edit_count?`<div style="font-size:.74rem;color:var(--muted)">✏️ Edited${o.edit_count>1?' ×'+o.edit_count:''}</div>`:''}${o.payment_proof?`<img src="${o.payment_proof}" class="pay-proof-thumb" data-proof="${o.payment_proof}" title="Payment proof — click to view" alt="proof">`:''}</div>
       </div>
       <div class="order-items">${items}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
         ${editable?`<label style="font-size:.84rem;color:var(--muted)">Status:</label><select class="status-sel" data-ostatus="${o.id}">${STATUS.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${STATUS_LABEL[s]}</option>`).join('')}</select>`:''}
         ${(editable&&o.channel!=='onsite'&&o.delivery_provider!=='yobal')?`<label style="font-size:.84rem;color:var(--muted)">Courier:</label><select class="status-sel" data-assign="${o.id}"><option value="">— Unassigned —</option>${COURIERS.map(c=>`<option value="${c.id}" ${String(o.courier_id)===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`:''}
+        ${(editable&&orderEditable(o))?`<button class="btn btn-outline btn-sm" data-oedit="${o.id}">✏️ Edit items</button>`:''}
         <button class="btn btn-outline btn-sm" data-invoice="${o.id}">🧾 Invoice</button>
         ${o.payment_proof?`<button class="btn btn-outline btn-sm" data-proof="${o.payment_proof}">View payment proof</button>`:''}
         ${(waPhone&&o.channel!=='onsite')?`<a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/${waPhone}?text=${encodeURIComponent(stMsg)}" title="Send the current status + tracking link on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24z"/></svg>🔔 Notify status</a>`:''}
@@ -3351,6 +3386,100 @@ function renderOrders(){
   $$('[data-ostatus]').forEach(sel=>sel.onchange=async()=>{try{const r=await api('/admin/orders/'+sel.dataset.ostatus,{method:'PATCH',body:JSON.stringify({status:sel.value})});toast(r.yobal&&!r.yobal.ok?'Order updated — but Yobal Express: '+r.yobal.error:r.yobal&&r.yobal.ok&&!r.yobal.already?'Order updated — Yobal Express courier booked ✓':r.whatsapp&&r.whatsapp.sent?'Order updated — customer notified on WhatsApp ✓':'Order updated — use 🔔 Notify status to tell the customer');await loadStats();await loadOrders();}catch(e){toast(e.message);}});
   $$('[data-assign]').forEach(sel=>sel.onchange=()=>assignCourier(sel.dataset.assign,sel.value));
 }
+/* ---------- Editing an order's items ----------
+   The customer adds or drops something after ordering. The pop-up lists the order's lines with
+   − / + and Remove, and a picker to add a product; every change asks the server for the new
+   totals (it owns the money) and Save writes them. Closed once the goods have left the shop. */
+const ORDER_EDITABLE=['new','confirmed','paid','packed'];
+function orderEditable(o){
+  return ORDER_EDITABLE.includes(o.status)&&o.channel!=='onsite'&&!(o.delivery_provider==='yobal'&&['picked_up','delivered'].includes(o.yobal_status));
+}
+// What is paid and what is owed, under the total.
+function orderPaid(o){
+  if(o.payment_status==='paid')return Number(o.amount_paid)>0?Number(o.amount_paid):Number(o.total)||0;
+  if(o.payment_status==='partial')return Number(o.amount_paid)||0;
+  return 0;
+}
+function orderDue(o){return Math.max(0,Math.round(((Number(o.total)||0)-orderPaid(o))*100)/100);}
+function payNote(o){
+  const paid=orderPaid(o),total=Number(o.total)||0;
+  if(o.payment_status==='partial')return `<div class="pay-note due">Paid ${money(paid)} · collect ${money(orderDue(o))}</div>`;
+  if(o.payment_status==='paid'&&paid>total+0.01)return `<div class="pay-note ref">Refund owed: ${money(paid-total)}</div>`;
+  return '';
+}
+let OE=null, OE_T=0, OE_SEQ=0;
+function openOrderEdit(o){
+  OE={order:o,lines:(o.items||[]).map(i=>({id:i.id,variantId:i.variantId||0,name:i.name+(i.variant_label?' · '+i.variant_label:''),price:Number(i.price)||0,qty:Number(i.qty)||0,orig:Number(i.qty)||0,isNew:false}))};
+  $('#oeTitle').textContent='Edit order '+o.order_number;
+  $('#oeNote').value='';
+  $('#oeAddSel').innerHTML='<option value="">+ Add a product…</option>'+posUnits(false).sort((a,b)=>a.name.localeCompare(b.name))
+    .map(u=>`<option value="${u.key}" ${u.stock>0?'':'disabled'}>${esc(u.name)} — ${money(u.price)}${u.stock>0?'':' (out of stock)'}</option>`).join('');
+  $('#oeAddQty').value=1;
+  $('#oeHistory').innerHTML='';
+  renderOeLines();openModal('orderEditModal');oePreview();
+  if(o.edit_count)api('/admin/orders/'+o.id+'/edits').then(d=>{
+    $('#oeHistory').innerHTML='<b>Earlier changes</b>'+(d.edits||[]).map(e=>`<div>${new Date(e.created_at.replace(' ','T')+'Z').toLocaleString()} · ${esc(e.by_user||'')} · ${money(e.old_total)} → ${money(e.new_total)}${e.note?' — '+esc(e.note):''}</div>`).join('');
+  }).catch(()=>{});
+}
+function renderOeLines(){
+  $('#oeLines').innerHTML=OE.lines.map((l,i)=>`<div class="oe-line${l.isNew?' new':''}${l.qty===0?' gone':''}">
+      <div class="oe-name">${esc(l.name)}<small>${l.isNew?'New · ':''}${money(l.price)} each${!l.isNew&&l.qty!==l.orig?' · was ×'+l.orig:''}</small></div>
+      <div class="oe-qty"><button type="button" data-oe-minus="${i}" aria-label="One less">−</button><input type="number" min="0" value="${l.qty}" data-oe-qty="${i}" aria-label="Quantity"><button type="button" data-oe-plus="${i}" aria-label="One more">+</button></div>
+      <button type="button" class="oe-x" data-oe-rm="${i}">${l.qty===0?'':'Remove'}</button>
+    </div>`).join('');
+  $$('[data-oe-qty]').forEach(inp=>inp.onchange=()=>oeSetQty(+inp.dataset.oeQty,Math.max(0,Math.trunc(+inp.value||0)),false));
+}
+function oeSetQty(i,v,delta){
+  const l=OE.lines[i];if(!l)return;
+  l.qty=Math.max(0,delta?l.qty+v:v);
+  if(l.isNew&&l.qty===0)OE.lines.splice(i,1);
+  renderOeLines();oePreview();
+}
+$('#oeAddBtn').onclick=()=>{
+  const key=$('#oeAddSel').value;if(!key){toast('Choose a product to add');return;}
+  const u=posUnit(key,false);if(!u)return;
+  const q=Math.max(1,Math.trunc(+$('#oeAddQty').value||1));
+  const l=OE.lines.find(l=>l.id===u.id&&(l.variantId||0)===(u.variantId||0));
+  if(l)l.qty+=q;else OE.lines.push({id:u.id,variantId:u.variantId||0,name:u.name,price:u.price,qty:q,orig:0,isNew:true});
+  $('#oeAddSel').value='';$('#oeAddQty').value=1;
+  renderOeLines();oePreview();
+};
+const oeBody=preview=>JSON.stringify({preview,note:$('#oeNote').value,items:OE.lines.filter(l=>l.qty>0).map(l=>({id:l.id,variant_id:l.variantId||0,qty:l.qty}))});
+// Ask the server for the new figures — debounced, and only the latest answer is shown.
+function oePreview(){
+  clearTimeout(OE_T);
+  OE_T=setTimeout(async()=>{
+    const seq=++OE_SEQ, o=OE.order;
+    try{
+      const r=await api('/admin/orders/'+o.id+'/items',{method:'PUT',body:oeBody(true)});
+      if(seq!==OE_SEQ)return;
+      $('#oeSum').innerHTML=`<div class="r"><span>Subtotal</span><span>${money(r.subtotal)}</span></div>
+        ${r.discount?`<div class="r"><span>Discount</span><span>−${money(r.discount)}</span></div>`:''}
+        <div class="r"><span>Delivery</span><span>${r.delivery_fee?money(r.delivery_fee):'Free'}</span></div>
+        <div class="r t"><span>New total</span><span>${money(r.total)}</span></div>
+        <div class="r"><span>Was</span><span>${money(r.old_total)}</span></div>
+        ${r.paid?`<div class="r"><span>Already paid</span><span>${money(r.paid)}</span></div>`:''}
+        ${r.paid&&r.balance_due?`<div class="r due"><span>Customer still owes</span><span>${money(r.balance_due)}</span></div>`:''}
+        ${r.refund_due?`<div class="r ref"><span>Refund to customer</span><span>${money(r.refund_due)}</span></div>`:''}`;
+      $('#oeSave').disabled=false;
+    }catch(e){if(seq===OE_SEQ){$('#oeSum').innerHTML=`<div class="err">${esc(e.message)}</div>`;$('#oeSave').disabled=true;}}
+  },250);
+}
+$('#oeSave').onclick=async()=>{
+  const o=OE.order, btn=$('#oeSave');btn.disabled=true;
+  try{
+    const r=await api('/admin/orders/'+o.id+'/items',{method:'PUT',body:oeBody(false)});
+    closeModal('orderEditModal');
+    toast(r.unchanged?'Nothing changed':r.yobal&&!r.yobal.ok?'Order updated — but Yobal Express: '+r.yobal.error
+      :r.yobal&&r.yobal.ok?'Order updated — Yobal courier re-booked to collect '+money(r.balance_due)+' ✓'
+      :r.refund_due?'Order updated — refund '+money(r.refund_due)+' to the customer'
+      :r.paid&&r.balance_due?'Order updated — the customer still owes '+money(r.balance_due)
+      :'Order updated — new total '+money(r.total));
+    await loadStats();await loadOrders();
+  }catch(e){toast(e.message);}
+  btn.disabled=false;
+};
+
 /* ---------- Yobal Express on each order ----------
    Who is carrying it, where the courier is in the job, and what to do when something goes
    wrong: book again, call it off, or hand it to the shop's own couriers. In test mode the
@@ -3734,8 +3863,9 @@ function renderDeliveries(){
   $('#delList').innerHTML=DELIVERIES.map(o=>{
     const phone=(o.customer_phone||'').replace(/[^0-9]/g,'');
     const onWay=o.status==='out_for_delivery';
-    const codDue=o.payment_method==='cod'&&o.payment_status!=='paid';
-    const payTag=o.payment_status==='paid'?'<span class="tag green">Paid</span>':(codDue?'<span class="tag gold">Collect '+money(o.total)+'</span>':'<span class="tag grey">'+(PAY_LABEL[o.payment_method]||o.payment_method)+'</span>');
+    // Cash to collect: the whole total on cash on delivery, or what is left after an order grew once paid.
+    const codDue=(o.payment_method==='cod'&&o.payment_status!=='paid')||o.payment_status==='partial';
+    const payTag=o.payment_status==='paid'?'<span class="tag green">Paid</span>':(codDue?'<span class="tag gold">Collect '+money(orderDue(o))+'</span>':'<span class="tag grey">'+(PAY_LABEL[o.payment_method]||o.payment_method)+'</span>');
     const items=(o.items||[]).map(i=>esc(i.name)+' ×'+i.qty).join(', ');
     const waMsg='Assalamu alaikum '+(o.customer_name||'')+', I\'m on my way with your Jeddah Trading order '+o.order_number+'.';
     const loc=[o.delivery_zone,o.delivery_address,o.delivery_area].filter(Boolean).map(esc).join(', ');
@@ -3748,7 +3878,7 @@ function renderDeliveries(){
         <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}">WhatsApp</a>
         <a class="btn btn-outline btn-sm" href="tel:${o.customer_phone||''}">Call</a>
         ${onWay?'':`<button class="btn btn-gold btn-sm" data-del-go="${o.id}">🛵 On the way</button>`}
-        <button class="btn btn-success btn-sm" data-del-done="${o.id}" data-cod="${codDue?1:0}" data-total="${o.total}">✓ Delivered</button>
+        <button class="btn btn-success btn-sm" data-del-done="${o.id}" data-cod="${codDue?1:0}" data-total="${orderDue(o)}">✓ Delivered</button>
         <button class="btn btn-danger btn-sm" data-del-fail="${o.id}">Couldn't deliver</button>
       </div></div>`;
   }).join('');
@@ -4641,6 +4771,10 @@ document.addEventListener('click',async e=>{
   if(el=x('data-gimg-rm')){const i=+el.dataset.gimgRm;PGALLERY.splice(i,1);if(BG_INDEX===i)closeBgPanel();renderGallery();return;}
   if(el=x('data-gimg-cut')){openBgPanel(+el.dataset.gimgCut);return;}
   if(el=x('data-invoice')){const o=ORDERS.find(o=>o.id==el.dataset.invoice);if(o)printInvoice(o);return;}
+  if(el=x('data-oedit')){const o=ORDERS.find(o=>o.id==el.dataset.oedit);if(o)openOrderEdit(o);return;}
+  if(el=x('data-oe-minus')){oeSetQty(+el.dataset.oeMinus,-1,true);return;}
+  if(el=x('data-oe-plus')){oeSetQty(+el.dataset.oePlus,1,true);return;}
+  if(el=x('data-oe-rm')){oeSetQty(+el.dataset.oeRm,0,false);return;}
   if(el=x('data-proof')){window.open(el.dataset.proof,'_blank');return;}
   if(el=x('data-zone-save')){const id=el.dataset.zoneSave;const name=$('[data-zn="'+id+'"]').value.trim();const fee=+$('[data-zf="'+id+'"]').value||0;const active=$('[data-za="'+id+'"]').checked;const le=$('[data-zlat="'+id+'"]'),ge=$('[data-zlng="'+id+'"]');const lat=le?le.value.trim():undefined,lng=ge?ge.value.trim():undefined;try{await api('/admin/zones/'+id,{method:'PATCH',body:JSON.stringify({name_en:name,fee,is_active:active,lat,lng})});toast('Location saved');await loadZones();}catch(err){toast(err.message);}return;}
   if(el=x('data-zhere')){const id=el.dataset.zhere;hereInto('[data-zlat="'+id+'"]','[data-zlng="'+id+'"]');return;}
